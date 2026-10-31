@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.25] - 2026-10-31
+
+### Added
+- Native worker completion notices and `agents.result` / `agents.results` retrieval, with exact assistant text, explicit truncation, execution identities and preserved failure/abort output.
+- Optional checked JSON results using a bounded offline Ajv draft-07 profile, without remote references or data coercion.
+- Reporting-only `may_write` globs and observed write-path violations, with explicit incomplete coverage rather than sandbox claims.
+
+### Changed
+- Worker handoffs use result delivery instead of automatic communication-file writes. Existing run summaries remain bounded previews.
+- Completion notices stay bound to the initiating Pi session; retained results survive notification failure and restore as historical data without replay.
+
 ## [1.1.24] - 2026-10-09
 
 ### Added

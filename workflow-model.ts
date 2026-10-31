@@ -734,12 +734,13 @@ export function aggregateWorkflow(operation: NonNullable<WorkflowStep['operation
 export function normalizeWorkflowAgent(agent: ZergAgentDefinition): ZergAgentDefinition {
   workflowAssert(agent && typeof agent === 'object' && !Array.isArray(agent) && (Object.getPrototypeOf(agent) === Object.prototype || Object.getPrototypeOf(agent) === null), 'Expected plain agent definition');
   workflowAssert(Object.getOwnPropertySymbols(agent).length === 0, 'Agent symbol keys forbidden');
-  const optional = ['description', 'model', 'fallbackModels', 'maxTurns', 'tools', 'disallowedTools', 'permissionMode', 'metadata', 'extensions'];
+  const optional = ['description', 'model', 'fallbackModels', 'maxTurns', 'tools', 'disallowedTools', 'permissionMode', 'metadata', 'extensions', 'result_schema', 'may_write'];
   const required = ['id', 'label', 'prompt', 'source'];
   const out: Record<string, unknown> = {};
   for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(agent))) {
     workflowAssert('value' in descriptor && descriptor.enumerable && [...optional, ...required].includes(key), 'Unsupported/accessor agent field');
     if (descriptor.value === undefined && optional.includes(key)) continue;
+    workflowAssert(key !== 'result_schema' && key !== 'may_write', 'Standalone result_schema/may_write configuration is not supported in workflows; use a separate agent definition without result configuration.');
     out[key] = descriptor.value;
   }
   workflowAssert(required.every(k => typeof out[k] === 'string'), 'Missing required agent field');

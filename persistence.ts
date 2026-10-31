@@ -2,6 +2,7 @@ import { closeSync, constants, fsyncSync, fstatSync, lstatSync, mkdirSync, opend
 import { createHash, randomBytes } from 'node:crypto';
 import { dirname, parse as parsePath, resolve as resolvePath } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
+import { AGENT_RESULTS_KEY, restoreAgentResults } from './agent-results.js';
 import { recoverWorkflowState } from './workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY } from './workflow-model.js';
 import { recoverSessionMessages } from './session-messages.js';
@@ -496,7 +497,10 @@ function hydrateZergState(
       const message = 'Unsupported zerg persistence snapshot format.';
       return { info: { ...baseInfo, lastLoadError: message }, head: { ...readHead, loadError: message } };
     }
-    const loaded = createZergState(envelope.state as Partial<ZergState>);
+    const rawState = envelope.state as Partial<ZergState>;
+    const preparedState = rawState.extensions?.[AGENT_RESULTS_KEY] === undefined ? rawState : { ...rawState,
+      extensions: { ...rawState.extensions, [AGENT_RESULTS_KEY]: restoreAgentResults(rawState.extensions[AGENT_RESULTS_KEY]) } };
+    const loaded = createZergState(preparedState);
     // Recovery may retain saved readOnly, but must never revoke current authority.
     if (current.mode.readOnly === true) loaded.mode.readOnly = true;
     const recovered = recoverZergStateAfterRestart(loaded, {
@@ -592,6 +596,8 @@ export function recoverZergStateAfterRestart(
 ): { state: ZergState; recoveredRunIds: string[] } {
   const recoveredAt = (options.now ?? (() => new Date()))().toISOString();
   let next = recoverSessionMessages(state, recoveredAt);
+  if (state.extensions[AGENT_RESULTS_KEY] !== undefined) next = { ...next,
+    extensions: { ...next.extensions, [AGENT_RESULTS_KEY]: restoreAgentResults(state.extensions[AGENT_RESULTS_KEY]) } };
   if (state.extensions[WORKFLOW_EXTENSION_KEY] !== undefined) {
     try {
       next = { ...next, extensions: { ...next.extensions,

@@ -73,7 +73,7 @@ test('nonzero remains nonzero',()=>assert.equal(boundedCount(4),4));\n`);
   const baseline = supervisorTest(); assert.equal(baseline.status, 1);
   assert.match(baseline.stdout, /# fail 1/); assert.match(baseline.stdout, /zero remains zero/);
   const trace = [], requests = [], sessions = [], disposals = new Map(), gates = new Set();
-  const handoffs = new Map();
+  const receivedReports = new Map(), reportRuns = new Map();
   let active = 0, peakActive = 0, toolGate, startupGate, failure, serverFailure, owner, restartChild;
   let investigationGate, investigationReleased = false;
   function pause(signal) {
@@ -90,14 +90,15 @@ test('nonzero remains nonzero',()=>assert.equal(boundedCount(4),4));\n`);
       const { toolName, input } = event;
       if (toolName === 'read') {
         const allowed = role === 'investigator' ? [source] : role === 'designer' ? [tests] :
-          ['implementer', 'summary'].includes(role) ? [source, ...handoffs.values()] : [source, tests];
+          ['implementer', 'summary'].includes(role) ? [source] : [source, tests];
         assert(allowed.includes(input.path), 'Exact read path only');
       } else if (toolName === 'edit') {
         assert.equal(role, 'implementer'); assert.equal(input.path, source);
         assert.deepEqual(input, { path: source, edits: [{ oldText: 'value || max', newText: 'value ?? max' }] });
-        assert(handoffs.size === 2, 'Only leader AFTER both persisted handoffs may patch');
-        assert(readFileSync(handoffs.get('investigator'), 'utf8').includes('INVESTIGATION:'));
-        assert(readFileSync(handoffs.get('designer'), 'utf8').includes('REGRESSION:'));
+        assert.equal(receivedReports.size, 2, 'Only leader AFTER receiving both exact worker results may patch');
+        assert(receivedReports.get('investigator')?.final_message.includes('INVESTIGATION:'));
+        assert(receivedReports.get('designer')?.final_message.includes('REGRESSION:'));
+        assert(trace.some(row => row.kind === 'result' && row.role === 'implementer' && row.toolName === 'read' && !row.isError && JSON.stringify(row.content).includes('value || max')), 'Actual source read must precede edit');
       } else if (toolName === 'bash') {
         assert.equal(role, 'verifier'); assert.equal(input.command, command);
         assert.equal(input.timeout, 10);
@@ -126,6 +127,25 @@ export default function(pi) {
   }});
 }\n`);
   function text(message) { return typeof message.content === 'string' ? message.content : (message.content ?? []).map(block => block.text ?? '').join(''); }
+  async function receiveReports(role, messages, ids) {
+    const runId = reportRuns.get(role); assert(runId, 'Exact leader run required');
+    const leaderTask = messages.find(message => message.role === 'user' && text(message).includes('The worker pass finished with:'));
+    assert(leaderTask, 'Leader must actually receive worker-result previews');
+    const previews = text(leaderTask).split('\n').filter(line => line.startsWith('Untrusted worker data: '))
+      .map(line => JSON.parse(line.slice('Untrusted worker data: '.length)));
+    assert.equal(previews.length, ids.length);
+    for (const id of ids) {
+      const memberRunId = `${runId}-${id}`;
+      const preview = previews.find(result => result.agent_id === id);
+      assert(preview, 'Missing required received report: ' + id);
+      assert.equal(preview.run_id, runId); assert.equal(preview.member_run_id, memberRunId);
+      assert.equal(preview.state, 'done'); assert.equal(preview.omitted_chars, 0);
+      const retained = await execute({ action: 'agents.result', id, runId, memberRunId });
+      assert.equal(retained.data.status, 'found');
+      assert.deepEqual(preview, retained.data.result, 'Received preview must equal genuine exact retained worker result');
+      receivedReports.set(id, preview);
+    }
+  }
   const server = createServer(async (req, res) => {
     try {
       assert.equal(req.headers.authorization, 'Bearer dummy-journey-only');
@@ -159,11 +179,12 @@ export default function(pi) {
         if (!read(tests)) tool = ['read', { path: tests }];
         else { assert(readResult(tests).includes('zero remains zero')); answer = 'REGRESSION: immutable tests cover zero, negative, maximum, nonzero; baseline zero fails.'; }
       } else if (role === 'implementer') {
-        const required = [source, handoffs.get('investigator'), handoffs.get('designer')]; assert(required.every(Boolean));
-        const missing = required.find(path => !read(path));
-        if (missing) tool = ['read', { path: missing }];
+        await receiveReports(role, messages, ['investigator', 'designer']);
+        if (!read(source)) tool = ['read', { path: source }];
         else if (!results.some(result => result.name === 'edit')) {
-          assert(readResult(required[1]).includes('INVESTIGATION:')); assert(readResult(required[2]).includes('REGRESSION:'));
+          assert(readResult(source).includes('value || max'));
+          assert(receivedReports.get('investigator').final_message.includes('INVESTIGATION:'));
+          assert(receivedReports.get('designer').final_message.includes('REGRESSION:'));
           tool = ['edit', { path: source, edits: [{ oldText: 'value || max', newText: 'value ?? max' }] }];
         } else { assert.equal(readFileSync(source, 'utf8'), fixed); answer = 'IMPLEMENTED: one authorized narrow source patch; independent verification still required.'; }
       } else if (role === 'reviewer') {
@@ -175,10 +196,13 @@ export default function(pi) {
         if (!result) tool = ['bash', { command, timeout: 10 }];
         else { assert(result.content.includes('# pass 4')); assert(result.content.includes('# fail 0')); answer = 'VERIFIED: genuine absolute-node test command reports four pass, zero fail.'; }
       } else if (role === 'summary') {
-        const required = [handoffs.get('reviewer'), handoffs.get('verifier')]; assert(required.every(Boolean));
-        const missing = required.find(path => !read(path));
-        if (missing) tool = ['read', { path: missing }];
-        else { assert(readResult(required[0]).includes('REVIEWED:')); assert(readResult(required[1]).includes('VERIFIED:')); answer = 'ACCEPTED: independent review and actual verifier tests both present.'; }
+        await receiveReports(role, messages, ['reviewer', 'verifier']);
+        assert(receivedReports.get('reviewer').final_message.includes('REVIEWED:'));
+        assert(receivedReports.get('verifier').final_message.includes('VERIFIED:'));
+        const verified = trace.find(row => row.kind === 'result' && row.role === 'verifier' && row.toolName === 'bash');
+        assert(verified && !verified.isError); assert(JSON.stringify(verified.content).includes('# pass 4'));
+        assert(JSON.stringify(verified.content).includes('# fail 0'));
+        answer = 'ACCEPTED: independent review and actual verifier tests both present.';
       } else if (role === 'continuation') {
         if (!read(tests)) tool = ['read', { path: tests }];
         else { assert(readResult(tests).includes('zero remains zero')); answer = 'NEW_REVIEW_ONLY: extra immutable test inspection under current read-only tool policy.'; }
@@ -241,13 +265,11 @@ export default function(pi) {
         'cancel-stream', 'cancel-tool', 'cancel-startup', 'must-never-start', 'must-never-worker'].map(id => ({ id, reasoning: false, input: ['text'], contextWindow: 32768, maxTokens: 2048 })) } } }));
     owner = zerg.createZergControl(container, { persistence: { enabled: true, snapshotFile } });
     await define('investigator'); await define('designer');
-    await define('implementer', ['read', 'edit'], 'IMPLEMENTER_AUTHORITY: leader is sole source writer AFTER reading both handoffs. Only exact value || max to value ?? max edit in src/bounded-count.mjs; no test edits.');
+    await define('implementer', ['read', 'edit'], 'IMPLEMENTER_AUTHORITY: leader is sole source writer AFTER receiving both exact worker reports. Only exact value || max to value ?? max edit in src/bounded-count.mjs; no test edits.');
     await execute({ action: 'team.create', id: 'implementation', leader: 'implementer', members: ['investigator', 'designer'] });
-    const task = 'Investigate narrow zero-default defect, design regression, then implement exact nullish patch. Workers READONLY, leader sole source writer after handoffs. Immutable supervisor tests/sentinel. No Git/install/external services/delegation. Verifier later may execute ONLY ' + command;
+    const task = 'Investigate narrow zero-default defect, design regression, then implement exact nullish patch. Workers READONLY, leader sole source writer after receiving both exact worker reports. Immutable supervisor tests/sentinel. No Git/install/external services/delegation. Verifier later may execute ONLY ' + command;
     const launch = await execute({ action: 'run', agent: 'implementation', task, background: true, concurrency: 2 });
-    const running = await show(launch.runId);
-    handoffs.set('investigator', join(running.metadata.coordPath, 'investigator.md'));
-    handoffs.set('designer', join(running.metadata.coordPath, 'designer.md'));
+    reportRuns.set('implementer', launch.runId);
     await until(() => investigationGate && (state.getSubagentRunSnapshot(container.read(), launch.runId)?.nativeSessions ?? []).length >= 2, 'investigator live and exact worker identities');
     const live = (await show(launch.runId)).nativeSessions.find(ref => ref.agentDefinitionId === 'investigator');
     const sibling = (await show(launch.runId)).nativeSessions.find(ref => ref.agentDefinitionId === 'designer');
@@ -270,13 +292,13 @@ export default function(pi) {
     assert(literalEntry); assert.equal(literalEntry.content, literal);
     assert(!requests.filter(input => input.model === 'designer').some(input => JSON.stringify(input.messages).includes('NEW_LITERAL_JOURNEY')));
     await define('reviewer'); await define('verifier', ['read', 'bash']); await define('summary');
-    handoffs.clear();
+    receivedReports.clear();
     await execute({ action: 'team.create', id: 'review', leader: 'summary', members: ['reviewer', 'verifier'] });
     const reviewLaunch = await execute({ action: 'run', agent: 'review', task: 'Independent READONLY review; verifier may execute ONLY ' + command + '. No source/test edits, no Git/install/network/delegation.', background: true, concurrency: 2 });
-    const reviewing = await show(reviewLaunch.runId);
-    handoffs.set('reviewer', join(reviewing.metadata.coordPath, 'reviewer.md')); handoffs.set('verifier', join(reviewing.metadata.coordPath, 'verifier.md'));
+    reportRuns.set('summary', reviewLaunch.runId);
     const reviewed = await terminal(reviewLaunch.runId); protect(reviewed);
-    assert(readFileSync(join(reviewed.metadata.coordPath, 'team-lead-final.md'), 'utf8').includes('ACCEPTED:'));
+    const summaryResult = await execute({ action: 'agents.result', id: 'summary', runId: reviewed.runId, memberRunId: reviewed.runId });
+    assert.equal(summaryResult.data.status, 'found'); assert(summaryResult.data.result.final_message.includes('ACCEPTED:'));
     const verified = trace.find(row => row.kind === 'result' && row.role === 'verifier' && row.toolName === 'bash');
     assert(verified && !verified.isError); assert(JSON.stringify(verified.content).includes('# pass 4'));
     const final = supervisorTest(); assert.equal(final.status, 0); assert.match(final.stdout, /# pass 4/); assert.match(final.stdout, /# fail 0/);

@@ -42,7 +42,7 @@ after(() => { hook.deregister(); delete globals.__zergHelpEffect; });
 const { createZergCommandHandler, createZergControl, registerZergSwarmExtension } = await import('../index.js');
 
 const EXPECTED_ACTIONS = [
-  'help', 'status', 'agents.list', 'agents.show', 'agents.create', 'agents.update', 'agents.delete',
+  'help', 'status', 'agents.list', 'agents.show', 'agents.result', 'agents.results', 'agents.create', 'agents.update', 'agents.delete',
   'team.create', 'team.update', 'run', 'runs.list', 'runs.show', 'timeline.list', 'logs.list',
   'session.message.send', 'session.messages.list', 'session.continuation.prepare',
   'session.continuation.start', 'session.continuation.discard', 'message', 'interrupt',
@@ -150,6 +150,8 @@ function exampleArguments(example: ZergControlAction): void {
     case 'help': assert.ok(value.topic === undefined || EXPECTED_ACTIONS.includes(value.topic as typeof EXPECTED_ACTIONS[number])); break;
     case 'agents.create': nonempty('id'); nonempty('prompt'); break;
     case 'agents.update': nonempty('id'); if (value.prompt !== undefined) nonempty('prompt'); break;
+    case 'agents.result': nonempty('id'); break;
+    case 'agents.results': assert.ok(Array.isArray(value.ids) && value.ids.length >= 1 && value.ids.length <= 32 && value.ids.every(id => typeof id === 'string' && id.trim())); break;
     case 'agents.show': case 'agents.delete': case 'team.create': case 'team.update': nonempty('id'); break;
     case 'run': nonempty('agent'); nonempty('task');
       if (value.concurrency !== undefined) assert.ok(Number.isSafeInteger(value.concurrency) && Number(value.concurrency) > 0); break;

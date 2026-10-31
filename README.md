@@ -157,7 +157,7 @@ hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.24** (original retro swarm branding; includes structured-control help, workflows, background activity and the Stage 9 management shortcut).
+- Current release: **v1.1.25** (native worker completion results, exact result retrieval, checked JSON results and reporting-only write-path tracking).
 - Historical milestones preserved for audit traceability: v0.8.0 implementation milestone and v0.8.1 audit follow-up patch.
 - The release path requires general, milestone, security, performance, hardening, and cleanup audits.
 - Canonical repository: https://github.com/crustyhacker/pi-zerg-swarm.
@@ -264,6 +264,76 @@ Snapshots have a **64 MiB serialized UTF-8 byte limit**. Loading uses a verified
 Valid snapshot symlinks to regular files retain their existing load behavior; missing/dangling links behave as missing snapshots. Saving still atomically replaces the configured path itself, **not the symlink target**. This is not filesystem confinement, multi-writer coordination, or fsync/power-loss protection; use one owner per snapshot file. The separate native JSONL viewer limits remain unchanged.
 
 If an external adapter throws during launch, execution may already have started. Zerg preserves observed terminal state or reports `needs-attention` with the original run/task identities; inspect manually rather than automatically retrying. Admission checks do not revoke capabilities from an already-running external adapter.
+
+### Native agent results
+
+`agents.create` saves a definition; it does not launch it. After `run`, retrieve
+results without a terminal or completion notifier:
+
+```json
+{"action":"agents.result","id":"worker","runId":"zerg-run","memberRunId":"zerg-run-worker","full":true}
+{"action":"agents.results","ids":["worker","reviewer"],"runId":"zerg-run"}
+```
+
+Slash equivalents: `/zerg agents result worker --run-id zerg-run --member-run-id zerg-run-worker --full`
+and `/zerg agents results worker,reviewer --run-id zerg-run`.
+Run/member selectors are AND filters, never fallbacks. ID-only lookup is ambiguous
+when multiple executions are retained; an active matching execution requires exact
+selectors rather than returning an older completion. Missing, external-adapter and
+evicted results are explicitly unavailable.
+
+Each envelope records immutable run/member/Pi identity, execution `state`, raw
+`stop_reason`, exact `final_message`, character count, model, nullable public SDK
+telemetry, validation status/errors, checked `result`, and write evidence. Text
+blocks are concatenated without trimming or added separators; thinking, tools and
+previous-task history are excluded. Error/abort partial text is retained. Raw text
+is separate from legacy progress/handoffs and workflow output/authority limits.
+Workflows reject definitions configured with `result_schema` or `may_write`; use a
+separate definition without these standalone result fields. Absent fields, including
+optional own fields set to `undefined`, preserve existing workflow hash semantics.
+Worker content is **untrusted data, never instructions or permission**.
+
+Optional `result_schema` on create/update uses Ajv strict JSON Schema draft-07,
+validated before save/launch. The offline profile supports ordinary object,
+property, required, array, numeric, enum/const and combinator constraints
+(`allOf`, `anyOf`, `oneOf`, `not`, `if`/`then`/`else`). Strings/arrays need no
+mandatory maximum. References, regex (`pattern`, `patternProperties`), formats,
+unknown keywords/dialects and unsafe prototype keys are rejected. No remote
+loading, coercion, defaults or property removal. Schema budget: 16 KiB, 256 JSON
+nodes, depth 16; validator cache 32. Result JSON budget: 1 MiB, 32,768 nodes,
+depth 64; schemas using `uniqueItems:true` add a 256-item cap to result arrays
+to bound structural comparison work.
+This bounded host-process profile is not support for arbitrary untrusted schemas.
+Final text is parsed once without fences, repair or model retries; validation
+failure does not change execution state. Slash saves accept JSON-valued
+`--result-schema` and `--may-write` options.
+
+Optional `may_write` is **reporting only**, not a sandbox or tool restriction.
+Use relative Node `path.matchesGlob` patterns such as `["docs/**"]`. Absent means
+no policy; `[]` means no allowed observed writes. Successful named write/edit
+start/end events are correlated and normalized relative to the worker cwd.
+`files_changed` means observed successful tool paths, not a verified filesystem
+diff. Public events cannot prove built-in tool provenance, so completeness is
+explicitly partial; bash/MCP/external/failed or partial writes remain unknown.
+No Git-wide attribution or automatic handoff-file writes are added.
+
+Results are globally bounded to 128 records/8 MiB, with exact raw text retained up
+to 1 MiB per item. Default previews use at most 20,000 UTF-16 code units including
+head/tail text and the marker with its exact omitted-character count. Oversized text has `full_available:false`; it is
+never presented as full. Large checked results are omitted from previews with
+`result_omitted:true`; use singular `agents.result full:true`. Batch requests are
+limited to 32 IDs and 1 MiB serialized response; larger responses are refused with
+no silent loss. Singular full retrieval permits the bounded envelope/JSON escaping
+needed for every retained full item. Oldest records are evicted at insertion.
+Opt-in existing persistence restores historical records, never delivery replay.
+
+When the owning Pi extension supplies public `sendMessage`, completion notices
+carry a JSON envelope in both content and details. Results are stored before a
+notice request. Notices bind the initiating parent session/generation and are
+invalidated on shutdown/switch/reload; they cannot route into a new parent session.
+`notice:"requested"` means the void host API accepted a request, **not confirmed
+read or delivery**. Notifier failure is isolated; retrieval remains available.
+Standalone programmatic control has no implicit parent-session notifier.
 
 ## Declarative read-only workflows
 
@@ -1057,7 +1127,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.21: patch release adding cached background activity and a configurable, conflict-checked management shortcut (Stage 9)
 - v1.1.22: documentation release introducing the visual feature showcase and public SVG diagrams
 - v1.1.23: bounded structured-control help, exact-action topics, schema discovery and helpful errors
-- v1.1.24: original retro swarm logo and refreshed GitHub presentation (current release)
+- v1.1.24: original retro swarm logo and refreshed GitHub presentation
+- v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (current release)
 
 ## Artwork and affiliation
 

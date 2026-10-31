@@ -1,3 +1,4 @@
+import { normalizeResultSchema, normalizeMayWrite, isImmutableAgentResultLedger } from './agent-results.js';
 import { ZERG_STATE_SCHEMA_VERSION, type AgentIdentity, type AgentKind, type AgentStatus, type HookLifecycleEvent, type PermissionModeIntervention, type PermissionModeInterventionInput, type PermissionModeSnapshot, type PermissionModeState, type PermissionModeTransitionInput, type TaskRecord, type TeamIdentity, type TeamKind, type ZergAgentDefinition, type ZergAgentRuntimeTransition, type ZergContext, type ZergExtensionFields, type ZergPermissionDecision, type ZergPermissionQueueState, type ZergPermissionRequest, type ZergPermissionRequester, type ZergPermissionRequestKind, type ZergPermissionRequestStatus, type ZergPermissionResolver, type ZergLifecycleSubstate, type ZergLogLevel, type ZergLogRecord, type ZergLogSource, type ZergLogState, type ZergOutputKind, type ZergRuntimeHealth, type ZergRuntimeModeContext, type ZergRuntimeState, type ZergRuntimeTransition, type ZergState, type ZergStateContainer, type ZergStateListener, type ZergStatePatch, type ZergStateUpdateOptions, type ZergSubagentRunSnapshot, type ZergNativeSessionReference, type ZergTeamRuntimeTransition, type ZergTreeNode } from './types.js';
 
 const DEFAULT_TIMESTAMP = '1970-01-01T00:00:00.000Z';
@@ -171,11 +172,14 @@ export function upsertAgentDefinition(state: ZergState, definition: ZergAgentDef
   const fallbackModels = dedupeSortedTools(definition.fallbackModels);
   const maxTurns = normalizePositiveInteger(definition.maxTurns);
 
+  const { result_schema, may_write, ...baseDefinition } = definition;
   const normalized: ZergAgentDefinition = {
-    ...definition,
+    ...baseDefinition,
     id,
     label: definition.label?.trim() || definition.id,
     prompt,
+    ...(result_schema === undefined ? {} : { result_schema: normalizeResultSchema(result_schema) }),
+    ...(may_write === undefined ? {} : { may_write: normalizeMayWrite(may_write) }),
     ...(model ? { model } : {}),
     ...(fallbackModels ? { fallbackModels } : {}),
     ...(maxTurns ? { maxTurns } : {}),
@@ -1680,8 +1684,11 @@ function cloneAgent(agent: AgentIdentity): AgentIdentity {
 }
 
 function cloneAgentDefinition(definition: ZergAgentDefinition): ZergAgentDefinition {
+  const { result_schema, may_write, ...baseDefinition } = definition;
   return {
-    ...definition,
+    ...baseDefinition,
+    ...(result_schema === undefined ? {} : { result_schema: structuredClone(result_schema) }),
+    ...(may_write === undefined ? {} : { may_write: cloneArray(may_write) }),
     fallbackModels: cloneOptional(definition.fallbackModels, cloneArray),
     tools: cloneOptional(definition.tools, cloneArray),
     disallowedTools: cloneOptional(definition.disallowedTools, cloneArray),
@@ -1824,6 +1831,9 @@ function createExtensionCloneContext(): CloneExtensionContext {
 }
 
 function cloneExtensionValue(value: unknown, context: CloneExtensionContext = createExtensionCloneContext(), depth = 0): unknown {
+  // Only module-owned, recursively frozen ledgers bypass deep hot-path clones.
+  // Caller-supplied lookalikes do not pass the WeakSet identity check.
+  if (value && typeof value === 'object' && isImmutableAgentResultLedger(value)) return value;
   countExtensionCloneWork(context);
 
   if (value === null || typeof value !== 'object') {

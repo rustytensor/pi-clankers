@@ -18,7 +18,7 @@ export interface TrustedAutomationNativeContext {
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
 export const ZERG_COMMANDS = ['zerg', 'zerg-swarm', 'swarm'] as const;
-export const ZERG_EXTENSION_VERSION = '1.1.24' as const;
+export const ZERG_EXTENSION_VERSION = '1.1.25' as const;
 export type ZergCommandName = (typeof ZERG_COMMANDS)[number];
 export const ZERG_COMMAND_INVOCATIONS = ['/zerg', '/zerg-swarm', '/swarm'] as const;
 export type ZergCommandInvocation = (typeof ZERG_COMMAND_INVOCATIONS)[number];
@@ -84,6 +84,10 @@ export interface ZergAgentDefinition {
   description?: string;
   prompt: string;
   source: ZergAgentDefinitionSource;
+  /** Offline draft-07 result validation; does not alter execution authority. */
+  result_schema?: import('./agent-results.js').ResultSchema;
+  /** Reporting-only relative glob policy, not a sandbox. Absent differs from []. */
+  may_write?: string[];
   /** LLM/model identifier to request when launching this agent. */
   model?: string;
   /** Ordered fallback model identifiers for launch adapters that support fallbacks. */
@@ -399,7 +403,9 @@ export type ZergControlAction =
   | { action: 'status' }
   | { action: 'agents.list' }
   | { action: 'agents.show'; id: string }
-  | { action: 'agents.create' | 'agents.update'; id: string; label?: string; description?: string; prompt?: string; model?: string; fallbackModels?: string[]; maxTurns?: number; tools?: string[]; disallowedTools?: string[]; permissionMode?: AutomationMode | 'inherit' }
+  | { action: 'agents.result'; id: string; runId?: string; memberRunId?: string; full?: boolean }
+  | { action: 'agents.results'; ids: string[]; runId?: string; memberRunId?: string; full?: boolean }
+  | { action: 'agents.create' | 'agents.update'; id: string; label?: string; description?: string; prompt?: string; model?: string; fallbackModels?: string[]; maxTurns?: number; tools?: string[]; disallowedTools?: string[]; permissionMode?: AutomationMode | 'inherit'; result_schema?: import('./agent-results.js').ResultSchema; may_write?: string[] }
   | { action: 'agents.delete'; id: string }
   | { action: 'team.create' | 'team.update'; id: string; label?: string; leader?: string; members?: string[]; kind?: TeamKind; model?: string; fallbackModels?: string[]; maxTurns?: number }
   | { action: 'run'; agent: string; task: string; background?: boolean; launchMode?: ZergSubagentLaunchMode; concurrency?: number; model?: string; fallbackModels?: string[]; maxTurns?: number }
@@ -817,6 +823,7 @@ export interface StructuralPiToolDefinition {
 }
 
 export interface StructuralPiExtensionContext {
+  sendMessage?: import('@earendil-works/pi-coding-agent').ExtensionAPI['sendMessage'];
   registerShortcut?: import('@earendil-works/pi-coding-agent').ExtensionAPI['registerShortcut'];
   on?(eventName: unknown, handler: (...args: unknown[]) => unknown): unknown;
   registerCommand?(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;

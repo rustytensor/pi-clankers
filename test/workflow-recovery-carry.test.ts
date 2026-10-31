@@ -41,7 +41,7 @@ test('genuine terminated owner carries candidate into fresh stage without rewrit
     process.stdout.write('ready\\n');
     setInterval(() => {}, 1000);
   `;
-  const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code, root, staging], { env: {}, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code, root, staging], { env: { TMPDIR: tmpdir() }, stdio: ['ignore', 'pipe', 'pipe'] });
   const closed = once(child, 'close');
   let output = '', diagnostic = '', succeeded = false;
   child.stdout.on('data', (b: Buffer) => { output = (output + b.toString()).slice(-1024); });

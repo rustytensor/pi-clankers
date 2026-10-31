@@ -1,6 +1,6 @@
 {
   "name": "pi-zerg-swarm",
-  "version": "1.1.24",
+  "version": "1.1.25",
   "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and zerg-style subagent orchestration.",
   "type": "module",
   "license": "MIT",
@@ -37,6 +37,7 @@
   "files": [
     "control-help.ts",
     "activity.ts",
+    "agent-results.ts",
     "automation-profile.ts",
     "automation-admission.ts",
     "automation-runner.ts",
@@ -102,6 +103,7 @@
     "@earendil-works/pi-tui": "*"
   },
   "dependencies": {
+    "ajv": "8.20.0",
     "jiti": "2.7.0",
     "typescript": "5.9.3"
   },
