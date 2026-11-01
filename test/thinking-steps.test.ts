@@ -907,7 +907,7 @@ test('registration.state exposes event snapshots, not a write channel', () => {
   try {
     const firstSnapshot = registration.state;
     assert.equal(firstSnapshot.events.length, 1);
-    assert.equal(firstSnapshot.events[0]?.message, `pi-zerg-swarm v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
+    assert.equal(firstSnapshot.events[0]?.message, `Clankers v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
 
     firstSnapshot.events[0]!.message = 'mutated registration event';
     firstSnapshot.events.push({
@@ -920,11 +920,11 @@ test('registration.state exposes event snapshots, not a write channel', () => {
 
     const secondSnapshot = registration.state;
     assert.equal(secondSnapshot.events.length, 1);
-    assert.equal(secondSnapshot.events[0]?.message, `pi-zerg-swarm v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
+    assert.equal(secondSnapshot.events[0]?.message, `Clankers v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
     assert.equal(secondSnapshot.mode.automation, 'manual');
 
     secondSnapshot.events[0]!.message = 'mutated second snapshot';
-    assert.equal(registration.state.events[0]?.message, `pi-zerg-swarm v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
+    assert.equal(registration.state.events[0]?.message, `Clankers v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`);
   } finally {
     registration.dispose();
   }
@@ -1350,7 +1350,7 @@ test('permission command surface supports request list approve deny and cancel w
   const beforeInvalid = container.snapshot();
   assert.equal(handler('/zerg permission request banana worker nope').output, 'Unknown permission request kind: banana');
   assert.deepEqual(container.snapshot(), beforeInvalid);
-  assert.equal(handler(`/zerg permission request run worker "${String.fromCharCode(0)}"`).output, 'Usage: /zerg permission request <kind> <target> <summary...>');
+  assert.equal(handler(`/zerg permission request run worker "${String.fromCharCode(0)}"`).output, 'Usage: /clankers permission request <kind> <target> <summary...>');
   assert.deepEqual(container.snapshot(), beforeInvalid);
   assert.equal(handler('/zerg permission approve missing').output, 'Unknown permission request: missing');
   assert.deepEqual(container.snapshot(), beforeInvalid);
@@ -1416,7 +1416,7 @@ test('read-only interrupt blocks adapter calls for read-only snapshot sources', 
 
   const result = handler('/zerg interrupt zerg-run-1');
   assert.equal(result.ok, false);
-  assert.equal(result.output, 'zerg interrupt is blocked while read-only is enabled and requires writable zerg state to queue permission.');
+  assert.equal(result.output, 'Clankers interrupt is blocked while read-only is enabled and requires writable Clankers state to queue permission.');
   assert.equal(interrupted, 0);
 });
 
@@ -1501,7 +1501,7 @@ test('permission rendering surfaces pending count and sanitized summaries', () =
 
   assert.ok(status.includes('permissions 1 pending'));
   assert.ok(monitor.includes('permissions: 1 pending latest:perm-render [pending/adapter] target:bridge Need review now'));
-  assert.ok(help.includes('Permission syntax: /zerg permission status'));
+  assert.ok(help.includes('Permission syntax: /clankers permission status'));
   assert.ok(list.includes('perm-render [pending/adapter] target:bridge Need review now'));
   assert.ok(config.output.includes('permissions: 1 pending latest:perm-render adapter Need review now'));
   assert.equal(monitor.includes('Need\nreview'), false);
@@ -1606,13 +1606,13 @@ test('createZergCommandHandler applies mode status transitions and revert', () =
 
   const readOnlyStatus = readOnlyHandler('/zerg mode status');
   assert.equal(readOnlyStatus.ok, true);
-  assert.ok(readOnlyStatus.output.includes(`zerg v${ZERG_EXTENSION_VERSION} command surface`));
+  assert.ok(readOnlyStatus.output.includes(`clankers v${ZERG_EXTENSION_VERSION} command surface`));
   assert.ok(readOnlyStatus.output.includes('control operator'));
   assert.ok(readOnlyStatus.output.includes('mode manual'));
   assert.ok(readOnlyStatus.output.includes('no active intervention'));
 
   assert.equal(readOnlyHandler('/zerg mode manual').ok, false);
-  assert.equal(readOnlyHandler('/zerg mode manual').output, 'Runtime lifecycle commands require writable zerg state.');
+  assert.equal(readOnlyHandler('/zerg mode manual').output, 'Runtime lifecycle commands require writable Clankers state.');
 
   const container = createZergStateContainer();
   const timestamps = createNowSequence(
@@ -1815,11 +1815,11 @@ test('render surfaces expose control intervention status tree markers and help s
   assert.ok(idleStatus.includes('control operator'));
   assert.ok(idleStatus.includes('mode manual'));
   assert.ok(idleStatus.includes('no active intervention'));
-  assert.equal(idleHelp.split('\n')[0], `pi-zerg-swarm v${ZERG_EXTENSION_VERSION} command-surface scaffold`);
-  assert.ok(idleHelp.includes('Control syntax: /zerg mode status|manual|assisted|automatic|revert [reason]'));
-  assert.ok(idleHelp.includes('Monitor syntax: /zerg monitor [readonly on|off|toggle|status]'));
-  assert.ok(idleHelp.includes('Registry syntax: /zerg agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>'));
-  assert.ok(idleHelp.includes('Intervention syntax: /zerg intervene agent <agent-id> <message>'));
+  assert.equal(idleHelp.split('\n')[0], `clankers v${ZERG_EXTENSION_VERSION} command-surface scaffold`);
+  assert.ok(idleHelp.includes('Control syntax: /clankers mode status|manual|assisted|automatic|revert [reason]'));
+  assert.ok(idleHelp.includes('Monitor syntax: /clankers monitor [readonly on|off|toggle|status]'));
+  assert.ok(idleHelp.includes('Registry syntax: /clankers agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>'));
+  assert.ok(idleHelp.includes('Intervention syntax: /clankers intervene agent <agent-id> <message>'));
   assert.ok(!idleHelp.includes('prompt:'));
   const registrySummary = renderAgentDefinitionsList(Object.values(createBuiltinAgentDefinitions()), { width: 240 });
   const registryDefinition = renderAgentDefinitionSummary(createBuiltinAgentDefinitions().reviewer, { width: 240 });
@@ -1881,8 +1881,8 @@ test('renderMonitor combines monitor header, runtime status, tree, and recent ev
 
   const monitor = renderMonitor(state, { width: 240, recentEventCount: 2 });
 
-  assert.ok(monitor.includes('zerg monitor'));
-  assert.ok(monitor.includes(`status: zerg v${ZERG_EXTENSION_VERSION} command surface`));
+  assert.ok(monitor.includes('clankers monitor'));
+  assert.ok(monitor.includes(`status: clankers v${ZERG_EXTENSION_VERSION} command surface`));
   assert.ok(monitor.includes('read-only: enabled'));
   assert.ok(monitor.includes('tree:'));
   assert.ok(monitor.includes('recent events:'));
@@ -1894,9 +1894,9 @@ test('renderMonitor combines monitor header, runtime status, tree, and recent ev
 test('createZergCommandHandler supports monitor and read-only toggles', () => {
   const readOnlyHandler = createZergCommandHandler(createZergState());
   assert.equal(readOnlyHandler('/zerg monitor').ok, true);
-  assert.ok(readOnlyHandler('/zerg monitor').output.includes('zerg monitor'));
+  assert.ok(readOnlyHandler('/zerg monitor').output.includes('clankers monitor'));
   assert.ok(readOnlyHandler('/zerg monitor').output.includes('read-only: disabled'));
-  assert.equal(readOnlyHandler('/zerg monitor readonly').output, 'Runtime lifecycle commands require writable zerg state.');
+  assert.equal(readOnlyHandler('/zerg monitor readonly').output, 'Runtime lifecycle commands require writable Clankers state.');
 
   const container = createZergStateContainer();
   const handler = createZergCommandHandler(container, {
@@ -2508,7 +2508,7 @@ test('registerZergSwarmExtension falls back to native runner when slash bridge d
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
 
-    assert.equal(notifications.some((message) => message.includes('zerg launched planner as zerg-stalled-run')), true);
+    assert.equal(notifications.some((message) => message.includes('Clankers launched planner as zerg-stalled-run')), true);
     assert.equal(notifications.some((message) => message.includes('task-stalled-run')), true);
     const requestEvent = eventBus.emitted.find((entry) => entry.eventName === 'subagent:slash:request');
     assert.equal((requestEvent?.args[0] as { requestId?: string } | undefined)?.requestId, 'zerg-stalled-run');
@@ -2522,7 +2522,7 @@ test('registerZergSwarmExtension falls back to native runner when slash bridge d
     assert.equal(state.tasks['task-stalled-run']?.ownerAgentId, 'zerg-stalled-run');
     assert.equal(state.agents['zerg-stalled-run']?.status, 'failed');
     assert.equal(state.agents['zerg-stalled-run']?.runtime?.substate, 'failed');
-    assert.match(state.agents['zerg-stalled-run']?.runtime?.substateReason ?? '', /Native zerg runner rejected unsupported capability request before SDK startup: .*maxTurns/);
+    assert.match(state.agents['zerg-stalled-run']?.runtime?.substateReason ?? '', /Clankers native runner rejected unsupported capability request before SDK startup: .*maxTurns/);
     assert.equal((state.agents['zerg-stalled-run']?.metadata as { taskId?: string } | undefined)?.taskId, 'task-stalled-run');
     assert.equal((state.agents['zerg-stalled-run']?.metadata as { launchMode?: string } | undefined)?.launchMode, 'fresh');
     assert.equal((state.tasks['task-stalled-run']?.metadata as { launchMode?: string } | undefined)?.launchMode, 'fresh');
@@ -2578,7 +2578,7 @@ test('registerZergSwarmExtension wires zerg run to pi-subagents slash bridge eve
   assert.ok(commandHandler);
   await commandHandler!('/zerg run planner "fix bug" --fork', piCommandContext as StructuralPiCommandContext);
 
-  assert.equal(notifications.some((message) => message.includes('zerg launched planner')), true);
+  assert.equal(notifications.some((message) => message.includes('Clankers launched planner')), true);
   assert.equal(notifications.some((message) => message.includes('(fork)')), true);
   const requestEvent = eventBus.emitted.find((entry) => entry.eventName === 'subagent:slash:request');
   assert.equal((requestEvent?.args[0] as { requestId?: string } | undefined)?.requestId, 'zerg-fixed-run');
@@ -2638,7 +2638,7 @@ test('createZergCommandHandler supports control and config command foundation', 
 
   const status = handler('/zerg control status');
   assert.equal(status.ok, true);
-  assert.ok(status.output.includes('zerg control'));
+  assert.ok(status.output.includes('clankers control'));
   assert.ok(status.output.includes('controller: operator'));
 
   const controller = handler('/zerg control controller pi');
@@ -2658,7 +2658,7 @@ test('createZergCommandHandler supports control and config command foundation', 
 
   const config = handler('/zerg config');
   assert.equal(config.ok, true);
-  assert.ok(config.output.includes('zerg config'));
+  assert.ok(config.output.includes('clankers config'));
   assert.ok(config.output.includes('[config]'));
 
   assert.equal(handler('/zerg control controller nope').output, 'Unknown control controller: nope');
@@ -2747,8 +2747,8 @@ test('createPiZergCommandHandler renders full config overlay and reuses manageme
   assert.equal(container.snapshot().mode.automation, 'automatic');
   assert.equal(selectedBeforeEnter, undefined);
   assert.equal(customOptions?.overlay, true);
-  assert.equal((customOptions?.overlayOptions as { title?: string } | undefined)?.title, 'zerg config');
-  assert.ok(rendered[0]?.includes('zerg config'));
+  assert.equal((customOptions?.overlayOptions as { title?: string } | undefined)?.title, 'clankers config');
+  assert.ok(rendered[0]?.includes('clankers config'));
   assert.ok(rendered[0]?.includes('Use three steps'));
   assert.ok(rendered[0]?.includes('1 Select'));
   assert.ok(rendered[0]?.includes('2 Settings'));
@@ -2833,7 +2833,7 @@ test('createPiZergCommandHandler config overlay refreshes from state updates and
   };
 
   await plainHandler('/zerg config', plainContext as StructuralPiCommandContext);
-  assert.ok(plainRendered.includes('Runtime lifecycle commands require writable zerg state.'));
+  assert.ok(plainRendered.includes('Runtime lifecycle commands require writable Clankers state.'));
 });
 
 test('renderZergManagementOverlay does not mutate state or rows', () => {
@@ -2864,7 +2864,7 @@ test('renderZergManagementOverlay does not mutate state or rows', () => {
     adapterKind: 'fake',
   });
 
-  assert.ok(overlay.includes('zerg config'));
+  assert.ok(overlay.includes('clankers config'));
   assert.deepEqual(state, before);
   assert.deepEqual(rows, beforeRows);
 });
@@ -2924,11 +2924,11 @@ test('createPiZergCommandHandler renders monitor through real custom overlay opt
   assert.equal(closeCount, 1);
   assert.equal(requestRenderCount, 1);
   assert.equal(rendered.length, 1);
-  assert.ok(rendered[0]?.includes('zerg monitor'));
+  assert.ok(rendered[0]?.includes('clankers monitor'));
   assert.equal(notifications.length, 0);
   assert.equal(customCalls.length, 1);
   assert.equal(customCalls[0]?.options?.overlay, true);
-  assert.deepEqual(customCalls[0]?.options?.overlayOptions, { title: 'zerg monitor' });
+  assert.deepEqual(customCalls[0]?.options?.overlayOptions, { title: 'clankers monitor' });
   component?.dispose?.();
   container.update((state) => ({ metadata: { ...state.metadata, updatedAt: '2026-05-07T00:01:00.000Z' } }));
   assert.equal(requestRenderCount, 1);
@@ -2958,7 +2958,7 @@ test('createPiZergCommandHandler renders monitor through real custom overlay opt
 
   await handler('/zerg monitor', throwingNewApiContext as StructuralPiCommandContext);
   assert.equal(fallbackRendered.length, 1);
-  assert.ok(fallbackRendered[0]?.includes('zerg monitor'));
+  assert.ok(fallbackRendered[0]?.includes('clankers monitor'));
 
   const fallbackContext = {
     ui: {
@@ -2977,7 +2977,7 @@ test('createZergCommandHandler applies lifecycle commands only with writable sta
   const readOnlyResult = readOnlyHandler('/zerg agent create worker Worker');
 
   assert.equal(readOnlyResult.ok, false);
-  assert.equal(readOnlyResult.output, 'Runtime lifecycle commands require writable zerg state.');
+  assert.equal(readOnlyResult.output, 'Runtime lifecycle commands require writable Clankers state.');
 
   const commandAt = '2026-05-02T23:00:00.000Z';
   const container = createZergStateContainer();
@@ -3238,7 +3238,7 @@ test('render monitoring summarizes runtime health activity without mutation', ()
   const status = renderStatusLine(state, { width: 240 });
   const tree = renderAgentTree(state, { width: 240 });
 
-  assert.ok(status.includes(`zerg v${ZERG_EXTENSION_VERSION} command surface`));
+  assert.ok(status.includes(`clankers v${ZERG_EXTENSION_VERSION} command surface`));
   assert.ok(status.includes('agents 1 (1 running)'));
   assert.ok(status.includes('teams 1 (0 running)'));
   assert.ok(status.includes('unhealthy 1'));
@@ -3461,7 +3461,7 @@ test('registerZergSwarmExtension uses Pi command registration and notifies comma
     },
   });
 
-  assert.deepEqual(registrations.map((registration) => registration.name), ['zerg', 'zerg-swarm', 'swarm']);
+  assert.deepEqual(registrations.map((registration) => registration.name), ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
   assert.ok(registrations.every((registration) => typeof registration.options.handler === 'function'));
 
   const firstHandler = registrations[0]?.options.handler;
@@ -3478,7 +3478,7 @@ test('registerZergSwarmExtension uses Pi command registration and notifies comma
   });
 
   assert.equal(notifications.length, 1);
-  assert.ok(notifications[0]?.message.includes(`zerg v${ZERG_EXTENSION_VERSION} command surface`));
+  assert.ok(notifications[0]?.message.includes(`clankers v${ZERG_EXTENSION_VERSION} command surface`));
   assert.equal(notifications[0]?.type, 'info');
 });
 
@@ -3497,9 +3497,9 @@ test('registerZergSwarmExtension activates Pi event-bus patch once with command 
 
   try {
     assert.equal(registration.patchInstalled, true);
-    assert.deepEqual(registrations.map((registered) => registered.name), ['zerg', 'zerg-swarm', 'swarm']);
-    assert.deepEqual(registration.state.events.map((event) => event.message), [`pi-zerg-swarm v${ZERG_EXTENSION_VERSION} internal patch path active`]);
-    assert.deepEqual(readSharedZergState().events.map((event) => event.message), [`pi-zerg-swarm v${ZERG_EXTENSION_VERSION} internal patch path active`]);
+    assert.deepEqual(registrations.map((registered) => registered.name), ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
+    assert.deepEqual(registration.state.events.map((event) => event.message), [`Clankers v${ZERG_EXTENSION_VERSION} internal patch path active`]);
+    assert.deepEqual(readSharedZergState().events.map((event) => event.message), [`Clankers v${ZERG_EXTENSION_VERSION} internal patch path active`]);
 
     eventBus.emit('zerg:smoke');
 
@@ -3523,7 +3523,7 @@ test('registerZergSwarmExtension activates Pi event-bus patch once with command 
     });
 
     assert.equal(notifications.length, 1);
-    assert.ok(notifications[0]?.message.includes(`zerg v${ZERG_EXTENSION_VERSION} command surface`));
+    assert.ok(notifications[0]?.message.includes(`clankers v${ZERG_EXTENSION_VERSION} command surface`));
     assert.equal(notifications[0]?.type, 'info');
   } finally {
     registration.dispose();
@@ -3556,14 +3556,14 @@ test('registerZergSwarmExtension restores patch and commands when startup fails'
 
   assert.throws(() => registerZergSwarmExtension(context), /register failed/);
   assert.equal(eventBus.emit, originalEmit);
-  assert.deepEqual(disposedNames, ['zerg']);
+  assert.deepEqual(disposedNames, ['clankers', 'clank', 'zerg']);
 
   fail = false;
   const registration = registerZergSwarmExtension(context);
 
   try {
     assert.equal(registration.patchInstalled, true);
-    assert.deepEqual(registrations, ['zerg', 'zerg', 'zerg-swarm', 'swarm']);
+    assert.deepEqual(registrations, ['clankers', 'clank', 'zerg', 'clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
   } finally {
     registration.dispose();
   }
@@ -3590,10 +3590,10 @@ test('registered aliases dispatch status through equivalent handlers', async () 
     });
   }
 
-  assert.deepEqual(registrations.map((registration) => registration.name), ['zerg', 'zerg-swarm', 'swarm']);
-  assert.equal(notifications.length, 3);
+  assert.deepEqual(registrations.map((registration) => registration.name), ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
+  assert.equal(notifications.length, 5);
   assert.equal(new Set(notifications.map((notification) => notification.message)).size, 1);
-  assert.deepEqual(notifications.map((notification) => notification.type), ['info', 'info', 'info']);
+  assert.deepEqual(notifications.map((notification) => notification.type), ['info', 'info', 'info', 'info', 'info']);
 });
 
 test('createZergCommandHandler normalizes help, status, whitespace, case, and aliases', () => {
@@ -3602,11 +3602,11 @@ test('createZergCommandHandler normalizes help, status, whitespace, case, and al
   const statusOutput = handler('status').output;
 
   assert.equal(handler('  help  ').output, helpOutput);
-  assert.ok(helpOutput.includes('Commands: /zerg, /zerg-swarm, /swarm'));
-  assert.ok(helpOutput.includes('/zerg agent create|start|progress|stop|fail|reset <agent-id> [label|activity]'));
-  assert.ok(helpOutput.includes('/zerg team create|start|progress|stop|fail|reset <team-id> [label|activity]'));
-  assert.ok(helpOutput.includes('Monitor syntax: /zerg monitor [readonly on|off|toggle|status]'));
-  assert.ok(helpOutput.includes('Registry syntax: /zerg agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>'));
+  assert.ok(helpOutput.includes('Commands: /clankers, /clank, /zerg, /zerg-swarm, /swarm'));
+  assert.ok(helpOutput.includes('/clankers agent create|start|progress|stop|fail|reset <agent-id> [label|activity]'));
+  assert.ok(helpOutput.includes('/clankers team create|start|progress|stop|fail|reset <team-id> [label|activity]'));
+  assert.ok(helpOutput.includes('Monitor syntax: /clankers monitor [readonly on|off|toggle|status]'));
+  assert.ok(helpOutput.includes('Registry syntax: /clankers agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>'));
   assert.equal(handler(' STATUS ').output, statusOutput);
   assert.equal(handler('  /swarm   status ').output, statusOutput);
   assert.equal(handler('zerg status').output, statusOutput);
@@ -3682,12 +3682,12 @@ test('createZergCommandHandler preserves multiline steps payload and skipped sou
 
 test('unknown zerg command returns consistent usage for every invocation', () => {
   const handler = createZergCommandHandler(createCommandSurfaceState());
-  const outputs = ['wat', '/zerg wat', '/zerg-swarm wat', '/swarm wat'].map((input) => handler(input).output);
+  const outputs = ['wat', '/clankers wat', '/clank wat', '/zerg wat', '/zerg-swarm wat', '/swarm wat'].map((input) => handler(input).output);
 
   assert.equal(new Set(outputs).size, 1);
 
   for (const output of outputs) {
-    assert.ok(output.startsWith('Unknown zerg command: wat\n\n'));
+    assert.ok(output.startsWith('Unknown Clankers command: wat\n\n'));
     assert.ok(output.includes('/zerg'));
     assert.ok(output.includes('/zerg-swarm'));
     assert.ok(output.includes('/swarm'));
@@ -3707,7 +3707,7 @@ test('registerZergSwarmExtension does not duplicate registrations for the same c
   registration.dispose();
   registerZergSwarmExtension(context);
 
-  assert.deepEqual(registrations.map((registration) => registration.name), ['zerg', 'zerg-swarm', 'swarm']);
+  assert.deepEqual(registrations.map((registration) => registration.name), ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
 });
 
 test('registerZergSwarmExtension dispose unregisters disposable commands once and permits clean re-registration', () => {
@@ -3734,24 +3734,20 @@ test('registerZergSwarmExtension dispose unregisters disposable commands once an
 
   assert.equal(firstRegistration.patchInstalled, true);
   assert.equal(duplicateRegistration.patchInstalled, false);
-  assert.deepEqual(registrations.map((registration) => registration.name), ['zerg', 'zerg-swarm', 'swarm']);
+  assert.deepEqual(registrations.map((registration) => registration.name), ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
 
   duplicateRegistration.dispose();
   firstRegistration.dispose();
   firstRegistration.dispose();
 
-  assert.deepEqual(disposedNames, ['zerg', 'zerg-swarm', 'swarm']);
+  assert.deepEqual(disposedNames, ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
 
   const secondRegistration = registerZergSwarmExtension(context);
 
   assert.equal(secondRegistration.patchInstalled, true);
   assert.deepEqual(registrations.map((registration) => registration.name), [
-    'zerg',
-    'zerg-swarm',
-    'swarm',
-    'zerg',
-    'zerg-swarm',
-    'swarm',
+    'clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm',
+    'clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm',
   ]);
 
   secondRegistration.dispose();
@@ -4263,6 +4259,8 @@ test('extension registers zerg_control Pi tool when registerTool is available', 
 
   try {
     const tool = tools.find((entry) => entry.name === 'zerg_control');
+    assert.deepEqual(tools.map(entry => entry.name), ['clankers_control', 'zerg_control']);
+    assert.equal(tools[0]?.execute, tools[1]?.execute);
     assert.ok(tool?.execute);
     const result = await tool.execute('tool-1', { action: 'status' }) as { details?: { ok?: boolean; action?: string; data?: { version?: string } } };
     assert.equal(result.details?.ok, true);
@@ -4272,7 +4270,7 @@ test('extension registers zerg_control Pi tool when registerTool is available', 
     const invalid = await tool.execute('tool-2', { action: 'bogus' }) as { details?: { ok?: boolean; error?: { code?: string; message?: string } } };
     assert.equal(invalid.details?.ok, false);
     assert.equal(invalid.details?.error?.code, 'invalid_request');
-    assert.equal(invalid.details?.error?.message, 'Unknown zerg_control action: bogus. Use {"action":"help"} to list supported actions.');
+    assert.equal(invalid.details?.error?.message, 'Unknown clankers_control action: bogus. Use {"action":"help"} to list supported actions.');
   } finally {
     registration.dispose();
   }
@@ -4357,7 +4355,7 @@ test('Pi 1.0 native initialization wires runtime credentials, configured models 
       assert.equal(session.model?.id, 'local:7b');
       assert.equal(session.thinkingLevel, 'high');
       assert.deepEqual(session.getActiveToolNames(), ['read']);
-      assert.equal(session.getAllTools().some((tool) => tool.name === 'zerg_control'), false, 'native loader excludes recursive swarm registration');
+      assert.equal(session.getAllTools().some((tool) => ['clankers_control', 'zerg_control'].includes(tool.name)), false, 'native loader excludes recursive swarm registration');
       assert.deepEqual(readSharedZergState(), initialSharedState);
       assert.deepEqual(runtimeOptions, { authPath: join(directory, 'auth.json'), modelsPath: join(directory, 'models.json'), allowModelNetwork: false });
       assert.equal(sessionOptions?.modelRuntime, fixture.runtime);
@@ -4388,7 +4386,7 @@ test('Pi 1.0 real extension registration validates structured tool calls without
     const { session } = await fixture.sdk.createAgentSession({ cwd: directory, agentDir: directory, modelRuntime: fixture.runtime, model: fixture.runtime.getModel('zerg-offline', 'configured-default'), resourceLoader: loader, settingsManager: fixture.settings, sessionManager: fixture.sdk.SessionManager.inMemory(directory) });
     try {
       await session.bindExtensions({ mode: 'print' });
-      assert.deepEqual(session.extensionRunner?.getRegisteredCommands().map((command) => command.name).filter((name) => ['zerg', 'zerg-swarm', 'swarm'].includes(name)).sort(), ['swarm', 'zerg', 'zerg-swarm']);
+      assert.deepEqual(session.extensionRunner?.getRegisteredCommands().map((command) => command.name).filter((name) => ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm'].includes(name)).sort(), ['clank', 'clankers', 'swarm', 'zerg', 'zerg-swarm']);
       await session.prompt('Exercise the structured tool.');
       const results = session.messages.filter((message) => message.role === 'toolResult') as Array<{ isError?: boolean; details?: { ok?: boolean }; content?: Array<{ text?: string }> }>;
       assert.equal(results[0]?.isError, false);
@@ -4443,7 +4441,7 @@ test('Pi 1.0 native children exclude differently located npm swarm controllers o
       const errors: unknown[] = [];
       await session.bindExtensions({ mode: 'print', onError: (error) => errors.push(error) });
       assert.deepEqual(errors, []);
-      assert.equal(session.getAllTools().some((tool) => tool.name === 'zerg_control'), false);
+      assert.equal(session.getAllTools().some((tool) => ['clankers_control', 'zerg_control'].includes(tool.name)), false);
       assert.deepEqual(session.extensionRunner?.getRegisteredCommands().map((command) => command.name), ['unrelated_helper']);
       assert.deepEqual(readSharedZergState(), initialSharedState);
       assert.equal(session.model?.id, 'configured-default');
@@ -4468,7 +4466,7 @@ test('Pi 1.0 RPC, JSON and print commands stay text-only even with custom UI stu
       await handler(command, { mode, hasUI: mode === 'rpc', ui: { custom() { customCalls += 1; }, notify(message) { output.push(message); } } });
       assert.equal(customCalls, 0);
       assert.equal(output.length, 1);
-      assert.ok(output[0].includes('zerg'));
+      assert.ok(output[0].includes('clankers'));
     }
   }
 });
@@ -4716,7 +4714,7 @@ test('exact session structured send/list and slash aliases preserve literal body
 test('new exact-session tool schema and parameter validation are additive', async () => {
   const old = readSharedZergState(); replaceSharedZergState(createZergState());
   let tool: import('../types.js').StructuralPiToolDefinition | undefined;
-  const registration = registerZergSwarmExtension({ registerCommand() {}, registerTool(definition) { tool = definition; } }, { subagentAdapter: { kind: 'fake', launch: () => ({ ok: false, message: 'unused' }) } });
+  const registration = registerZergSwarmExtension({ registerCommand() {}, registerTool(definition) { if (definition.name === 'zerg_control') tool = definition; } }, { subagentAdapter: { kind: 'fake', launch: () => ({ ok: false, message: 'unused' }) } });
   try {
     const properties = (tool!.parameters as { properties: Record<string, unknown> }).properties;
     for (const name of ['messageId', 'parentRunId', 'memberRunId', 'piSessionId', 'mode']) assert(name in properties);
@@ -4793,7 +4791,7 @@ test('exact-session control threads request abort through intent guard without c
 
 test('help advertises additive exact-session send and receipt grammar', () => {
   const help = createZergCommandHandler(createZergStateContainer())('help').output;
-  assert(help.includes('/zerg sessions send')); assert(help.includes('/zerg sessions messages'));
+  assert(help.includes('/clankers sessions send')); assert(help.includes('/clankers sessions messages'));
 });
 
 test('timeline.list is owner-state-only read-only inspection with strict action-local filters', async () => {
@@ -4845,7 +4843,7 @@ test('timeline command nonterminal fallback never opens UI or mutates state', as
 
 test('structured tool accepts timeline.list and leaves legacy log limit semantics intact', async () => {
   let tool: { execute?: (...args: unknown[]) => unknown } | undefined;
-  const registration = registerZergSwarmExtension({ registerTool(definition) { tool = definition as typeof tool; }, registerCommand() {} }, { subagentAdapter: { kind: 'fake', launch() { return { ok: false, message: 'not used' }; } } });
+  const registration = registerZergSwarmExtension({ registerTool(definition) { if (definition.name === 'zerg_control') tool = definition as typeof tool; }, registerCommand() {} }, { subagentAdapter: { kind: 'fake', launch() { return { ok: false, message: 'not used' }; } } });
   assert(tool?.execute);
   const result = await tool.execute('timeline-read', { action: 'timeline.list', teamId: 'unknown', limit: 256 }) as { details: { ok: boolean; data: { entries: unknown[] } } };
   assert(result.details.ok); assert.deepEqual(result.details.data.entries, []);

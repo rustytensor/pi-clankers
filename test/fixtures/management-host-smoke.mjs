@@ -179,7 +179,7 @@ try:
     for generation, cycles in [(1, 2), (2, 1)]:
         for cycle in range(1, cycles + 1):
             until(lambda: phase('management-' + str(generation) + '-' + str(cycle))); pause()
-            until(lambda: 'zerg config' in ansi.sub('', bytes(raw).decode('utf-8', 'replace')))
+            until(lambda: 'clankers config' in ansi.sub('', bytes(raw).decode('utf-8', 'replace')))
             # Tree -> settings -> chat. Typed action-looking input remains a
             # literal draft; no Enter/send, no runner or provider invocation.
             key(b'\t'); key(b'\t'); key(b'literal-q-c-n')

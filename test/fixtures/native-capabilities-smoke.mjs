@@ -182,7 +182,7 @@ try {
       for (const fn of listeners.get(name) ?? []) fn(data);
     },
   };
-  registration = zerg.registerZergSwarmExtension({ events, registerCommand(name, command) { if (name === 'zerg') slashHandler = command.handler; }, registerTool(tool) { registeredTool = tool; } });
+  registration = zerg.registerZergSwarmExtension({ events, registerCommand(name, command) { if (name === 'zerg') slashHandler = command.handler; }, registerTool(tool) { if (tool.name === 'zerg_control') registeredTool = tool; } });
   assert((await registration.control.execute({ action: 'agents.create', id: 'bridge', prompt: 'No tools.', tools: [], model: 'fixture/ok' })).ok);
   start = requests.length;
   const bridged = await registration.control.execute({ action: 'run', agent: 'bridge', task: 'bridge keeps capability request', background: true, launchMode: 'fork', maxTurns: 6, fallbackModels: ['fixture/a'] });

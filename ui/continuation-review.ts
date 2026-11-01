@@ -137,7 +137,7 @@ export class ZergContinuationReviewComponent implements StructuralPiCustomCompon
     const editorRows = this.phase === 'edit' && this.layoutAvailable ? Math.min(6, Math.max(1, h - 7)) : 0;
     this.viewport = Math.max(1, h - 4 - editorRows);
     this.scroll = Math.max(0, Math.min(this.scroll, Math.max(0, lines.length - this.viewport)));
-    const output = [styleText(this.theme, 'accent', `zerg NEW continuation · ${this.phase}`),
+    const output = [styleText(this.theme, 'accent', `clankers NEW continuation · ${this.phase}`),
       safe(this.message || (this.preparing ? 'Preparing review only; no new task started.' : this.phase === 'review' ? 'Review current authority; Ctrl+y explicitly authorizes a NEW task.' : this.phase === 'edit' ? 'Pi editing: CR/CRLF become LF; tabs become four spaces. Enter prepares review, never execution.' : 'Original session unchanged; no process/workspace restoration.')).replace(/\n/g, ' '),
       `Disclosure lines ${this.scroll + 1}-${Math.min(lines.length, this.scroll + this.viewport)} of ${lines.length}${this.displayLimited ? ' · UI display truncated; confirmation disabled' : ' · PgUp/PgDn/Home/End to inspect'}`,
       ...lines.slice(this.scroll, this.scroll + this.viewport)];

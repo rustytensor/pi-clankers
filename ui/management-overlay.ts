@@ -43,7 +43,7 @@ export async function openZergManagementOverlay(context: Pick<StructuralPiComman
         component?.dispose();
         return component = new ZergManagementOverlayComponent(tui, theme as UiThemeLike | undefined, () => done?.(undefined), options);
       },
-      { overlay: true, overlayOptions: { title: 'zerg config', anchor: 'center', width: '78%', maxHeight: '82%', minWidth: 72 } },
+      { overlay: true, overlayOptions: { title: 'clankers config', anchor: 'center', width: '78%', maxHeight: '82%', minWidth: 72 } },
     ));
   } finally { component?.dispose(); }
 }
@@ -104,7 +104,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     if (safeWidth < 72 || safeHeight < 18) {
       this.chatInput.focused = false;
       this.preferencesInput.focused = false;
-      return [styleText(this.theme, 'warning', 'zerg config: resize terminal (72 columns / 18 rows); Esc closes')]
+      return [styleText(this.theme, 'warning', 'clankers config: resize terminal (72 columns / 18 rows); Esc closes')]
         .slice(0, safeHeight).map((line) => fitRawLine(line, safeWidth));
     }
     this.ensureDefaultTarget(snapshot);
@@ -244,7 +244,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     const counts = `${Object.keys(snapshot.teams).length} teams · ${Object.keys(snapshot.agents).length} agents · ${Object.keys(snapshot.tasks).length} tasks`;
     const pendingPermissions = this.countPendingPermissions(snapshot);
     const readOnly = snapshot.mode.readOnly ? styleText(this.theme, 'warning', 'read-only on') : styleText(this.theme, 'success', 'edits allowed');
-    const title = boldText(this.theme, styleText(this.theme, 'accent', 'zerg config'));
+    const title = boldText(this.theme, styleText(this.theme, 'accent', 'clankers config'));
     return [
       fitRawLine(`${title} ${styleText(this.theme, 'muted', '·')} ${styleText(this.theme, 'muted', counts)} ${styleText(this.theme, 'muted', '·')} ${readOnly}`, width),
       fitRawLine(`${styleText(this.theme, 'dim', 'Use three steps:')} ${styleText(this.theme, 'accent', 'Select')} → ${styleText(this.theme, 'accent', 'Settings')} → ${styleText(this.theme, 'accent', 'Message')}   ${styleText(this.theme, 'dim', 'Tab changes focus')}`, width),

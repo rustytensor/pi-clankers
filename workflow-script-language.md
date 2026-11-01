@@ -228,7 +228,7 @@ from the scheduler `WorkflowAction`), routed before lazy service creation:
 | `workflows.scripts.inspect` | `{ definitionId }` |
 | `workflows.scripts.import` | `{ path }` |
 
-Slash parity: `/zerg workflows scripts <validate|compile|inspect|save|import> <JSON>`.
+Slash parity: `/clankers workflows scripts <validate|compile|inspect|save|import> <JSON>`; `/clank`, `/zerg`, `/zerg-swarm`, and `/swarm` remain aliases.
 The original workflow aliases and commands are unchanged; there is no start
 flag and no autostart on any script action. Import paths are normalized
 relative to cwd; `..` components, absolute paths, backslashes, NUL, symlinks, and

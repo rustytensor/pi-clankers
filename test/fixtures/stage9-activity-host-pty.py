@@ -360,7 +360,7 @@ def live_ui():
     until(lambda: load('live.json'), 'real mixed standalone/team/workflow activity')
     offset = len(raw)
     resize(240, 55)
-    until(lambda: emitted('Zerg', offset) and emitted('S9 companion widget', offset)
+    until(lambda: emitted('Clankers', offset) and emitted('S9 companion widget', offset)
           and emitted('S9 companion status', offset), 'fresh strip+companion+default-footer status')
     before = observed().get('opens', 0)
     # Real bracketed paste containing escape-like shortcut bytes must not open.

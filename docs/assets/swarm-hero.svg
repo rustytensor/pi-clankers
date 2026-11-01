@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1180" height="740" viewBox="0 0 1180 740" role="img" aria-labelledby="swarm-hero-title swarm-hero-desc">
-  <title id="swarm-hero-title">Pi Zerg Swarm: native agents, teams, workflows and control</title>
+  <title id="swarm-hero-title">Clankers: native agents, teams, workflows and control</title>
   <desc id="swarm-hero-desc">A Pi-native coding-agent extension. The Pi core supplies SDK sessions, tools and model runtime to standalone agents, native teams and separately orchestrated workflow units. Structured control and management expose exact identities, logs, receipts, history and local background activity. Observation never grants execution authority.</desc>
   <defs>
     <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
@@ -23,7 +23,7 @@
   <path d="M 1064 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 1096 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 1128 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="42" y="75" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">PI / ZERG SWARM</text>
+  <text x="42" y="75" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">CLANKERS</text>
   <text x="42" y="137" fill="#edf3ff" font-family="Noto Sans, sans-serif" font-size="50" font-weight="700" text-anchor="start">One Pi. A coordinated swarm.</text>
   <text x="44" y="178" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="22" font-weight="400" text-anchor="start">Native execution. Explicit control. Work you can actually inspect.</text>
   <path d="M 436 328 H 374 V 297 H 337" fill="none" stroke="#65ddec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
@@ -52,7 +52,7 @@
   <rect x="844" y="408" width="3" height="108" rx="1" fill="#6ce5b2"/>
   <text x="863" y="419" fill="#6ce5b2" font-family="Noto Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.4">04 / CONTROL SURFACES</text>
   <text x="863" y="452" fill="#edf3ff" font-family="Noto Sans, sans-serif" font-size="22" font-weight="700" text-anchor="start">Human + API control</text>
-  <text x="863" y="484" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">/zerg · zerg_control</text>
+  <text x="863" y="484" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start">/clankers · clankers_control</text>
   <text x="863" y="510" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">TUI · createZergControl</text>
   <rect x="436" y="226" width="308" height="308" rx="24" fill="#1c2136" stroke="#b494ff"/>
   <rect x="458" y="249" width="264" height="4" rx="2" fill="url(#accent)"/>

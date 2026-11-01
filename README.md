@@ -1,6 +1,8 @@
-# pi-zerg-swarm
+# Clankers
 
-![pi-zerg-swarm: an original neon pixel-art swarm of coordinated agent drones](docs/assets/swarm-logo.svg)
+![Clankers: an original neon pixel-art swarm of coordinated agent drones](docs/assets/swarm-logo.svg)
+
+Distributed as the Pi extension package `pi-clankers`.
 
 **Build a swarm. See the work. Keep the decisions explicit.**
 
@@ -9,9 +11,11 @@ Native parallel agents, programmable workflows, and a command center for the
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-![Zerg Swarm overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/swarm-hero.svg)
+![Clankers overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/swarm-hero.svg)
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
+
+**Upgrading? [Load only one copy—migration guide](#migration-load-only-one-copy).**
 
 [Quickstart](#quickstart) · [Workflows](#workflows) ·
 [Command center](#command-center) · [API help](#discover-actions-safely) · [Reference](#release-status) ·
@@ -19,14 +23,14 @@ exact conversations, and carry useful history into a fresh task.
 
 ## What you can build
 
-| Your outcome | What Zerg brings |
+| Your outcome | What Clankers brings |
 | --- | --- |
 | **Review in parallel, then synthesize** | Configurable specialists and explicit teams; FIFO worker admission, per-run concurrency (default **8**), then a leader pass with worker handoffs. Required worker failures remain failures. |
 | **Turn a process into a repeatable graph** | Dependency DAGs, bounded fan-out, typed conditions, schema-validated results, deterministic aggregation, and bounded feedback loops. |
 | **Move from findings to a reviewed candidate** | Trusted-host staged coding: investigation, separate implementation approval, private candidate edits, approved checks, independent review, then separate application approval. |
 | **See the exact agent—not a guessed conversation** | Parent/member/Pi session identities, live text and tool inspection, saved raw branch history, explicit messages and receipts, and a read-only team/run timeline. |
 | **Stay in your main Pi conversation** | Background native runs, a compact below-editor activity strip, and **Alt+G** management without waiting for workers to finish. |
-| **Automate without driving a terminal** | `/zerg` for humans; `zerg_control` and `createZergControl(...)` for structured control, with [read-only action help](#discover-actions-safely) when you need the exact arguments. A separate local CLI runs approved read-only workflow profiles. |
+| **Automate without driving a terminal** | `/clankers` for humans; `clankers_control` and `createZergControl(...)` for structured control, with [read-only action help](#discover-actions-safely) when you need the exact arguments. A separate local CLI runs approved read-only workflow profiles. |
 | **Keep interrupted work inspectable** | Opt-in run/log snapshots, explicit retry attempts, and conservative workflow recovery with current evidence and fresh trusted-host authorization—not automatic replay. |
 
 ## Workflows
@@ -59,7 +63,7 @@ your own graphs with the same engine:
 Trusted-host configuration enables staged writing and approved deterministic
 checks; independent read-only review evaluates the candidate and actual check
 evidence. The application gate binds the exact candidate, evidence, and target
-baseline. Neither a model response nor an ordinary `zerg_control` action can
+baseline. Neither a model response nor an ordinary `clankers_control` action can
 approve these gates. Checks run trusted project code with host permissions—not
 inside an OS sandbox.
 
@@ -81,13 +85,13 @@ recovery is not a reconnect or an exactly-once guarantee.
 
 *Illustrative schematic—not a screenshot, live run, or performance measurement.*
 
-- **Manage:** `/zerg config` or **Alt+G** opens selection, settings, tree/detail,
+- **Manage:** `/clankers config` or **Alt+G** opens selection, settings, tree/detail,
   and intervention views. Configure agent prompts, explicit models, teams, and
   tool allow/deny lists; unsupported native options reject before SDK startup.
 - **Watch:** the bounded activity strip distinguishes working/queued agents,
   workflow approval waits, checks, cleanup, and uncertainty. It observes this
   Pi owner's work—not other processes or the main conversational model.
-- **Inspect:** `/zerg sessions` chooses an exact session. Read live text,
+- **Inspect:** `/clankers sessions` chooses an exact session. Read live text,
   available thinking, and tool arguments/results; inspect validated saved raw
   branches without changing the native session or reconstructing effective context.
 - **Message:** explicitly send `steer` or `followUp` to an accepting live
@@ -97,25 +101,48 @@ recovery is not a reconnect or an exactly-once guarantee.
 - **Continue deliberately:** select saved history, prepare a current-policy
   review, then explicitly authorize a **new task in a fresh native session**.
   The old session, permissions, queues, and approvals are not resumed.
-- **Trace:** `/zerg timeline` separates operator receipts, native handoffs,
+- **Trace:** `/clankers timeline` separates operator receipts, native handoffs,
   recorded events, and current snapshots with exact identity filters.
 
 Closing a view or hiding the strip does not cancel work. Background work lasts
 only while its owning Pi process is alive; recovered history is not live.
 
+## Migration: load only one copy
+
+**Do not load old and new copies together. Dual installation is unsupported.**
+Pi identifies packages by npm name, Git repository URL, or local path. Different
+sources can load duplicate controllers; the old v1.1.25 copy does not cooperate
+with the rename. There is no dual-install guard.
+
+1. Run `pi list` and identify the exact old declaration.
+2. Before adding a different source, remove or disable that declaration wherever
+   it loads: personal settings, project settings, and explicit extension paths.
+   **Do not delete saved data.** No global configuration is edited automatically.
+3. Add only the intended source. An unpinned update of the same Git URL retains
+   one package identity; a v1.1.25 pin must explicitly select v1.1.26 instead.
+
+This is a source/package rename to `pi-clankers`; the GitHub repository remains
+`https://github.com/rustytensor/pi-zerg-swarm`. Local checkout folders and the
+internal Larra project name remain unchanged. Storage stays at
+`.pi/zerg-swarm/v1/state.json` and `<agent-dir>/zerg-swarm/ui.json`.
+Native-session/result custom types retain the `pi-zerg-swarm/...` namespace;
+the authority enum remains `pi | zerg | operator`. No saved-data migration or
+runtime authority expansion is implied.
+
 ## Quickstart
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install from the repository using Pi's package manager, then start Pi in the
-project you want to inspect:
+Install the **v1.1.26** Git tag
+using Pi's package manager, then start Pi in the project you want to inspect.
+Do not use an unpinned fresh install while the default branch is older:
 
 ```sh
-pi install git:github.com/crustyhacker/pi-zerg-swarm
+pi install git:github.com/rustytensor/pi-zerg-swarm@v1.1.26
 pi
 ```
 
-This is a Git-source package install, not a claim of npm publication. Pi defaults
+This is a Git-source package install, not npm publication. `pi-clankers` is not currently published on npm. Pi defaults
 to personal package settings; add `--local` to the install command for a
 project-scoped declaration, which loads only after Pi project trust is granted.
 For an already-open Pi, load the installed extension with `/reload` when ready.
@@ -125,10 +152,10 @@ available in your Pi environment. The following starts read-only workflow work;
 it does not enable staged coding or approve application:
 
 ```text
-/zerg agents update generalist --model provider/model
-/zerg agents update reviewer --model provider/model
-/zerg workflows start {"definitionId":"read-only-review","inputs":{"candidatePaths":["README.md"],"scope":"Review this file without changing it; report evidence and unresolved questions"},"concurrency":8}
-/zerg workflows monitor
+/clankers agents update generalist --model provider/model
+/clankers agents update reviewer --model provider/model
+/clankers workflows start {"definitionId":"read-only-review","inputs":{"candidatePaths":["README.md"],"scope":"Review this file without changing it; report evidence and unresolved questions"},"concurrency":8}
+/clankers workflows monitor
 ```
 
 Clear unsupported turn limits, fallback models, and permission overrides on
@@ -136,12 +163,12 @@ these definitions before native workflow execution. In the monitor, **Enter**
 drills down and **c** opens the selected unit's exact coding view; **q/Esc**
 closes the view without cancelling work. Use **Alt+G** to open management.
 
-**Prefer a specialist or team?** Use `/zerg agents` and `/zerg team` to configure
-explicit definitions, then `/zerg run <agent-or-team> <task> --bg --fresh`.
+**Prefer a specialist or team?** Use `/clankers agents` and `/clankers team` to configure
+explicit definitions, then `/clankers run <agent-or-team> <task> --bg --fresh`.
 Team workers run first; the leader integrates after all workers settle unless
 cancelled. Native execution needs no `pi-subagents` bridge.
 
-**Need a local scheduled inspection?** The Linux-only `pi-zerg-automation` CLI
+**Need a local scheduled inspection?** The Linux-only `pi-clankers-automation` CLI
 accepts an operator-reviewed, fixed read-only profile and one occurrence
 request. Scheduling stays external; there is no daemon, catch-up queue, coding
 approval, automatic recovery, or shared cross-process live monitor.
@@ -152,15 +179,15 @@ approval, automatic recovery, or shared cross-process live monitor.
 ## Reference
 
 The sections below document command grammar, API contracts, limits, and recovery
-boundaries. `pi-zerg-swarm` is a Pi coding-agent extension, **not** a Raspberry Pi
+boundaries. `pi-clankers` is a Pi coding-agent extension, **not** a Raspberry Pi
 hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.25** (native worker completion results, exact result retrieval, checked JSON results and reporting-only write-path tracking).
+- Current release: **v1.1.26** (Clankers branding, canonical commands/tool/CLI, and compatibility migration).
 - Historical milestones preserved for audit traceability: v0.8.0 implementation milestone and v0.8.1 audit follow-up patch.
 - The release path requires general, milestone, security, performance, hardening, and cleanup audits.
-- Canonical repository: https://github.com/crustyhacker/pi-zerg-swarm.
+- Canonical repository: https://github.com/rustytensor/pi-zerg-swarm.
 
 ## Pi compatibility
 
@@ -170,31 +197,31 @@ Pi supplies its SDK and TUI libraries to installed extensions. They are declared
 
 ## Commands
 
-- `/zerg` — canonical command
-- `/zerg-swarm` — alias
-- `/swarm` — alias
+- `/clankers` — canonical command
+- `/clank` — short alias
+- `/zerg`, `/zerg-swarm`, `/swarm` — compatibility aliases for the transition
 
 These commands display help, status, expanded tree visibility, deterministic thinking-step parser output, Claude Code-style runtime agent-definition configuration, native Pi SDK-backed run execution, task-first subagent spawn state, explicit fresh/fork launch-mode metadata, command-host permission queue state, fine-grained lifecycle substate hints, bounded structured log/output inspection, restart-durable run/log recovery snapshots, process-lifetime background run status/interrupt/message support, and a componentized Pi-native interactive management TUI for live tree/detail/settings/chat/footer management views through snapshot-safe shared-state-backed Pi command handlers.
-Command-host control grammar is available via `/zerg mode status|manual|assisted|automatic|revert [reason]`, `/zerg intervene agent|subagent|leader ...`, `/zerg agents list|show|create|update|delete` with per-agent `--model`, `--fallback-models`, `--max-turns`, tools, and permission settings, `/zerg agent`/`/zerg team` lifecycle configuration flags for team leaders/members/model metadata, `/zerg runs list|show <run-id>`, `/zerg permission status|list|request|approve|deny|cancel`, `/zerg logs status|list|show|json`, `/zerg config`, and `/zerg run <agent-or-team> <task> [--bg] [--fresh|--fork] [--model <model>]`; `/zerg run` does not require `pi-subagents` and uses the native Pi SDK runner when no slash bridge responds.
+Command-host control grammar is available via `/clankers mode status|manual|assisted|automatic|revert [reason]`, `/clankers intervene agent|subagent|leader ...`, `/clankers agents list|show|create|update|delete` with per-agent `--model`, `--fallback-models`, `--max-turns`, tools, and permission settings, `/clankers agent`/`/clankers team` lifecycle configuration flags for team leaders/members/model metadata, `/clankers runs list|show <run-id>`, `/clankers permission status|list|request|approve|deny|cancel`, `/clankers logs status|list|show|json`, `/clankers config`, and `/clankers run <agent-or-team> <task> [--bg] [--fresh|--fork] [--model <model>]`; `/clankers run` does not require `pi-subagents` and uses the native Pi SDK runner when no slash bridge responds.
 
-`/zerg config` is intended to stay simple: **Select** an agent/team/task, use **Settings** for mode/read-only/controller/permissions, and use **Message** to record an operator intervention. Press **v** in the tree/detail pane for the separate coding overlay, or **t** on a team/run for its timeline. The explicit live composer is distinct from the management intervention history. The overlay uses Pi theme colors when available and keeps the current key hints visible in the footer.
+`/clankers config` is intended to stay simple: **Select** an agent/team/task, use **Settings** for mode/read-only/controller/permissions, and use **Message** to record an operator intervention. Press **v** in the tree/detail pane for the separate coding overlay, or **t** on a team/run for its timeline. The explicit live composer is distinct from the management intervention history. The overlay uses Pi theme colors when available and keeps the current key hints visible in the footer.
 
 ## Background activity and management shortcut
 
-Interactive Pi displays a compact Zerg widget below the editor while this Pi owner has observable background work. It covers standalone native agents, queued team members and the genuinely active leader, and native/workflow phases without counting an orchestration run or reused result as another agent. Checks, approval waits, cancellation and uncertain cleanup are distinct from agents working. The main conversational Pi model is not a background worker.
+Interactive Pi displays a compact Clankers widget below the editor while this Pi owner has observable background work. It covers standalone native agents, queued team members and the genuinely active leader, and native/workflow phases without counting an orchestration run or reused result as another agent. Checks, approval waits, cancellation and uncertain cleanup are distinct from agents working. The main conversational Pi model is not a background worker.
 
 Illustrative examples, **not live data**:
 
 ```text
-● Zerg · Review: working · 3 agents working · 2 agents queued  [alt+g] Manage
-! Zerg · Workflow attempt 1: waiting approval · 2 agents working  [alt+g] Manage
+● Clankers · Review: working · 3 agents working · 2 agents queued  [alt+g] Manage
+! Clankers · Workflow attempt 1: waiting approval · 2 agents working  [alt+g] Manage
 ```
 
-Fixed, non-expanding workflows show completed top-level steps; skipped, failed and reused work remain separate. Repeat/fan-out totals are unknown rather than an expansion ceiling or invented percentage. Elapsed time belongs to the displayed run/attempt. Successful, settled local completion remains for five seconds, then disappears when idle. Recovered or disconnected records never imply live execution. Separate-process one-shot automation is **not live-tracked**; Zerg does not scan other state directories or reconnect history.
+Fixed, non-expanding workflows show completed top-level steps; skipped, failed and reused work remain separate. Repeat/fan-out totals are unknown rather than an expansion ceiling or invented percentage. Elapsed time belongs to the displayed run/attempt. Successful, settled local completion remains for five seconds, then disappears when idle. Recovered or disconnected records never imply live execution. Separate-process one-shot automation is **not live-tracked**; Clankers does not scan other state directories or reconnect history.
 
-**Alt+G** opens the same management view as `/zerg config`, including when the strip is hidden or no work is running. It does not wait for background work, approve anything or change execution selection. Closing management or hiding the strip does not cancel work. The widget leaves the main editor, footer and other extensions' widgets intact; narrow/short terminals reduce or hide its bounded, at-most-two-line display.
+**Alt+G** opens the same management view as `/clankers config`, including when the strip is hidden or no work is running. It does not wait for background work, approve anything or change execution selection. Closing management or hiding the strip does not cancel work. The widget leaves the main editor, footer and other extensions' widgets intact; narrow/short terminals reduce or hide its bounded, at-most-two-line display.
 
-In management, focus **Settings**, then press **o** for UI preferences. Enter a shortcut such as `alt+j`, `off` to disable it, or `default` to reset to `alt+g`; press Enter to save and Escape to return. **Ctrl+V** toggles strip visibility immediately. Shortcut changes—including disable/reset—remain **pending until `/reload`**. Settings distinguish the desired value from the actual active binding; the strip shows only the active key. `/zerg config`, `/zerg-swarm config` and `/swarm config` remain available.
+In management, focus **Settings**, then press **o** for UI preferences. Enter a shortcut such as `alt+j`, `off` to disable it, or `default` to reset to `alt+g`; press Enter to save and Escape to return. **Ctrl+V** toggles strip visibility immediately. Shortcut changes—including disable/reset—remain **pending until `/reload`**. Settings distinguish the desired value from the actual active binding; the strip shows only the active key. `/clankers config` and all four command aliases remain available.
 
 Preferences use the dedicated `<agent-dir>/zerg-swarm/ui.json` file (normally `~/.pi/agent/zerg-swarm/ui.json`):
 
@@ -202,7 +229,7 @@ Preferences use the dedicated `<agent-dir>/zerg-swarm/ui.json` file (normally `~
 {"version":1,"activityStrip":true,"managementShortcut":"alt+g"}
 ```
 
-A missing file uses defaults without writing it. Human settings actions save only this file, not Pi's keybindings or model configuration. The portable shortcut subset accepts Ctrl/Alt-modified letters and digits; unmodified printable keys, unsupported modifiers and known terminal-equivalent collisions are rejected. Invalid edits preserve the previous valid setting. Startup/reload conflicts disable Zerg's binding instead of taking another action's key, with a bounded warning and command fallback.
+A missing file uses defaults without writing it. Human settings actions save only this file, not Pi's keybindings or model configuration. The portable shortcut subset accepts Ctrl/Alt-modified letters and digits; unmodified printable keys, unsupported modifiers and known terminal-equivalent collisions are rejected. Invalid edits preserve the previous valid setting. Startup/reload conflicts disable Clankers' binding instead of taking another action's key, with a bounded warning and command fallback.
 
 Conflict checks cover effective Pi/user bindings and observed extension shortcut registrations, including legacy ambiguities such as Ctrl+I/Tab and Ctrl+M/Enter. The narrowly guarded catalog integration is verified for Pi 1.0.0/1.0.4; unsupported or changed host resolvers fail closed. Desktop/window-manager bindings, terminal-emulator mappings, private input handlers, unbracketed paste identical to a keypress, and arbitrary live rebinding without host table reconstruction cannot be universally detected. The opener rejects bracketed paste, malformed/mixed packets, key repeats/releases and unrelated modal input; no raw input is consumed or rewritten by its observer.
 
@@ -213,7 +240,7 @@ Print, JSON and RPC operation does not initialize the widget or require terminal
 Automation should prefer structured control over terminal automation:
 
 ```ts
-import { createZergControl } from 'pi-zerg-swarm';
+import { createZergControl } from 'pi-clankers';
 
 const control = createZergControl({}, { persistence: { enabled: true, rootDir: process.cwd() } });
 await control.execute({ action: 'agents.create', id: 'worker', prompt: 'Work directly.' });
@@ -221,11 +248,11 @@ const run = await control.execute({ action: 'run', agent: 'worker', task: 'Inves
 const status = await control.execute({ action: 'runs.show', runId: run.runId! });
 ```
 
-`registerZergSwarmExtension(...)` also registers a Pi custom tool named `zerg_control` when the installed Pi extension API exposes `registerTool(...)`. The tool calls the same structured control core and returns JSON-compatible `details`; callers do not need to parse slash-command output. Slash commands remain the human-facing wrapper.
+`registerZergSwarmExtension(...)` also registers a Pi custom tool named `clankers_control`, with `zerg_control` as a deprecated functional alias to the **same controller**, when the installed Pi extension API exposes `registerTool(...)`. The tool calls the same structured control core and returns JSON-compatible `details`; callers do not need to parse slash-command output. Slash commands remain the human-facing wrapper. Neither alias emits noisy per-call warnings. Existing SDK exports (`createZergControl`, `registerZergSwarmExtension`, and `Zerg*` types) remain unchanged; only package import specifiers change.
 
 ### Discover actions safely
 
-Use `zerg_control` help before guessing action names or arguments:
+Use `clankers_control` help before guessing action names or arguments:
 
 ```json
 {"action":"help"}
@@ -249,7 +276,7 @@ The directory distinguishes **inspection**, **configuration changes** and
 **execution**. Help is not an authority grant: workflow definition/script save
 does not start work, recovery `prepare` does not authorize execution, and coding
 approval/recovery authorization remain trusted host/operator interfaces—not
-model-callable tool actions. `/zerg help`, `/zerg-swarm help` and `/swarm help`
+model-callable tool actions. `/clankers help` and all four command aliases
 remain the human-facing reference.
 
 This describes the source/release capability, not the currently loaded extension.
@@ -257,13 +284,13 @@ An older installed or loaded version may still reject `help`; after an operator
 updates the installed package, Pi must reload the extension (for example with
 `/reload`) before live calls use the new schema and dispatcher.
 
-Background jobs are inspectable through `/zerg runs`, `/zerg logs`, direct `runs.*`/`logs.list`, and `/zerg interrupt`/`{ action: 'interrupt' }` while the Pi process/session remains alive. v1.1.0 also supports opt-in durable snapshots under `.pi/zerg-swarm/v1/state.json` through `persistence: { enabled: true, rootDir }`, so restart can recover run/log history and mark previously active sessions as `needs-attention` instead of losing them.
+Background jobs are inspectable through `/clankers runs`, `/clankers logs`, direct `runs.*`/`logs.list`, and `/clankers interrupt`/`{ action: 'interrupt' }` while the Pi process/session remains alive. v1.1.0 also supports opt-in durable snapshots under `.pi/zerg-swarm/v1/state.json` through `persistence: { enabled: true, rootDir }`, so restart can recover run/log history and mark previously active sessions as `needs-attention` instead of losing them.
 
 Snapshots have a **64 MiB serialized UTF-8 byte limit**. Loading uses a verified regular-file descriptor and bounded reads, including a growth check; oversized or invalid inputs report `lastLoadError` without modifying the file or replacing current state. Oversized saves are rejected before temporary-file creation, leaving the previous snapshot intact. Exclusive temporary files and failure cleanup protect against pre-existing temporary-file collisions. A currently enabled read-only setting remains enabled after recovery, even if the saved state was writable.
 
 Valid snapshot symlinks to regular files retain their existing load behavior; missing/dangling links behave as missing snapshots. Saving still atomically replaces the configured path itself, **not the symlink target**. This is not filesystem confinement, multi-writer coordination, or fsync/power-loss protection; use one owner per snapshot file. The separate native JSONL viewer limits remain unchanged.
 
-If an external adapter throws during launch, execution may already have started. Zerg preserves observed terminal state or reports `needs-attention` with the original run/task identities; inspect manually rather than automatically retrying. Admission checks do not revoke capabilities from an already-running external adapter.
+If an external adapter throws during launch, execution may already have started. Clankers preserves observed terminal state or reports `needs-attention` with the original run/task identities; inspect manually rather than automatically retrying. Admission checks do not revoke capabilities from an already-running external adapter.
 
 ### Native agent results
 
@@ -275,8 +302,8 @@ results without a terminal or completion notifier:
 {"action":"agents.results","ids":["worker","reviewer"],"runId":"zerg-run"}
 ```
 
-Slash equivalents: `/zerg agents result worker --run-id zerg-run --member-run-id zerg-run-worker --full`
-and `/zerg agents results worker,reviewer --run-id zerg-run`.
+Slash equivalents: `/clankers agents result worker --run-id zerg-run --member-run-id zerg-run-worker --full`
+and `/clankers agents results worker,reviewer --run-id zerg-run`.
 Run/member selectors are AND filters, never fallbacks. ID-only lookup is ambiguous
 when multiple executions are retained; an active matching execution requires exact
 selectors rather than returning an older completion. Missing, external-adapter and
@@ -344,15 +371,15 @@ Workflows coordinate native single-agent units outside the parent conversation. 
 The built-in `read-only-review` performs discovery → parallel reviews → finding collection → independent verification → deduplicated report. It uses the existing `generalist` definition for discovery and `reviewer` for review/verification. First configure **explicit, available provider/model IDs** on those definitions; replace the placeholders below. Unsupported turn limits, fallback models, and permission overrides must be cleared.
 
 ```text
-/zerg agents update generalist --model provider/model
-/zerg agents update reviewer --model provider/model
-/zerg workflows start {"definitionId":"read-only-review","inputs":{"candidatePaths":["index.ts"],"scope":"Review the supplied source without changing files"},"concurrency":8}
-/zerg workflows monitor
+/clankers agents update generalist --model provider/model
+/clankers agents update reviewer --model provider/model
+/clankers workflows start {"definitionId":"read-only-review","inputs":{"candidatePaths":["index.ts"],"scope":"Review the supplied source without changing files"},"concurrency":8}
+/clankers workflows monitor
 ```
 
 The preset accepts 1–16 unique normalized relative candidate paths and a nonempty scope. Discovery may select only those candidates; each target produces at most two findings, with at most 32 verifications. Failed reviews, missing/mismatched/duplicate verifier IDs, disagreement, and unselected coverage remain visible. Partial coverage is **not** overall success. Verdicts are model evidence, not proof that findings are true.
 
-Use structured `zerg_control` or `control.execute(...)` for automation:
+Use structured `clankers_control` or `control.execute(...)` for automation:
 
 | Action | Required fields / meaning |
 | --- | --- |
@@ -369,7 +396,7 @@ Use structured `zerg_control` or `control.execute(...)` for automation:
 | `workflows.scripts.inspect` | `{ definitionId }`; frozen saved definition plus provenance-aware inspection, no parse or service start |
 | `workflows.scripts.import` | `{ path }`; explicit bounded local-file read, then compile + define |
 
-Slash equivalents use `/zerg workflows list`, `define <JSON>`, `start <JSON>`, `show {"workflowRunId":"..."}` (or `definitionId`), and `pause|resume|cancel|retry|report|forget <workflow-run-id>`. `/zerg workflows monitor [workflow-run-id]` adds the interactive view; aliases remain supported and noninteractive inspection does not require a TUI.
+Slash equivalents use `/clankers workflows list`, `define <JSON>`, `start <JSON>`, `show {"workflowRunId":"..."}` (or `definitionId`), and `pause|resume|cancel|retry|report|forget <workflow-run-id>`. `/clankers workflows monitor [workflow-run-id]` adds the interactive view; aliases remain supported and noninteractive inspection does not require a TUI.
 
 In the monitor, **Enter** drills from attempts to steps to units to an explicitly selected bounded result. **p** pauses/resumes, **x** cancels the whole selected workflow, and **r**, then **Enter on the rendered confirmation**, starts a new retry attempt. **c** opens the selected unit's exact native coding view; returning creates a fresh monitor instance. **q/Esc/Ctrl+C** closes the view, not the workflow. Stale selection cannot retarget an action. Active workflow units reject steer/follow-up messages to preserve frozen inputs; ordinary native messaging is unchanged.
 
@@ -378,7 +405,7 @@ In the monitor, **Enter** drills from attempts to steps to units to an explicitl
 Definitions are plain JSON, never executable code. For example, with an explicitly configured `reviewer`:
 
 ```ts
-import type { WorkflowDefinition } from 'pi-zerg-swarm';
+import type { WorkflowDefinition } from 'pi-clankers';
 
 const definition: WorkflowDefinition = {
   id: 'review-one', version: 1, label: 'One read-only review',
@@ -441,14 +468,14 @@ Failure, invalid feedback, missing termination data, cancellation, or uncertain 
 
 Version 3 is an explicit opt-in for trusted-host staged coding. Existing version-1 and version-2 workflow definitions remain read-only; adding a coding policy is rejected unless the definition itself uses `version: 3`. Defining or starting a workflow, inputs, prompts, and model output do **not** grant coding authority. A trusted owner must supply project/staging/check configuration through `registerZergSwarmExtension(..., { coding: { ... } })` or `createZergControl(..., { coding: { ... } })`, and the operator must grant each distinct approval. Applied-source validation passes build, package checks, and 630 tests with zero skips, including isolated actual SDK and regular/fullscreen Pi-host acceptance. This is scripted loopback evidence, not manual visual acceptance or real-model coding-quality evidence.
 
-The default extension has no trusted coding project/staging/check configuration. Supplying ordinary `zerg_control` workflow actions can define/start/show/pause/cancel/retry/report workflows, but it cannot approve coding gates. The host-only API is `control.workflowApprovals` (or `workflowService.approvals` inside an owner integration). Interactive slash approval is deliberately human mediated:
+The default extension has no trusted coding project/staging/check configuration. Supplying ordinary `clankers_control` workflow actions can define/start/show/pause/cancel/retry/report workflows, but it cannot approve coding gates. The host-only API is `control.workflowApprovals` (or `workflowService.approvals` inside an owner integration). Interactive slash approval is deliberately human mediated:
 
 ```text
-/zerg workflows show {"workflowRunId":"<exact-run-id>"}
-/zerg workflows approve <exact-run-id> <approval-id>
+/clankers workflows show {"workflowRunId":"<exact-run-id>"}
+/clankers workflows approve <exact-run-id> <approval-id>
 ```
 
-The approve command requires `ui.confirm`, displays the exact bounded approval payload/fingerprint, rechecks the pending request after the modal, and then grants that exact fingerprint. There is no model-facing `confirm=true` path and ordinary `zerg_control` is no-approve.
+The approve command requires `ui.confirm`, displays the exact bounded approval payload/fingerprint, rechecks the pending request after the modal, and then grants that exact fingerprint. There is no model-facing `confirm=true` path and ordinary `clankers_control` is no-approve.
 
 The coding journey is:
 
@@ -475,8 +502,8 @@ A compile-tested disposable-project builder is exported directly from `workflow-
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergControl } from 'pi-zerg-swarm';
-import { buildTrustedCodingWorkflowExample } from 'pi-zerg-swarm/workflow-coding-example.ts';
+import { createZergControl } from 'pi-clankers';
+import { buildTrustedCodingWorkflowExample } from 'pi-clankers/workflow-coding-example.ts';
 
 const projectRoot = mkdtempSync(join(tmpdir(), 'zerg-coding-project-'));
 const stagingParent = mkdtempSync(join(tmpdir(), 'zerg-coding-staging-'));
@@ -514,7 +541,7 @@ runtime semantics; the AST whitelist is exact (literals, the recognized builder
 calls, and `value`/`ref` bindings only).
 
 Compilation is always explicit — `workflows.scripts.validate|compile|inspect|save|import`
-(or `compileWorkflowScript`), slash parity `/zerg workflows scripts ...` — and
+(or `compileWorkflowScript`), slash parity `/clankers workflows scripts ...` — and
 starting remains the ordinary `workflows.start` with its trusted gates. There
 is no start flag, autostart, scan, watch, automatic recompilation, or restart
 authority; unseen external edits never alter frozen imports, and only an
@@ -539,11 +566,11 @@ Version 1.1.18 adds opt-in explicit recovery under the conservative execution co
 Recovery is opt-in through trusted host options `recovery: { enabled: true }` together with enabled persistence. Startup, `workflows.recovery.inspect`, and `workflows.recovery.prepare` are inert: no native/model calls, checks, stage creation/adoption, application, writer acquisition, or cleanup. Missing/corrupt evidence is retained, not repaired. A restored run is inspectable history, not a live SDK session; persisted selections never restore execution plans or approvals.
 
 ```text
-/zerg workflows recovery inspect <workflow-run-id>
-/zerg workflows recovery prepare <workflow-run-id>
+/clankers workflows recovery inspect <workflow-run-id>
+/clankers workflows recovery prepare <workflow-run-id>
 ```
 
-Aliases `/zerg-swarm` and `/swarm` keep the same grammar. Structured actions use `workflowRunId`; `workflows.recovery.prepare` additionally accepts `selections: { reuseUnitIds, rerunUnitIds }`. Both return `data.assessment`; a successful read does not mean its plan is executable. Examine `blocked`, `plan.status`, and `fingerprint` (passed to authorization as `assessmentFingerprint`).
+Aliases `/clank`, `/zerg`, `/zerg-swarm` and `/swarm` keep the same grammar. Structured actions use `workflowRunId`; `workflows.recovery.prepare` additionally accepts `selections: { reuseUnitIds, rerunUnitIds }`. Both return `data.assessment`; a successful read does not mean its plan is executable. Examine `blocked`, `plan.status`, and `fingerprint` (passed to authorization as `assessmentFingerprint`).
 
 Keep **original recorded history** separate from **current observations**. `recoveryOriginal` preserves first recovered statuses; operation intents/results, original iterations, feedback, errors, and native identities remain history. Later verified owner/check/native settlement and destination byte observations do not rewrite recorded cleanup uncertainty or manufacture an old completion. Missing or uncertain receipts are not proof that an effect did or did not happen. Destination preimage/postimage equality is a current observation, not actor attribution.
 
@@ -566,7 +593,7 @@ The host-only API is `control.workflowRecovery.authorize({ workflowRunId, assess
 Public SDK example (inspection only):
 
 ```ts
-import { createZergControl } from 'pi-zerg-swarm';
+import { createZergControl } from 'pi-clankers';
 
 const control = createZergControl({}, {
   persistence: { enabled: true, rootDir: process.cwd() },
@@ -614,7 +641,7 @@ New isolated SDK and regular/fullscreen Pi-host recovery fixtures use actual nat
 Configure explicit provider/model IDs on `generalist` and `reviewer` first. This separate example does not modify the preset. It inspects supplied targets, conditionally adds a review, then refines findings and independently assesses remaining questions for at most three iterations:
 
 ```ts
-import type { WorkflowBinding, WorkflowDefinition, WorkflowRef, WorkflowSchema } from 'pi-zerg-swarm';
+import type { WorkflowBinding, WorkflowDefinition, WorkflowRef, WorkflowSchema } from 'pi-clankers';
 
 const text: WorkflowSchema = { type: 'string', maxLength: 2048 };
 const stateSchema: WorkflowSchema = {
@@ -687,7 +714,7 @@ The monitor shows selection/skip reasons, current/max iteration, and termination
 ### Authority, bounds, retries, and recovery
 
 - Each attempt freezes its definition, declared JSON inputs, agent definitions, and explicit model selections. Relevant current-agent/model/tool drift fails closed. Effective tools are the definition's expanded tools minus denials, **intersected with `read`, `grep`, `find`, `ls`**; an empty intersection is refused. Broad definitions are restricted, not silently granted new tools. Replacement builtins and dynamically activated gateways are refused.
-- Starting work authorizes normal current Pi resources and hooks. Outputs/source text remain data, not permission. Read-only tools are not filesystem confinement or an OS sandbox, and trusted extensions are not universally certified. Zerg's read-only **control mode** blocks new workflow execution; it is separate from the workflow's read-only tool policy.
+- Starting work authorizes normal current Pi resources and hooks. Outputs/source text remain data, not permission. Read-only tools are not filesystem confinement or an OS sandbox, and trusted extensions are not universally certified. Clankers' read-only **control mode** blocks new workflow execution; it is separate from the workflow's read-only tool policy.
 - Limits: **16 authored steps including repeat containers and body nodes**, **32 fan-out items**, at most **32 iterations per repeat**, concurrency **1–32** (default **8**), **3 attempts** and at most **256 native admissions per family**. Validation conservatively counts every conditional branch, fan-out bound, and repeat iteration, budgets all three attempts, and caps expanded orchestration nodes at 256 per attempt. Runtime ledger/admission limits still apply; these are not increased for loops. Iterations are sequential; independent body work shares the same workflow-wide permits. An owner also shares a conservative ceiling no greater than its most restrictive unsettled workflow's concurrency; this is not a provider-wide limit. Bounded iteration/admission counts do **not** guarantee bounded provider cost or wall-clock duration.
 - A permit covers native setup, execution, and owned cleanup—not just the final answer. Pause does not free active permits; cancel may remain `cancelling`. Missing/uncertain cleanup is `needs-attention`, blocks further admission/retry, and is not represented as successful disposal. Unit states distinguish completed, failed, cancelled, skipped, and unverified work.
 - UTF-8 limits: definition **64 KiB**, start inputs **32 KiB**, resolved workflow prompt/input **256 KiB**, raw native unit result **16 KiB before JSON parsing**, aggregate **256 KiB**. The **entire workflow namespace** (registry plus retained runs) is capped at **2 MiB**, with at most **16 definitions / 16 retained attempts**. Complexity limits also apply. Overflow is explicit; results are not silently clipped and history is not automatically pruned. Normal Pi resource context and native JSONL have separate limits; these are not token budgets.
@@ -698,11 +725,12 @@ The monitor shows selection/skip reasons, current/max iteration, and termination
 
 ### External read-only triggers (Stage 8E)
 
-`pi-zerg-automation` runs one approved read-only workflow in the **foreground** through the existing engine, native owner, and persistence manager. This Linux-only local adapter uses OS access as caller authentication. It adds no daemon, webhook, queue, catch-up, mutation, check command, approval, or automatic replay. Same-user arbitrary code can exercise that user's permissions; hashes and event IDs are change/duplicate bindings, not authentication or an OS sandbox.
+`pi-clankers-automation` is the canonical executable; `pi-zerg-automation`
+remains a compatibility alias to the same `automation-cli.mjs`. It runs one approved read-only workflow in the **foreground** through the existing engine, native owner, and persistence manager. This Linux-only local adapter uses OS access as caller authentication. It adds no daemon, webhook, queue, catch-up, mutation, check command, approval, or automatic replay. Same-user arbitrary code can exercise that user's permissions; hashes and event IDs are change/duplicate bindings, not authentication or an OS sandbox.
 
 #### Operator setup: disabled first, then deliberate approval
 
-Use Node **>=22.19.0** and a package installation exposing `pi-zerg-automation`. Its public `.mjs` bootstrap uses directly pinned **jiti 2.7.0**, `createJiti(..., {fsCache:false})`; the executable does not install dependencies. TypeScript API consumers need a compatible loader, not bare Node resolution of the package's `.js`-to-`.ts` imports.
+Use Node **>=22.19.0** and a package installation exposing `pi-clankers-automation`. Its public `.mjs` bootstrap uses directly pinned **jiti 2.7.0**, `createJiti(..., {fsCache:false})`; the executable does not install dependencies. TypeScript API consumers need a compatible loader, not bare Node resolution of the package's `.js`-to-`.ts` imports.
 
 Choose canonical absolute paths outside interactive Pi state. For example, `/srv/zerg-operator/profiles/nightly-readonly.json` controls `/srv/zerg-project`, with separate `/srv/zerg-operator/state/snapshot.json`, `/srv/zerg-operator/agent`, and `/srv/zerg-operator/sessions`. The operator must first provision the project, profiles directory, and snapshot's parent under protected ancestry; prefer owner-only directories (`0700`) and nonsecret profile files (`0600`). Every component must be effective-UID/root-owned and not group/other-writable, without symlinks; files must be regular and single-link. A root-owned sticky ancestor such as `/tmp` requires the very next directory to be protected and effective-UID-owned. Do not reuse the interactive snapshot, agent, or session directory. Existing snapshots must be private (`0600`); an absent snapshot is allowed. Only the configured agent/session directories may be created by the runner after fresh exclusive acquisition. It does not repair permissions.
 
@@ -712,9 +740,9 @@ The following **operator bootstrap** uses only pure public APIs and produces a c
 import { createJiti } from 'jiti';
 const jiti = createJiti(import.meta.url, { fsCache: false });
 const { validateWorkflowDefinition, workflowHash } =
-  await jiti.import('pi-zerg-swarm/workflow-model.ts');
+  await jiti.import('pi-clankers/workflow-model.ts');
 const { computeAutomationProfileHash } =
-  await jiti.import('pi-zerg-swarm/automation-profile.ts');
+  await jiti.import('pi-clankers/automation-profile.ts');
 const definition = validateWorkflowDefinition({
   version: 1, id: 'nightly-inspection', label: 'Nightly inspection',
   inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false },
@@ -748,7 +776,7 @@ All profile fields shown are required and unknown fields reject. `definitionHash
 After saving the disabled profile, inspect its hash:
 
 ```sh
-pi-zerg-automation profile-hash --profiles-dir /srv/zerg-operator/profiles --profile-id nightly-readonly
+pi-clankers-automation profile-hash --profiles-dir /srv/zerg-operator/profiles --profile-id nightly-readonly
 # Returns {"version":1,"profileId":"nightly-readonly","profileHash":"<sha256>"}.
 ```
 
@@ -775,19 +803,19 @@ Provision the named environment credential through your trusted launcher, not ev
 Save a reviewed envelope as `request.json`, using the actual intended fresh occurrence rather than the illustrative timestamp above. Supply the credential in the launch environment without putting its value in scheduler logs. Manual foreground invocation and pure historical inspection:
 
 ```sh
-pi-zerg-automation run --profiles-dir /srv/zerg-operator/profiles < request.json
-pi-zerg-automation status --profiles-dir /srv/zerg-operator/profiles < request.json
-pi-zerg-automation report --profiles-dir /srv/zerg-operator/profiles < request.json
+pi-clankers-automation run --profiles-dir /srv/zerg-operator/profiles < request.json
+pi-clankers-automation status --profiles-dir /srv/zerg-operator/profiles < request.json
+pi-clankers-automation report --profiles-dir /srv/zerg-operator/profiles < request.json
 ```
 
-These operations accept only the trusted absolute `--profiles-dir`; `profile-hash` alone additionally takes `--profile-id`. `status` and `report` are the same bounded **read-only historical projection**: no ownership acquisition/release, control/model initialization, save, or live session reconnection. Public exports in `pi-zerg-swarm/automation-runner.ts` are:
+These operations accept only the trusted absolute `--profiles-dir`; `profile-hash` alone additionally takes `--profile-id`. `status` and `report` are the same bounded **read-only historical projection**: no ownership acquisition/release, control/model initialization, save, or live session reconnection. Public exports in `pi-clankers/automation-runner.ts` are:
 
 ```ts
 runAutomationEvent(profilesDir: string, request: unknown, signal?: AbortSignal): Promise<AutomationResultV1>
 inspectAutomationEvent(profilesDir: string, request: unknown): Promise<AutomationResultV1>
 ```
 
-`pi-zerg-swarm/automation-profile.ts` exports the request/profile validators, hash helper, trusted loaders, model-config validator, and scoped identity/read helpers. `pi-zerg-swarm/automation-admission.ts` exports pure reservation/lookup/projection/pruning helpers; they do not execute or grant ownership.
+`pi-clankers/automation-profile.ts` exports the request/profile validators, hash helper, trusted loaders, model-config validator, and scoped identity/read helpers. `pi-clankers/automation-admission.ts` exports pure reservation/lookup/projection/pruning helpers; they do not execute or grant ownership.
 
 An external scheduler can pass one **stable planned occurrence** to a reviewed foreground wrapper. The following entire example is **commented and disarmed**; do not install/activate it as part of setup. Calendar validation remains the runner's responsibility. Retries must pass the identical occurrence argument, never generate a new ID to retry old work.
 
@@ -801,7 +829,7 @@ An external scheduler can pass one **stable planned occurrence** to a reviewed f
 #   *) exit 2 ;;
 # esac
 # printf '{"version":1,"profileId":"nightly-readonly","eventId":"%s","occurrenceTime":"%s"}\n' "$occurrence" "$occurrence" |
-#   exec /usr/local/bin/pi-zerg-automation run --profiles-dir /srv/zerg-operator/profiles
+#   exec /usr/local/bin/pi-clankers-automation run --profiles-dir /srv/zerg-operator/profiles
 # # Example scheduler invocation after separate operator deployment/review:
 # # /usr/local/bin/zerg-readonly-occurrence 2026-10-07T00:00:00.000Z
 ```
@@ -840,17 +868,17 @@ Results contain bounded `version`, `profileId`, `eventId`, delivery (`accepted|d
 
 ## Native session reference foundation
 
-Native runs expose `nativeSessions` through existing structured `runs.list` / `runs.show` results and a bounded `/zerg runs show <run-id>` summary. The parent run's `metadata.nativeSessions` is the canonical ledger; typed results are isolated copies. Each schema-version-1 reference maps the exact parent/member run and agent definition to Pi's own session ID, file locator, cwd, creation timestamp, and attachment state. Team workers and the leader have separate references; simultaneous runs of the same definition are separate conversations.
+Native runs expose `nativeSessions` through existing structured `runs.list` / `runs.show` results and a bounded `/clankers runs show <run-id>` summary. The parent run's `metadata.nativeSessions` is the canonical ledger; typed results are isolated copies. Each schema-version-1 reference maps the exact parent/member run and agent definition to Pi's own session ID, file locator, cwd, creation timestamp, and attachment state. Team workers and the leader have separate references; simultaneous runs of the same definition are separate conversations.
 
-Before extension binding or prompting, each native Pi manager receives a namespaced `pi-zerg-swarm/native-session/v1` custom identity entry and session name. Custom identity is tree metadata, not model context. Pi owns the JSONL transcript and branching/compaction format; Zerg does not duplicate it. **The SDK allocates the ID/path before writing a file**: setup/custom entries alone do not create a transcript, and a file can be absent after startup failure or cancellation before prompting. A locator is not proof of existence, persistence, or permission to read that path.
+Before extension binding or prompting, each native Pi manager receives a namespaced `pi-zerg-swarm/native-session/v1` custom identity entry and session name. Custom identity is tree metadata, not model context. Pi owns the JSONL transcript and branching/compaction format; Clankers does not duplicate it. **The SDK allocates the ID/path before writing a file**: setup/custom entries alone do not create a transcript, and a file can be absent after startup failure or cancellation before prompting. A locator is not proof of existence, persistence, or permission to read that path.
 
-Sessions still dispose after each task. `disposed` means confirmed SDK cleanup, not lost history; a throwing cleanup leaves the reference `unavailable` without claiming disposal. With opt-in Zerg snapshot persistence enabled, the ledger survives restart; restored `attached` references become `unavailable`, even for terminal parent runs, without inventing disposal. `unavailable` does not mean reconnected. With persistence disabled, Pi's marker/history survives independently **once Pi actually writes its file**, but Zerg does not rediscover the mapping on restart.
+Sessions still dispose after each task. `disposed` means confirmed SDK cleanup, not lost history; a throwing cleanup leaves the reference `unavailable` without claiming disposal. With opt-in Clankers snapshot persistence enabled, the ledger survives restart; restored `attached` references become `unavailable`, even for terminal parent runs, without inventing disposal. `unavailable` does not mean reconnected. With persistence disabled, Pi's marker/history survives independently **once Pi actually writes its file**, but Clankers does not rediscover the mapping on restart.
 
 Session runtimes still end after their tasks. Reference inspection and hydration do not read, create, repair, or scan transcript files. Explicit viewing is separate and validates the known location, Pi header, immutable provenance, and entry graph; it never resumes execution or changes the active branch.
 
 ## Agent coding overlay
 
-- `/zerg sessions [parent-run-id]` opens an **exact-session chooser** in an interactive Pi TUI. No leader or operator conversation is selected implicitly. `/zerg sessions list [parent-run-id]` prints bounded references and also works without a terminal UI; command aliases are preserved.
+- `/clankers sessions [parent-run-id]` opens an **exact-session chooser** in an interactive Pi TUI. No leader or operator conversation is selected implicitly. `/clankers sessions list [parent-run-id]` prints bounded references and also works without a terminal UI; command aliases are preserved.
 - Select a row and press **Enter** to inspect live text, available thinking text, and tool arguments/results. **Home** exposes full parent/member/Pi IDs. **Up/Down**, **PageUp/PageDown**, and **Home** pause tail following; **End** follows the tail on the live default branch. **s** returns to sessions, **b** chooses a raw branch locally (choose **Default** to return), and **q/Esc** closes when not composing.
 - `live` means an observer is connected to this owner's native runtime. An already-open viewer becomes `captured` when observation ends: its bounded final display remains, without claiming a durable file or reconnection. Reopening reads `saved` history when validation succeeds; `unavailable` explains missing, unsupported, unsafe, or disconnected state. A saved history from an unconfirmed attachment is explicitly history-only, not a live or confirmed-closed session.
 - This is **raw branch history, not effective model context**. Compaction/context-edit records are notices, not reconstructed model context. Saved history defaults to the last recorded entry, which is not proof of the active leaf. Branch selection never navigates or mutates the native session.
@@ -876,8 +904,8 @@ await control.execute({ action: 'session.messages.list', ...key, limit: 32 });
 Equivalent slash commands (aliases remain supported):
 
 ```text
-/zerg sessions send <parent> <member> <pi-id> <message-id> <steer|followUp> -- <literal body>
-/zerg sessions messages <parent> <member> <pi-id> [limit]
+/clankers sessions send <parent> <member> <pi-id> <message-id> <steer|followUp> -- <literal body>
+/clankers sessions messages <parent> <member> <pi-id> [limit]
 ```
 
 Send mode is explicit in the new API/CLI. The body after the `-- ` separator is literal, including legal tabs, newlines, indentation, and trailing whitespace; shell-style quotes are not removed. Responses expose `data.receipt` or `data.receipts`. The existing `message` action and management intervention history are unchanged.
@@ -892,7 +920,7 @@ Send mode is explicit in the new API/CLI. The body after the `-- ` separator is 
 
 A caller ID is unique across the retained ledger. Repeating the same ID with the same exact key/body/mode returns its receipt without sending again; conflicting reuse rejects. The composer keeps its attempt ID for an unchanged unconfirmed draft. **There are no automatic retries or restart replays.** A deliberately new ID is a new message, not a safe retry of an uncertain one.
 
-Receipt persistence is independently `memory`, `saved`, or `failed`. With existing opt-in snapshot persistence, a successful intent write is required before enqueue; a later save failure does not revoke known queued/delivered status. `saved` means a successful Zerg snapshot write—not fsync/power-loss protection or a durable native transcript. Recovery quarantines pending receipts as `needs-attention` without scanning history, reconnecting, or executing anything. Use one owner per snapshot file; this is not a cross-process mailbox.
+Receipt persistence is independently `memory`, `saved`, or `failed`. With existing opt-in snapshot persistence, a successful intent write is required before enqueue; a later save failure does not revoke known queued/delivered status. `saved` means a successful Clankers snapshot write—not fsync/power-loss protection or a durable native transcript. Recovery quarantines pending receipts as `needs-attention` without scanning history, reconnecting, or executing anything. Use one owner per snapshot file; this is not a cross-process mailbox.
 
 The ledger retains at most 128 receipts and 262,144 aggregate body UTF-16 code units, with at most 32 pending per exact session. Capacity exhaustion rejects new messages instead of silently evicting idempotency records; there is no automatic pruning. The overlay shows at most eight receipts; structured listing supports limits 1–128. Outgoing intent bodies are stored for inspection/idempotency, not as a second conversation transcript. Long-lived agents and automatic sibling push/wakeup remain separate work.
 
@@ -936,26 +964,26 @@ Alternatively discard an unused review with `session.continuation.discard` and i
 Equivalent human-facing commands:
 
 ```text
-/zerg sessions continue prepare <parent> <member> <pi-id> <entry-id> [--model provider/model] [--ack-unconfirmed] -- <literal new task>
-/zerg sessions continue start <review-id> --confirm
-/zerg sessions continue discard <review-id>
+/clankers sessions continue prepare <parent> <member> <pi-id> <entry-id> [--model provider/model] [--ack-unconfirmed] -- <literal new task>
+/clankers sessions continue start <review-id> --confirm
+/clankers sessions continue discard <review-id>
 ```
 
 Structured/CLI task bodies preserve legal whitespace and are submitted without slash-command, skill-command, or prompt-template expansion. Normal Pi input and before-agent-start hooks still run and may transform or handle that input; the review discloses this ordinary extension authority. An inherited final assistant response is never counted as completion of the new task.
 
 Attached sources reject. An `unavailable` attachment—including uncertain restart recovery—requires explicit `acknowledgeUnconfirmedSource: true` (UI **Alt+A** / CLI `--ack-unconfirmed`). This acknowledges uncertain closure, not proof that the old process stopped. A confirmed disposed source does not become unconfirmed merely because its view was captured or recovered. The feature copies history only: it neither reconnects nor replays old queues, approvals, or receipts.
 
-Pi's authoritative session projection handles compaction and context edits—not the coding viewer's truncated blocks. The original transcript is never passed to SDK open/fork methods. A fresh, exclusively created native file receives the copied tree; only copied Zerg identity/lineage metadata namespaces change to explicit ancestor metadata. Payloads, entry IDs, and parent links remain intact. A new owning identity and source lineage are recorded, while legacy owning-marker validation remains strict.
+Pi's authoritative session projection handles compaction and context edits—not the coding viewer's truncated blocks. The original transcript is never passed to SDK open/fork methods. A fresh, exclusively created native file receives the copied tree; only copied Clankers identity/lineage metadata namespaces change to explicit ancestor metadata. Payloads, entry IDs, and parent links remain intact. A new owning identity and source lineage are recorded, while legacy owning-marker validation remains strict.
 
 **Limits:** this does not restore workspace files, tool processes, historical resource code, credentials, or the old environment. Known current policy inputs are fingerprinted for drift detection, not frozen into an environment snapshot or security sandbox; legacy global npm fallback and transitive/dynamic dependencies are not resolved or sealed during review. Existing native capability checks still apply. The model must be explicit in the current definition or review override; current requested thinking follows normal Pi capability normalization. Missing, malformed, oversized, incomplete tool-call history and unsupported legacy plain system content remain inspectable where supported but cannot be executed through continuation. No fallback silently drops history or broadens permission.
 
 ## Team/run communication timeline
 
-Open `/zerg timeline`, or press **t** on a team/run in the management tree/detail pane. Unsupported or ambiguous selections do not silently open all runs or a leader. The timeline is read-only; send messages through the existing exact-session coding composer, not this view.
+Open `/clankers timeline`, or press **t** on a team/run in the management tree/detail pane. Unsupported or ambiguous selections do not silently open all runs or a leader. The timeline is read-only; send messages through the existing exact-session coding composer, not this view.
 
 ```text
-/zerg timeline --team <team-id> --run <parent-run-id>
-/zerg timeline list --run <parent-run-id> --member <member-run-id> --session <pi-session-id> --limit 64
+/clankers timeline --team <team-id> --run <parent-run-id>
+/clankers timeline list --run <parent-run-id> --member <member-run-id> --session <pi-session-id> --limit 64
 ```
 
 Structured control provides the same projection in `data`:
@@ -981,7 +1009,7 @@ Previews are bounded (1,024 body and 256 summary UTF-16 code units; 65,536 aggre
 
 ![Recovery contract schematic: inert restored history, current evidence assessment, exact trusted-host authorization, and a fresh linked attempt with fresh coding gates](docs/assets/recovery-contract.svg)
 
-The current runtime connects slash commands, the `zerg_control` tool, and
+The current runtime connects slash commands, the `clankers_control` tool, and
 `createZergControl(...)` to the same structured control core in `index.ts`.
 Shared state and bounded logs feed management, coding, timeline, and workflow
 views; the activity strip is a display-only projection, not a scheduler.
@@ -995,7 +1023,7 @@ views; the activity strip is a display-only projection, not a scheduler.
   Script authoring compiles into this engine rather than introducing a second
   runtime. Trusted coding adds staged files, approved checks, independent review,
   and separate implementation/application approvals.
-- **Durable evidence:** opt-in Zerg snapshots retain run/log/workflow/receipt
+- **Durable evidence:** opt-in Clankers snapshots retain run/log/workflow/receipt
   state; Pi JSONL remains the sole native transcript store. Recovery inspection
   is inert. Eligible recovery execution uses fresh linked attempts and fresh
   authority, never restored live sessions or persisted approvals.
@@ -1128,7 +1156,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.22: documentation release introducing the visual feature showcase and public SVG diagrams
 - v1.1.23: bounded structured-control help, exact-action topics, schema discovery and helpful errors
 - v1.1.24: original retro swarm logo and refreshed GitHub presentation
-- v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (current release)
+- v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (released)
+- v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance (current release)
 
 ## Artwork and affiliation
 
@@ -1138,7 +1167,7 @@ affiliated with, endorsed by, or sponsored by Blizzard Entertainment.
 
 ## License
 
-MIT © 2026 Marc Mironescu (@crustyhacker) <marcm@crustyhacker.dev>
+MIT © 2026 Marc Mironescu (@rustytensor) <marcm@crustyhacker.dev>
 
 ## Native execution and control
 
@@ -1148,6 +1177,6 @@ MIT © 2026 Marc Mironescu (@crustyhacker) <marcm@crustyhacker.dev>
 - Native permission modes `manual` and `assisted` are not supported for Pi SDK runner launches; use inherited/default automatic behavior or reject before model execution.
 - Native Pi SDK execution fails closed for `--fork`/`launchMode: 'fork'`, nondefault `maxTurns`, and nonempty `fallbackModels`: the selected leader and every selected team member are checked before any SDK session starts. Clear those options for native runs, or use a supported external adapter/acknowledged slash bridge that implements them. Reviewed continuation is a separate explicit history-import path, not support for these legacy launch options.
 - Legacy operator `message` calls require a live run/member route. Their Pi `steer`/`followUp` acknowledgement remains `queued` or `handled`; UI-local management drafts may use `queued-local` and are not delivery proof. The additive exact-session API has the separate receipt contract described above.
-- Legacy structured `zerg_control` `message` mode accepts only `steer` or `followUp` (default `steer`); ambiguous live target routes require an explicit `runId`. New `session.message.send` requires an explicit mode and all three session IDs.
-- Native team workers have a per-run concurrency limit (default **8**). Set it with `/zerg run <team> "<task>" --concurrency <n>` (also `--concurrency=<n>`) or a positive safe-integer number in structured `zerg_control` run `concurrency: n`. This is not a global/provider-wide limit, and external adapters are responsible for their own enforcement.
+- Legacy structured `clankers_control` `message` mode accepts only `steer` or `followUp` (default `steer`); ambiguous live target routes require an explicit `runId`. New `session.message.send` requires an explicit mode and all three session IDs.
+- Native team workers have a per-run concurrency limit (default **8**). Set it with `/clankers run <team> "<task>" --concurrency <n>` (also `--concurrency=<n>`) or a positive safe-integer number in structured `clankers_control` run `concurrency: n`. This is not a global/provider-wide limit, and external adapters are responsible for their own enforcement.
 - Workers are admitted FIFO; each slot covers session setup and execution. Worker failure releases its slot without blocking the remaining queue. The leader runs after all workers settle, unless the run is cancelled. Cancellation prevents queued workers from starting; skipped workers finish as cancelled without a start timestamp.

@@ -1,20 +1,21 @@
 {
-  "name": "pi-zerg-swarm",
-  "version": "1.1.25",
-  "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and zerg-style subagent orchestration.",
+  "name": "pi-clankers",
+  "version": "1.1.26",
+  "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and coordinated subagent orchestration.",
   "type": "module",
   "license": "MIT",
   "author": {
     "name": "Marc Mironescu",
     "email": "marcm@crustyhacker.dev",
-    "url": "https://github.com/crustyhacker"
+    "url": "https://github.com/rustytensor"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/crustyhacker/pi-zerg-swarm.git"
+    "url": "git+https://github.com/rustytensor/pi-zerg-swarm.git"
   },
   "main": "./index.ts",
   "bin": {
+    "pi-clankers-automation": "./automation-cli.mjs",
     "pi-zerg-automation": "./automation-cli.mjs"
   },
   "exports": {

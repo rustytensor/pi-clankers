@@ -871,7 +871,7 @@ test('n is distinct from b inspection and c composer: saved exact inspected at-e
   assert.deepEqual(f.handles[0]?.selections.at(-1), { leafId: 'old-leaf' });
   f.component.handleInput('n');
   const editing = f.component.render(180, 40).join('\n');
-  assert.match(editing, /zerg NEW continuation/);
+  assert.match(editing, /clankers NEW continuation/);
   assert.match(editing, /Selected entry \(at\): old-leaf/);
   assert.equal(f.prepares.length, 0);
   assert.equal(f.starts.length, 0);

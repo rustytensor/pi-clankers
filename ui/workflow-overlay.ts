@@ -201,7 +201,7 @@ export async function openZergWorkflowOverlay(context: StructuralPiCommandContex
         component?.dispose();
         component = new ZergWorkflowComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
         return component;
-      }, { overlay: true, overlayOptions: { title: 'zerg workflows', anchor: 'center', width: '90%', maxHeight: '82%' } }));
+      }, { overlay: true, overlayOptions: { title: 'clankers workflows', anchor: 'center', width: '90%', maxHeight: '82%' } }));
     } finally { component?.dispose(); }
     if (!result || !options.onOpenNative) return;
     state = result.state; notice = '';
@@ -301,7 +301,7 @@ export class ZergWorkflowComponent implements StructuralPiCustomComponent, Focus
     const repeatStatus = block && blockSpec?.kind === 'repeat'
       ? ` · ${block.id} iteration ${block.iterations?.length ?? 0}/${blockSpec.maxIterations} · ${block.status} · ${repeatOutcome(block, run!.recovered)}${block.skipReason ? ` · ${block.skipReason}` : ''}${block.error ? ` · ${block.error}` : ''}` : '';
     const original = run?.recoveryOriginal;
-    const header = [`zerg workflows · ${this.state.level} · ${label}`, `${this.state.runId ?? 'all retained runs'} · attempt ${run?.attemptNo ?? '?'} · ${status}${repeatStatus}`,
+    const header = [`clankers workflows · ${this.state.level} · ${label}`, `${this.state.runId ?? 'all retained runs'} · attempt ${run?.attemptNo ?? '?'} · ${status}${repeatStatus}`,
       `${this.pending ? 'Control pending. ' : ''}${this.notice} ${this.observerNotice} ${run?.error ? `Workflow error: ${sanitizeUiText(run.error)} · ` : ''}Pause closes admission only; admitted workers continue. UI bounds: 16 runs/16 phases/32 iterations/32 units; approval monitor is inspect-only; recovery assessment is read-only; trusted selection activates a new child; coding gates remain separate; no automatic reconnect.`];
     const headerCount = Math.min(3, Math.max(0, h - 2)); const footerCount = h >= 3 ? 1 : 0;
     const capacity = Math.max(1, h - headerCount - footerCount); this.viewport = capacity;

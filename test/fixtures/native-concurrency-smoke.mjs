@@ -183,7 +183,7 @@ try {
   control.dispose();
 
   let bridgeTool;
-  const bridge = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(tool) { bridgeTool = tool; } });
+  const bridge = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(tool) { if (tool.name === 'zerg_control') bridgeTool = tool; } });
   try {
     await agent(bridge.control, 'lead', 'lead');
     await agent(bridge.control, 'w0', 'slow0');
@@ -214,7 +214,7 @@ try {
     let tool;
     const shutdownHooks = [];
     const owner = zerg.registerZergSwarmExtension({
-      events: eventBus(), registerCommand() {}, registerTool(value) { tool = value; },
+      events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') tool = value; },
       on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); },
     });
     let entries = 0;

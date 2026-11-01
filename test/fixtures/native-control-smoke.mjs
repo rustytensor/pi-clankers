@@ -119,7 +119,7 @@ try{
  assert.equal((await control.execute({action:'run',agent:'ok',task:'Do not launch after disposal.',background:true})).ok,false);
  console.log('PASS active native disposal aborts execution and rejects subsequent launches');
  const listeners=new Map();const events={on(name,fn){const set=listeners.get(name)??new Set();set.add(fn);listeners.set(name,set);return()=>set.delete(fn);},emit(name,data){for(const fn of listeners.get(name)??[])fn(data);}};
- registration=zerg.registerZergSwarmExtension({events,registerCommand(){},registerTool(tool){registeredTool=tool;}});
+ registration=zerg.registerZergSwarmExtension({events,registerCommand(){},registerTool(tool){if(tool.name==='zerg_control')registeredTool=tool;}});
  assert((await registration.control.execute({action:'agents.create',id:'bridge',prompt:'No tools.',tools:[],model:'fixture/ok'})).ok);
  assert((await registration.control.execute({action:'agents.create',id:'bridge-error',prompt:'No tools.',tools:[],model:'fixture/error'})).ok);assert((await registration.control.execute({action:'agents.create',id:'bridge-ok',prompt:'No tools.',tools:[],model:'fixture/ok'})).ok);assert((await registration.control.execute({action:'team.create',id:'bridge-team',leader:'bridge',members:['bridge-error','bridge-ok']})).ok);
  start=requests.length;const bridgeAggregate=await registration.control.execute({action:'run',agent:'bridge-team',task:'Bridge native aggregate failure.',background:true});assert(bridgeAggregate.ok,JSON.stringify(bridgeAggregate));

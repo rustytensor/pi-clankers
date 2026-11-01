@@ -93,7 +93,7 @@ export function controlHelpEcho(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, 96).replace(/[^\x20-\x7e]/g, '?') + (value.length > 96 ? '...' : '') : '(invalid)';
 }
 export function unknownControlActionMessage(value: unknown): string {
-  return `Unknown zerg_control action: ${controlHelpEcho(value)}. Use {"action":"help"} to list supported actions.`;
+  return `Unknown clankers_control action: ${controlHelpEcho(value)}. Use {"action":"help"} to list supported actions.`;
 }
 export function validateControlHelpRequest(input: unknown): string | undefined {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return 'help requires an object with action and optional exact topic.';
@@ -102,7 +102,7 @@ export function validateControlHelpRequest(input: unknown): string | undefined {
   if (keys.some(key => !Object.hasOwn(Object.getOwnPropertyDescriptor(input, key)!, 'value'))) return 'help requires plain data fields, not accessors.';
   const { topic } = input as { topic?: unknown };
   if (topic !== undefined && (typeof topic !== 'string' || topic.length < 1 || topic.length > 96)) return 'help topic must be an exact public action name (1..96 characters). Use {"action":"help"} to list actions.';
-  if (topic !== undefined && !isZergControlActionName(topic)) return `Unknown zerg_control help topic: ${controlHelpEcho(topic)}. Use {"action":"help"} to list supported actions.`;
+  if (topic !== undefined && !isZergControlActionName(topic)) return `Unknown clankers_control help topic: ${controlHelpEcho(topic)}. Use {"action":"help"} to list supported actions.`;
   return undefined;
 }
 export function getZergControlHelpData(topic?: ActionName): ZergControlHelpData {

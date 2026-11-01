@@ -214,9 +214,9 @@ def resized():
 def review_units(data):
     begin=mark('review-units');resized()
     # Initial exact workflow monitor opens phases: discover then review.
-    until(lambda:emitted('zerg workflows · steps',begin),'phases rendered')
+    until(lambda:emitted('clankers workflows · steps',begin),'phases rendered')
     key(b'\x1b[B','Down exact review phase');key(b'\r','Enter phase units')
-    until(lambda:emitted('zerg workflows · units',begin)and emitted(data['unitId'],begin),'exact selected unit rendered')
+    until(lambda:emitted('clankers workflows · units',begin)and emitted(data['unitId'],begin),'exact selected unit rendered')
 def coding(data,saved=False):
     begin=mark('saved-coding'if saved else'live-coding')
     key(b'c','c exact selected native coding');key(b'\x1b[H','Home full exact coding identity')
@@ -228,7 +228,7 @@ def coding(data,saved=False):
     if not saved:
         key(b'\x1b[F','End live coding tail');until(lambda:emitted('HOST_LIVE_A_ONLY',begin),'selected live A not sibling');assert 'HOST_LIVE_B_ONLY'not in text(begin),'Wrong sibling coding'
     resized();returned=mark('coding-return');key(b'q','q coding only then fresh workflow return')
-    until(lambda:emitted('zerg workflows · units',returned)and emitted(data['unitId'],returned),'same exact workflow unit fresh return')
+    until(lambda:emitted('clankers workflows · units',returned)and emitted(data['unitId'],returned),'same exact workflow unit fresh return')
 def terminate(_sig,_frame):raise Exception('Controller terminated')
 signal.signal(signal.SIGTERM,terminate)
 try:

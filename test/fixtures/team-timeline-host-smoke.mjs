@@ -265,7 +265,7 @@ def exact_form(data, unknown=False):
     if unknown:
         until(lambda: 'No matching timeline entries. No fallback.' in text(begin), 'unknown exact filter stays empty')
         probe = mark('unknown-no-drill'); key(b'v', 'v unknown cannot retarget'); pause(0.25)
-        assert 'zerg coding' not in text(probe).lower() and 'Exact session chooser' not in text(probe), 'Unknown filter retargeted coding'
+        assert 'clankers coding' not in text(probe).lower() and 'Exact session chooser' not in text(probe), 'Unknown filter retargeted coding'
     return begin
 def select_receipt(data, selection):
     key(b'\x1b[H', 'Home pause/select first timeline row')

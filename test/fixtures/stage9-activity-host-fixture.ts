@@ -599,7 +599,7 @@ if (config.mode !== 'sdk' && !shared.setupCatalogWitnessInstalled) {
     const receiver = new Proxy(runner, { get(target, key) {
       if (key === 'getShortcuts') return (...args: any[]) => {
         const map = target.getShortcuts(...args); assert(map instanceof Map);
-        const own = new Set(g.shortcuts.filter((r: any) => r.description === 'Open Zerg management (/zerg config)').map((r: any) => r.handler));
+        const own = new Set(g.shortcuts.filter((r: any) => r.description === 'Open Clankers management (/clankers config)').map((r: any) => r.handler));
         assert.equal(own.size, 1, 'Actual effective owned opener registered by production guard');
         assert([...map.values()].some((r: any) => own.has(r.handler)));
         g.catalogs.push({ map, own, other: [...map].filter(([, row]: any) => !own.has(row.handler)) });

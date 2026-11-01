@@ -244,11 +244,11 @@ test('workflows.show exposes only compact exact-run approval summaries while tru
 
 test('workflow approval grant is not exposed through zerg_control tool actions and slash path requires trusted UI', async () => {
   reset(); const commands = new Map<string, StructuralPiCommandOptions>(); let tool: any;
-  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { tool = value; } });
+  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
   try {
     const modelResult = await tool.execute('fake-call', { action: 'workflows.approve', workflowRunId: 'wf', approvalId: 'approval-1', confirm: true });
     assert.equal(modelResult.details.ok, false);
-    assert.match(modelResult.details.error.message, /Unknown zerg_control action/);
+    assert.match(modelResult.details.error.message, /Unknown clankers_control action/);
     const notices: string[] = [];
     await commands.get('zerg')!.handler('workflows approve wf approval-1', { mode: 'print', hasUI: false, ui: { notify(text: string) { notices.push(text); } } });
     assert.match(notices.at(-1) ?? '', /interactive UI confirmation is required/);
@@ -257,7 +257,7 @@ test('workflow approval grant is not exposed through zerg_control tool actions a
 
 test('registered workflow aliases and structured tool share one service; nonterminal monitor never requires TUI', async () => {
   reset(); const commands = new Map<string, StructuralPiCommandOptions>(); let tool: any;
-  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { tool = value; } });
+  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
   const notices: string[] = []; const context = { mode: 'print' as const, hasUI: false, ui: { notify(text: string) { notices.push(text); }, custom() { throw Error('must not open TUI'); } } };
   for (const name of ['zerg', 'zerg-swarm', 'swarm']) await commands.get(name)!.handler('workflows list', context);
   await commands.get('swarm')!.handler(`workflows define ${JSON.stringify(definition())}`, context);
@@ -279,7 +279,7 @@ test('workflow dispose leaves native lifecycle nonterminal while cleanup is pend
 
 for (const repeat of [false, true]) test(`owned slash workflows ${repeat ? 'v2 repeat' : 'v1'} reject input-changing messages and interrupt without external bridge emissions`, async () => {
   reset(); let tool: any; const emissions: string[] = [];
-  const extension = registerZergSwarmExtension({ events: { on() { return () => {}; }, emit(name) { emissions.push(String(name)); } }, registerTool(value) { tool = value; } });
+  const extension = registerZergSwarmExtension({ events: { on() { return () => {}; }, emit(name) { emissions.push(String(name)); } }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
   const execute = async (action: any) => (await tool.execute('fake-control', action)).details;
   const saved = await execute({ action: 'agents.create', id: 'safe', prompt: 'Read only.', model: 'fake/model', tools: ['read', 'bash', 'mcp', 'zerg_control'] }); assert.equal(saved.ok, true);
   reply(await execute({ action: 'workflows.define', definition: repeat ? repeatDefinition() : definition() }));
@@ -395,7 +395,7 @@ for (const repeat of [false, true]) for (const referenceCase of ['exact', 'missi
       async custom(factory, options) {
         const component = (factory as import('../types.js').StructuralPiCustomFactory)({ terminal: { rows: 32 }, requestRender() {} }, undefined, undefined, () => {});
         assert.ok('render' in component, 'existing workflow/coding factories must enter synchronously');
-        if ((options as import('../types.js').StructuralPiCustomOptions | undefined)?.overlayOptions?.title === 'zerg coding') {
+        if ((options as import('../types.js').StructuralPiCustomOptions | undefined)?.overlayOptions?.title === 'clankers coding') {
           codingEntries++;
           // Capture BEFORE another key or awaited tick: initialKey must enter the exact view immediately.
           codingFrames.push(component.render(512).join('\n'));

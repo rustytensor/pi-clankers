@@ -109,7 +109,7 @@ test('all desired shortcut changes are reload-only, visibility independent, cata
   } finally { f.close(); }
 });
 test('nonTUI/unsupported/no public safety surface never register, fallback remains; disabled generation stays disabled', () => {
-  const f = fixture(); try { f.controller.attach({ mode: 'rpc', hasUI: true }); f.controller.setTui(f.tui); f.runner.getShortcuts({}); assert.equal(f.counts().registrations, 0); assert.equal(f.controller.status().fallback, '/zerg config'); }
+  const f = fixture(); try { f.controller.attach({ mode: 'rpc', hasUI: true }); f.controller.setTui(f.tui); f.runner.getShortcuts({}); assert.equal(f.counts().registrations, 0); assert.equal(f.controller.status().fallback, '/clankers config'); }
   finally { f.close(); }
   const disabled = fixture(null); try {
     disabled.controller.attach(disabled.context); disabled.controller.setTui(disabled.tui); disabled.runner.getShortcuts({}); assert.equal(disabled.counts().registrations, 0);

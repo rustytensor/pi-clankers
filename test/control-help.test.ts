@@ -112,11 +112,15 @@ function toolResult(result: StructuralPiToolResult, error = false): ZergControlR
 }
 function registration(options: ZergControlOptions = inertOptions) {
   let tool: StructuralPiToolDefinition | undefined;
+  const tools = new Map<string, StructuralPiToolDefinition>();
   const commands = new Map<string, { handler: (args: string, ctx: { hasUI: boolean; mode: 'print'; ui: { notify: (text: string) => void } }) => unknown }>();
   const owner = registerZergSwarmExtension({
-    registerTool(value) { tool = value; },
+    registerTool(value) { tools.set(value.name, value); if (value.name === 'clankers_control') tool = value; },
     registerCommand(name, value) { commands.set(name, value); },
   }, options);
+  assert.deepEqual([...tools.keys()], ['clankers_control', 'zerg_control']);
+  assert.equal(tools.get('clankers_control')?.execute, tools.get('zerg_control')?.execute);
+  assert.equal(tools.get('clankers_control')?.parameters, tools.get('zerg_control')?.parameters);
   assert.ok(tool?.execute);
   return { owner, tool, commands, execute: (input: unknown) => Promise.resolve(tool!.execute!('help-regression', input, undefined, undefined, { hasUI: false, mode: 'print' })) };
 }
@@ -359,10 +363,10 @@ test('registered non-UI/read-only help does not publish shared state or initiali
 test('legacy slash help and all registered aliases remain available without UI', async () => {
   const container = createZergStateContainer(); const before = container.snapshot(); const slash = createZergCommandHandler(container);
   const expected = slash('/zerg help'); assert.equal(expected.ok, true); assert.match(expected.output, /\/zerg/);
-  for (const alias of ['/zerg', '/zerg-swarm', '/swarm']) assert.deepEqual(slash(`${alias} help`), expected);
+  for (const alias of ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm']) assert.deepEqual(slash(`${alias} help`), expected);
   const host = registration();
   try {
-    assert.deepEqual(sorted([...host.commands.keys()]), sorted(['zerg', 'zerg-swarm', 'swarm']));
+    assert.deepEqual(sorted([...host.commands.keys()]), sorted(['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']));
     for (const command of host.commands.values()) {
       const output: string[] = []; await command.handler('help', { hasUI: false, mode: 'print', ui: { notify: text => { output.push(text); } } });
       assert.ok(output.some(text => text.includes('/zerg')));

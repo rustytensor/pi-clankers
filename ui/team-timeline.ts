@@ -98,7 +98,7 @@ export async function openZergTeamTimeline(context: StructuralPiCommandContext, 
       await Promise.resolve(context.ui.custom((tui, theme, _keys, done) => {
         component = new ZergTeamTimelineComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
         return component;
-      }, { overlay: true, overlayOptions: { title: 'zerg team timeline', anchor: 'center', width: '90%', maxHeight: '82%' } }));
+      }, { overlay: true, overlayOptions: { title: 'clankers team timeline', anchor: 'center', width: '90%', maxHeight: '82%' } }));
     } finally { component?.dispose(); }
     if (!result || !options.viewCoding) return;
     state = result.state;
@@ -207,7 +207,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
   private renderSafe(w: number, h: number): string[] {
     this.refresh();
     const styled = (token: string, value: string) => styleText(this.theme, token, value);
-    const title = styled('accent', `zerg team timeline · READ ONLY · ${this.state.follow ? 'follow tail' : 'scroll paused'}`);
+    const title = styled('accent', `clankers team timeline · READ ONLY · ${this.state.follow ? 'follow tail' : 'scroll paused'}`);
     const scope = `Exact AND · ${FIELDS.map((field) => `${field}=${this.state.filter[field] ?? '*'}`).join(' · ')}`;
     const notices = [this.notice, this.observerNotice, ...this.limitations].filter(Boolean).join(' · ');
     const footer = this.form ? 'Tab/ShiftTab field · Enter apply exact AND (blank=all) · Esc cancel' : '↑↓/Home pause · End follow · Enter detail · PgUp/PgDn detail scroll · f filter · v exact coding · q/Esc close';

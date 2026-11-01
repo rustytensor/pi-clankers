@@ -91,7 +91,7 @@ export interface ManagementShortcutStatus {
   desired: string | null;
   pending: boolean;
   reason?: string;
-  fallback: '/zerg config';
+  fallback: '/clankers config';
   alternative?: string;
 }
 export interface ManagementUiPreferencesFacade {
@@ -148,7 +148,7 @@ export function createManagementShortcutController(options: ManagementShortcutCo
   const warnOnce = (message: string | undefined) => {
     if ((!candidate && !loadError) || warned) return;
     warned = true;
-    try { options.warn?.(`${message ?? 'Management shortcut unavailable.'} Use /zerg config.`); } catch { /* Bounded warning only. */ }
+    try { options.warn?.(`${message ?? 'Management shortcut unavailable.'} Use /clankers config.`); } catch { /* Bounded warning only. */ }
   };
   const changed = () => {
     try { options.onChange?.(); } catch { /* Display only. */ }
@@ -167,7 +167,7 @@ export function createManagementShortcutController(options: ManagementShortcutCo
   };
   const status = (): ManagementShortcutStatus => {
     const desired = options.preferences.snapshot().desired.managementShortcut;
-    return { active, desired, pending: desired !== candidate, reason, fallback: '/zerg config', ...(alternative ? { alternative } : {}) };
+    return { active, desired, pending: desired !== candidate, reason, fallback: '/clankers config', ...(alternative ? { alternative } : {}) };
   };
   const settings: ManagementUiPreferencesFacade = {
     snapshot: () => ({ ...status(), activityStrip: options.preferences.snapshot().desired.activityStrip }),
@@ -191,7 +191,7 @@ export function createManagementShortcutController(options: ManagementShortcutCo
   const removePreferences = options.preferences.subscribe(changed);
   const detach = () => {
     attached = false; generation += 1; token = undefined; catalog = undefined; tui = undefined; promptDepth = 0; paste = false; active = null;
-    reason = 'Management shortcut detached; use /zerg config until interactive reattachment.';
+    reason = 'Management shortcut detached; use /clankers config until interactive reattachment.';
     try { removeInput?.(); } catch { /* Cleanup only. */ }
     removeInput = undefined;
     if (!disposed) changed();
@@ -218,7 +218,7 @@ export function createManagementShortcutController(options: ManagementShortcutCo
         if (!guard) guard = installManagementShortcutCatalogGuard({
           handler, ownerCommandHandler: options.ownerCommandHandler, candidate,
           enabled: () => !disposed && attached && !!tui && typeof tui.hasOverlay === 'function' && typeof tui.getFocusedComponent === 'function',
-          register: () => options.pi.registerShortcut(candidate as KeyId, { description: 'Open Zerg management (/zerg config)', handler }),
+          register: () => options.pi.registerShortcut(candidate as KeyId, { description: 'Open Clankers management (/clankers config)', handler }),
           validate: (bindings, entries) => validateManagementShortcut(candidate, bindings, entries, handler),
           onCatalog(observation) {
             catalog = undefined;
@@ -240,8 +240,8 @@ export function createManagementShortcutController(options: ManagementShortcutCo
           },
           runnerClass: options.runnerClass,
         });
-        if (!guard.installed) { reason = loadError ?? 'Unsupported/occupied Pi shortcut catalog guard; use /zerg config.'; warnOnce(reason); removeInput(); removeInput = undefined; attached = false; changed(); }
-      } catch { attached = false; reason = loadError ?? 'Management shortcut integration unavailable; use /zerg config.'; warnOnce(reason); try { removeInput?.(); } catch { /* Cleanup only. */ } removeInput = undefined; guard?.dispose(); changed(); }
+        if (!guard.installed) { reason = loadError ?? 'Unsupported/occupied Pi shortcut catalog guard; use /clankers config.'; warnOnce(reason); removeInput(); removeInput = undefined; attached = false; changed(); }
+      } catch { attached = false; reason = loadError ?? 'Management shortcut integration unavailable; use /clankers config.'; warnOnce(reason); try { removeInput?.(); } catch { /* Cleanup only. */ } removeInput = undefined; guard?.dispose(); changed(); }
     },
     setTui(value: ManagementShortcutTui | undefined) { token = undefined; generation += 1; tui = disposed ? undefined : value; },
     promptStart() { token = undefined; promptDepth = Math.min(256, promptDepth + 1); },

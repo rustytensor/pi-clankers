@@ -68,7 +68,7 @@ test('fake Pi shortcut bridge stays unsupported, inert and unregistered', () => 
 });
 
 test('recovery inspect and prepare structured tool validate exact IDs, selections and no authorization fields', async () => {
-  reset(); let tool: any; const extension = registerZergSwarmExtension({ registerTool(value) { tool = value; }, registerCommand() {} });
+  reset(); let tool: any; const extension = registerZergSwarmExtension({ registerTool(value) { if (value.name === 'zerg_control') tool = value; }, registerCommand() {} });
   try {
     const id = await start(extension.control);
     const inspect = await tool.execute('call', { action: 'workflows.recovery.inspect', workflowRunId: id });
@@ -91,7 +91,7 @@ test('recovery inspect and prepare structured tool validate exact IDs, selection
 
 test('slash workflow recovery commands share aliases and reject JSON/path/extra identities', async () => {
   reset(); const commands = new Map<string, StructuralPiCommandOptions>(); let tool: any;
-  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { tool = value; } });
+  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
   try {
     const id = await start(extension.control); const notices: string[] = []; const context = { mode: 'print' as const, hasUI: false, ui: { notify(text: string) { notices.push(text); } } };
     await commands.get('zerg')!.handler(`workflows recovery inspect ${id}`, context);
@@ -100,7 +100,7 @@ test('slash workflow recovery commands share aliases and reject JSON/path/extra 
     await commands.get('zerg')!.handler(`workflows recovery prepare ${JSON.stringify({ workflowRunId: id })}`, context);
     assert.match(notices[0]!, /"action":"workflows.recovery.inspect"/);
     assert.match(notices[1]!, /"action":"workflows.recovery.prepare"/);
-    assert.match(notices[2]!, /Usage: \/zerg workflows/);
+    assert.match(notices[2]!, /Usage: \/clankers workflows/);
     assert.match(notices[3]!, /Workflow run not found|Usage/);
     const parity = await tool.execute('call', { action: 'workflows.recovery.inspect', workflowRunId: id }); assert.equal(parity.details.ok, true);
   } finally { extension.dispose(); }

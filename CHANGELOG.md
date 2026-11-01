@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.26] - 2026-11-01
+
+### Added
+- Canonical `/clankers` command with `/clank` short alias, and `clankers_control` structured tool.
+- Canonical `pi-clankers-automation` executable alongside the existing `pi-zerg-automation` alias, both using the same CLI.
+
+### Changed
+- Rename the package and public branding to Clankers (`pi-clankers`); align metadata and runtime version to 1.1.26.
+- Use current owner handle `rustytensor` for GitHub/npm/X references. The Git repository slug remains `rustytensor/pi-zerg-swarm`; historical attribution and contact email are unchanged.
+- Document unsupported dual installation: inspect `pi list`, then remove or disable the exact old declaration across personal/project settings and explicit extension paths before adding a different source. Old v1.1.25 copies do not cooperate; no dual-install guard or automatic global configuration edits are provided. Do not delete saved data.
+- `/zerg`, `/zerg-swarm`, and `/swarm` remain functional aliases; deprecated `zerg_control` shares the same controller without per-call warnings.
+- SDK export names, stored data paths, session/result protocol identifiers, authority values, and runtime permission boundaries remain unchanged. No dependency changes or npm publication are implied.
+- Updating the same unpinned Git URL retains one package identity; a v1.1.25 pin requires explicitly selecting v1.1.26.
+
 ## [1.1.25] - 2026-10-31
 
 ### Added

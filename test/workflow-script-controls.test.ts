@@ -212,7 +212,7 @@ test('slash aliases preserve authoring JSON parity in noninteractive modes witho
 
 test('registered zerg_control authoring schema and unknown-key rejection work without SDK', async () => {
   let tool: StructuralPiToolDefinition | undefined;
-  const registration = registerZergSwarmExtension({ registerCommand() {}, registerTool(value) { tool = value; } });
+  const registration = registerZergSwarmExtension({ registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
   try {
     assert.ok(tool?.execute); const before = registration.control.getState();
     const properties = (tool.parameters as any).properties;
@@ -336,7 +336,7 @@ test('all five registered slash/structured authoring actions have parity and no 
   const directory = mkdtempSync(join(tmpdir(), 'script-parity-')); writeFileSync(join(directory, 'test.workflow.js'), source);
   const commands: Record<string, { handler: ReturnType<typeof createPiZergCommandHandler> }> = {};
   let tool: StructuralPiToolDefinition | undefined;
-  const registration = registerZergSwarmExtension({ registerCommand(name, command) { commands[name] = command; }, registerTool(value) { tool = value; } }, { cwd: directory,
+  const registration = registerZergSwarmExtension({ registerCommand(name, command) { commands[name] = command; }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } }, { cwd: directory,
     subagentAdapter: { kind: 'fake', launch() { throw new Error('No implicit native start.'); } } });
   const slash = async (verb: string, fields: object, alias = 'zerg') => {
     let notice = '', level = '';

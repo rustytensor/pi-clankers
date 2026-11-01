@@ -62,7 +62,7 @@ export function renderZergManagementOverlay(
   const visibleRows = rows.slice(scrollOffset, scrollOffset + desiredVisibleRows);
   const tabLine = options.tabs.map((tab) => tab === options.activeTab ? `[${tab}]` : ` ${tab} `).join(' ');
   const lines = [
-    'zerg config',
+    'clankers config',
     tabLine,
     overlayKeyHelp(options.activeTab),
   ];
@@ -129,7 +129,7 @@ export function renderMonitor(state: ZergState, options: MonitorRenderOptions = 
   const monitorEventLimit = Math.max(1, eventCount);
   const recentEvents = [...(snapshot.events ?? [])].slice(-monitorEventLimit);
   const lines = [
-    'zerg monitor',
+    'clankers monitor',
     `status: ${renderStatusLine(snapshot, { width })}`,
     `read-only: ${readOnly}`,
     `permissions: ${permissions.pendingCount} pending${latestPermission ? ` latest:${renderPermissionRequestInline(latestPermission)}` : ''}`,
@@ -171,9 +171,17 @@ export function renderStatusLine(state: ZergState, options: RenderOptions = {}):
     : ' | no active intervention';
   const permissionQueue = readRenderPermissionQueueState(snapshot);
   const permissions = ` | permissions ${permissionQueue.pendingCount} pending`;
+  const width = options.width ?? DEFAULT_WIDTH;
+  const brand = `clankers v${ZERG_EXTENSION_VERSION}`;
+  let header = `${brand} command surface`;
+  const counts = ` | agents ${agents.length} (${runningAgents} running) | teams ${teams.length} (${runningTeams} running) | tasks ${tasks.length} | blocked ${blocked} | unhealthy ${unhealthy}`;
+  // Reserve fit's ellipsis column before sacrificing any current activity.
+  if (activity && width > 3 && `${header}${counts}${activity}`.length > width - 1) {
+    header = brand;
+  }
 
   return fit(
-    `zerg v${ZERG_EXTENSION_VERSION} command surface | agents ${agents.length} (${runningAgents} running) | teams ${teams.length} (${runningTeams} running) | tasks ${tasks.length} | blocked ${blocked} | unhealthy ${unhealthy}${activity} | ${control} | ${mode}${permissions}${activeIntervention}`,
+    `${header}${counts}${activity} | ${control} | ${mode}${permissions}${activeIntervention}`,
     options.width,
   );
 }
@@ -236,7 +244,7 @@ export function renderZergLogStatus(logState: ZergLogState, options: RenderOptio
   const errors = logState.records.filter((record) => record.level === 'error').length;
   const warnings = logState.records.filter((record) => record.level === 'warn').length;
   const lines = [
-    'zerg logs',
+    'clankers logs',
     `records: ${logState.records.length}`,
     `max: ${logState.maxRecords}`,
     `warnings: ${warnings}`,
@@ -250,10 +258,10 @@ export function renderZergLogStatus(logState: ZergLogState, options: RenderOptio
 export function renderZergLogList(records: readonly ZergLogRecord[], options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   if (records.length === 0) {
-    return fit('zerg logs: no matching records', width);
+    return fit('clankers logs: no matching records', width);
   }
 
-  const lines = ['zerg logs:'];
+  const lines = ['clankers logs:'];
   for (const record of records) {
     lines.push(`- ${renderLogRecordInline(record)}`);
   }
@@ -264,7 +272,7 @@ export function renderZergLogList(records: readonly ZergLogRecord[], options: Re
 export function renderZergLogSummary(record: ZergLogRecord, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const lines = [
-    `zerg log: ${record.id}`,
+    `clankers log: ${record.id}`,
     `source: ${record.source}`,
     `level: ${record.level}`,
     `kind: ${record.kind}`,
@@ -343,7 +351,7 @@ export function renderAgentTree(state: ZergState, options: RenderOptions = {}): 
   }
 
   if (agents.length === 0 && tasks.length === 0 && teams.length === 0) {
-    return fit('zerg tree: scaffold ready; no agents, teams, or tasks are running yet.', width);
+    return fit('clankers tree: scaffold ready; no agents, teams, or tasks are running yet.', width);
   }
 
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
@@ -360,7 +368,7 @@ export function renderAgentTree(state: ZergState, options: RenderOptions = {}): 
   const renderedTeams = new Set<string>();
   const renderedAgents = new Set<string>();
   const renderedTasks = new Set<string>();
-  const lines = ['zerg tree'];
+  const lines = ['clankers tree'];
 
   for (const agent of agents) {
     if (agent.parentId && agentIds.has(agent.parentId)) {
@@ -528,24 +536,24 @@ export function renderAgentTree(state: ZergState, options: RenderOptions = {}): 
 
 export function renderHelp(state: ZergState, options: RenderOptions = {}): string {
   return [
-    `pi-zerg-swarm v${ZERG_EXTENSION_VERSION} command-surface scaffold`,
+    `clankers v${ZERG_EXTENSION_VERSION} command-surface scaffold`,
     `Commands: ${ZERG_COMMAND_INVOCATIONS.join(', ')}`,
     renderStatusLine(state, options),
     '',
-    'Lifecycle syntax: /zerg agent create|start|progress|stop|fail|reset <agent-id> [label|activity]',
-    'Lifecycle syntax: /zerg team create|start|progress|stop|fail|reset <team-id> [label|activity]',
-    'Control syntax: /zerg mode status|manual|assisted|automatic|revert [reason]',
-    'Control syntax: /zerg control status|controller pi|zerg|operator|readonly on|off|toggle|mode manual|assisted|automatic',
-    'Permission syntax: /zerg permission status|list [all|pending|resolved]|request <kind> <target> <summary>|approve <id> [reason]|deny <id> [reason]|cancel <id> [reason]',
-    'Logs syntax: /zerg logs status|list [--run <id>] [--level debug|info|warn|error] [--limit <n>] | /zerg logs show <id|run-id> [--json] | /zerg logs json [--run <id>] [--limit <n>]',
-    'Registry syntax: /zerg agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>',
-    'Config syntax: /zerg config opens the Pi overlay configuration window when available',
-    'Run syntax: /zerg run <agent> <task> [--bg] [--fresh|--fork] [--concurrency <n>] (fresh is default isolated launch; native team workers default to concurrency 8; native execution rejects unsupported fork/maxTurns/fallbackModels before SDK startup; use a supported external adapter/acknowledged bridge for those capabilities) | /zerg runs [list] | /zerg runs show <run-id> | /zerg interrupt [run-id]',
-    'Sessions syntax: /zerg sessions [parent-run-id] opens exact coding history with an explicit live composer | /zerg sessions list [parent-run-id] prints exact references (no resume/branch mutation)',
-    'Exact message syntax: /zerg sessions send <parent> <member> <pi-id> <message-id> <steer|followUp> -- <literal body> | /zerg sessions messages <parent> <member> <pi-id> [limit] (queued is not consumed; no automatic retry/replay)',
-    'Timeline syntax: /zerg timeline [list] [--team ID] [--run PARENT] [--member MEMBER] [--session PI] [--limit 1..256] (read-only retained state; receipts are not replies; no transcript scan/replay)',
-    'Monitor syntax: /zerg monitor [readonly on|off|toggle|status]',
-    'Intervention syntax: /zerg intervene agent <agent-id> <message> | /zerg intervene subagent <agent-id> <message> | /zerg intervene leader <team-id> <message>',
+    'Lifecycle syntax: /clankers agent create|start|progress|stop|fail|reset <agent-id> [label|activity]',
+    'Lifecycle syntax: /clankers team create|start|progress|stop|fail|reset <team-id> [label|activity]',
+    'Control syntax: /clankers mode status|manual|assisted|automatic|revert [reason]',
+    'Control syntax: /clankers control status|controller pi|zerg|operator|readonly on|off|toggle|mode manual|assisted|automatic',
+    'Permission syntax: /clankers permission status|list [all|pending|resolved]|request <kind> <target> <summary>|approve <id> [reason]|deny <id> [reason]|cancel <id> [reason]',
+    'Logs syntax: /clankers logs status|list [--run <id>] [--level debug|info|warn|error] [--limit <n>] | /clankers logs show <id|run-id> [--json] | /clankers logs json [--run <id>] [--limit <n>]',
+    'Registry syntax: /clankers agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>',
+    'Config syntax: /clankers config opens the Pi overlay configuration window when available',
+    'Run syntax: /clankers run <agent> <task> [--bg] [--fresh|--fork] [--concurrency <n>] (fresh is default isolated launch; native team workers default to concurrency 8; native execution rejects unsupported fork/maxTurns/fallbackModels before SDK startup; use a supported external adapter/acknowledged bridge for those capabilities) | /clankers runs [list] | /clankers runs show <run-id> | /clankers interrupt [run-id]',
+    'Sessions syntax: /clankers sessions [parent-run-id] opens exact coding history with an explicit live composer | /clankers sessions list [parent-run-id] prints exact references (no resume/branch mutation)',
+    'Exact message syntax: /clankers sessions send <parent> <member> <pi-id> <message-id> <steer|followUp> -- <literal body> | /clankers sessions messages <parent> <member> <pi-id> [limit] (queued is not consumed; no automatic retry/replay)',
+    'Timeline syntax: /clankers timeline [list] [--team ID] [--run PARENT] [--member MEMBER] [--session PI] [--limit 1..256] (read-only retained state; receipts are not replies; no transcript scan/replay)',
+    'Monitor syntax: /clankers monitor [readonly on|off|toggle|status]',
+    'Intervention syntax: /clankers intervene agent <agent-id> <message> | /clankers intervene subagent <agent-id> <message> | /clankers intervene leader <team-id> <message>',
     'Available now: slash-free Pi command registration, aliases, lifecycle state updates, mode/intervention/monitor/control/config commands, runtime health/activity summaries, scaffold status/tree output, thinking-step parsing, text rendering, and Pi event-bus observation.',
     'Live monitor/config TUI overlays are rendered with ctx.ui.custom when available; fall back to text output otherwise.',
   ].join('\n');
@@ -725,7 +733,7 @@ function renderExplicitTree(
   const missingChildrenByParent = new Map<string, string[]>();
   const referenced = new Set<string>();
   const visited = new Set<string>();
-  const lines = ['zerg tree'];
+  const lines = ['clankers tree'];
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const teamById = new Map(teams.map((team) => [team.id, team]));
 

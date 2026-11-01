@@ -89,7 +89,7 @@ export async function openZergAgentOverlay(context: StructuralPiCommandContext, 
         component?.dispose();
         return component = new ZergAgentOverlayComponent(tui, theme as UiThemeLike | undefined, done, options);
       },
-      { overlay: true, overlayOptions: { title: 'zerg coding', anchor: 'center', width: '90%', maxHeight: '82%' } },
+      { overlay: true, overlayOptions: { title: 'clankers coding', anchor: 'center', width: '90%', maxHeight: '82%' } },
     ));
   } finally { component?.dispose(); }
 }
@@ -179,7 +179,7 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
     ].filter(Boolean).join(' · ');
     const bodyCapacity = Math.max(0, h - 3 - composerLines.length);
     this.viewport = Math.max(1, bodyCapacity - (notice ? 1 : 0));
-    const title = styleText(this.theme, 'accent', this.options.composer ? 'zerg coding · raw history + explicit composer' : 'zerg coding · read-only raw history');
+    const title = styleText(this.theme, 'accent', this.options.composer ? 'clankers coding · raw history + explicit composer' : 'clankers coding · read-only raw history');
     const status = this.mode === 'chooser' ? `Exact session chooser (${this.references.length})${this.referencesLimited ? ' · list truncated' : ''}`
       : this.loading ? 'Loading exact session…'
       : this.snapshot ? `${this.snapshot.source} · ${this.snapshot.status} · ${this.snapshot.source === 'captured' ? 'detached capture (not connected or proven saved)' : this.leafId ? 'branch inspection' : this.snapshot.defaultLeafBasis === 'live' ? 'live leaf' : 'last recorded entry (not proven active leaf)'} · ${this.follow ? 'follow tail' : 'scroll paused'}`

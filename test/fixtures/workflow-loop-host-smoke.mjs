@@ -195,13 +195,13 @@ def resized():
         before=len(raw);resize(cols,rows);os.kill(proc.pid,signal.SIGWINCH);pause(.35);report['sizes'].append(cols);assert len(raw)>before,'No actual resize redraw'
 def loop_units(data):
     begin=mark('loop-units');resized()
-    until(lambda:emitted('zerg workflows · steps',begin),'repeat phase rendered')
+    until(lambda:emitted('clankers workflows · steps',begin),'repeat phase rendered')
     key(b'\r','Enter repeat iterations')
-    until(lambda:emitted('zerg workflows · iterations',begin)and emitted('refinement@0',begin),'exact iteration0')
+    until(lambda:emitted('clankers workflows · iterations',begin)and emitted('refinement@0',begin),'exact iteration0')
     key(b'\r','Enter iteration0 body')
-    until(lambda:emitted('zerg workflows · body',begin),'real repeat body DAG')
+    until(lambda:emitted('clankers workflows · body',begin),'real repeat body DAG')
     key(b'\x1b[B','Down independent assess node');key(b'\r','Enter assess units')
-    until(lambda:emitted('zerg workflows · units',begin)and emitted(data['unitId'],begin),'exact loop assess unit')
+    until(lambda:emitted('clankers workflows · units',begin)and emitted(data['unitId'],begin),'exact loop assess unit')
 def coding(data,saved=False):
     begin=mark('saved-coding'if saved else'live-coding')
     key(b'c','c exact selected native coding');key(b'\x1b[H','Home full exact coding identity')
@@ -211,7 +211,7 @@ def coding(data,saved=False):
         key(b'\x1b[6~','PgDn genuine read tool card')
     until(lambda:emitted('HOST_WORKFLOW_READ_EVIDENCE',begin),'genuine SDK read card emitted')
     resized();returned=mark('coding-return');key(b'q','q coding only then fresh workflow return')
-    until(lambda:emitted('zerg workflows · units',returned)and emitted(data['unitId'],returned),'same exact workflow unit fresh return')
+    until(lambda:emitted('clankers workflows · units',returned)and emitted(data['unitId'],returned),'same exact workflow unit fresh return')
 def terminate(_sig,_frame):raise Exception('Controller terminated')
 signal.signal(signal.SIGTERM,terminate)
 try:

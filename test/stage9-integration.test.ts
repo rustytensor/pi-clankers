@@ -390,7 +390,7 @@ test('Stage 9 author-only observer: exact window placement, limitations and revi
   const { createHash } = await import('node:crypto');
   const source = authorSource('stage9-activity-host-fixture.ts');
   assert.equal(createHash('sha256').update(authorSource('stage9-activity-host-pty.py')).digest('hex'),
-    'a007811c8dd61caa5f67bd169dc35e4c3a102aac5f25244bde566b3656553182');
+    '1e99a2e0f0a07a7661b05a584da77ebfca181987741493dd98d5c000f0d06b8a');
   assert.equal(source.match(/shared\.promptCalls\+\+/g)?.length, 1);
   assert(source.indexOf('shared.promptCalls++;') < source.indexOf('if (this === shared.mainSession)'));
   assert(source.includes('initiation: initiationSnapshot()'));
@@ -729,7 +729,7 @@ test('Stage 9 author-only settings: actual Tab/o/Input, caret-end clear and no a
     let desired = active;
     const priorSaves = saves, priorCloses = closes;
     const preferences = {
-      snapshot: () => ({ active, desired, pending: desired !== active, activityStrip: true, fallback: '/zerg config' }),
+      snapshot: () => ({ active, desired, pending: desired !== active, activityStrip: true, fallback: '/clankers config' }),
       subscribe: () => () => {},
       saveHuman(update: any) {
         saves++;

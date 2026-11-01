@@ -87,7 +87,7 @@ test('ANSI/OSC/C0/C1/bidi labels are sanitized, Unicode and ASCII fallback suppo
   const lines = renderBackgroundActivity(value, 200, { nowMs: 100_000 });
   assert.ok(lines[1]!.includes('解析者label')); assert.doesNotMatch(lines.join(''), /[\x00-\x1f\x7f-\x9f\u202e]/);
   const ascii = renderBackgroundActivity(p, 200, { nowMs: 100_000, ascii: true });
-  assert.ok(ascii[0]!.startsWith('* Zerg | ')); assert.doesNotMatch(ascii[0]!, /●|·|…/);
+  assert.ok(ascii[0]!.startsWith('* Clankers | ')); assert.doesNotMatch(ascii[0]!, /●|·|…/);
 });
 test('theme evaluated each render, semantic color and throwing theme safely falls back', () => {
   const p = pure(); let color = '31'; const tokens: string[] = [];
@@ -115,7 +115,7 @@ test('clipped counts are explicit lower bounds, distinct agent/unit/check/approv
 test('permission attention works while otherwise idle and cannot fabricate run/elapsed/paused status', () => {
   const f = fixture([]); assert.deepEqual(f.h.lines(), []); assert.equal(f.clock.jobs.size, 0);
   f.permissions.value = 3; f.permissions.emit(); f.clock.advance(50);
-  assert.match(f.h.lines()[0]!, /^! Zerg.*3 permissions pending/); assert.doesNotMatch(f.h.lines().join(''), /Run:|run \d|paused|Workflow/);
+  assert.match(f.h.lines()[0]!, /^! Clankers.*3 permissions pending/); assert.doesNotMatch(f.h.lines().join(''), /Run:|run \d|paused|Workflow/);
   assert.equal(f.clock.jobs.size, 0); f.controller.dispose();
 });
 test('hint reflects only supplied active binding, updates without source pulls, hides incomplete hint', () => {
@@ -155,7 +155,7 @@ test('focus remains stable through later source updates; current failure takes a
   assert.match(f.h.lines()[1]!, /a: working/);
   const before = f.h.lines(); f.native.value = snapshot([named(b), named(a)]); f.native.emit(); f.clock.advance(50); assert.deepEqual(f.h.lines(), before);
   f.native.value = snapshot([run('a'), run('failure', 'failed')]); f.native.emit(); f.clock.advance(50);
-  assert.match(f.h.lines()[0]!, /^! Zerg.*failed/); assert.equal(f.h.lines().length, 1); assert.equal(f.clock.jobs.size, 1); // Attention focus does not suppress actual background work/known cleanup.
+  assert.match(f.h.lines()[0]!, /^! Clankers.*failed/); assert.equal(f.h.lines().length, 1); assert.equal(f.clock.jobs.size, 1); // Attention focus does not suppress actual background work/known cleanup.
   f.controller.dispose(); assert.equal(f.clock.jobs.size, 0);
 });
 test('hidden stops all timers and reads, preserves independent TUI handle, does not control work', () => {
@@ -288,15 +288,15 @@ test('paused, approval, retry-wait and queued-only are static without any 1s tim
     f.controller.dispose(); assert.equal(f.clock.jobs.size, 0);
   }
   const p = projectActivity(snapshot([run('p', 'paused')]), UNAVAILABLE_WORKFLOW_ACTIVITY, 100_000);
-  assert.match(renderBackgroundActivity(p, 120, { nowMs: 100_000 })[0]!, /^Ⅱ Zerg/);
-  assert.match(renderBackgroundActivity(p, 120, { nowMs: 100_000, ascii: true })[0]!, /^\|\| Zerg/);
+  assert.match(renderBackgroundActivity(p, 120, { nowMs: 100_000 })[0]!, /^Ⅱ Clankers/);
+  assert.match(renderBackgroundActivity(p, 120, { nowMs: 100_000, ascii: true })[0]!, /^\|\| Clankers/);
 });
 test('approval focus with actual other work ticks focused elapsed using only cached projection', () => {
   const clock = new Clock(), h = host(clock), native = new Source(snapshot()); let scans = 0;
   const rows = [workflow()];
   const workflows = new Source<WorkflowActivitySnapshot>({ ...workflowSnapshot(rows[0]!), get runs() { scans++; return rows; } });
   const c = createBackgroundActivityController({ native, workflows, clock }); c.attach(h.ctx);
-  assert.match(h.lines(500)[0]!, /^! Zerg.*waiting approval.*1 agents working.*attempt 1m 30s/);
+  assert.match(h.lines(500)[0]!, /^! Clankers.*waiting approval.*1 agents working.*attempt 1m 30s/);
   assert.equal(clock.jobs.size, 1);
   const before = [native.reads, workflows.reads, scans]; clock.advance(10_000);
   assert.deepEqual([native.reads, workflows.reads, scans], before);

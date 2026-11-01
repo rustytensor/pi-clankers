@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1180" height="980" viewBox="0 0 1180 980" role="img" aria-labelledby="command-center-title command-center-desc">
   <title id="command-center-title">Command center: illustrative management and exact-session views</title>
-  <desc id="command-center-desc">A schematic, not a screenshot or live data. The two-line local background widget links through Alt+G to the same management view as /zerg config. Tree, detail, settings and management chat are shown alongside a separate exact-session coding view. Live, captured, saved and unavailable states are distinct. Receipts distinguish local recording, native queue acceptance and observed consumption. Workflow pause blocks only new admission; it does not stop active work.</desc>
+  <desc id="command-center-desc">A schematic, not a screenshot or live data. The two-line local background widget links through Alt+G to the same management view as /clankers config. Tree, detail, settings and management chat are shown alongside a separate exact-session coding view. Live, captured, saved and unavailable states are distinct. Receipts distinguish local recording, native queue acceptance and observed consumption. Workflow pause blocks only new admission; it does not stop active work.</desc>
   <defs>
     <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#181c2e"/>
@@ -23,19 +23,19 @@
   <path d="M 1064 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 1096 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 1128 38 v 25 l -12 12 v 30" fill="none" stroke="#273048" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="42" y="75" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">PI / ZERG SWARM</text>
+  <text x="42" y="75" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">CLANKERS</text>
   <text x="42" y="130" fill="#edf3ff" font-family="Noto Sans, sans-serif" font-size="46" font-weight="700" text-anchor="start">See the work. Keep control.</text>
   <text x="44" y="169" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">ILLUSTRATIVE SCHEMATIC / fictional identities and counts · not a screenshot</text>
   <rect x="44" y="198" width="1092" height="89" rx="12" fill="#1b2332" stroke="#65ddec"/>
   <rect x="66" y="218" width="8" height="8" rx="2" fill="#65ddec"/>
-  <text x="86" y="231" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Zerg · Review: working · 3 agents working · 2 agents queued</text>
+  <text x="86" y="231" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start">Clankers · Review: working · 3 agents working · 2 agents queued</text>
   <text x="66" y="266" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">Local owner only · checks / approvals / cleanup are separate phases</text>
   <rect x="966" y="215" width="150" height="50" rx="8" fill="#253348"/>
   <text x="1041" y="246" fill="#edf3ff" font-family="Noto Sans, sans-serif" font-size="22" font-weight="700" text-anchor="middle">Alt+G</text>
   <path d="M 1041 287 V 325 H 704 V 331" fill="none" stroke="#65ddec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-  <text x="66" y="316" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">Alt+G opens the same view as /zerg config—even with the strip hidden.</text>
+  <text x="66" y="316" fill="#a8b8d0" font-family="Noto Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start">Alt+G opens the same view as /clankers config—even with the strip hidden.</text>
   <rect x="44" y="334" width="700" height="356" rx="12" fill="#141b28" stroke="#2c3a50"/>
-  <text x="66" y="365" fill="#6ce5b2" font-family="Noto Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.4">MANAGEMENT / /zerg config</text>
+  <text x="66" y="365" fill="#6ce5b2" font-family="Noto Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.4">MANAGEMENT / /clankers config</text>
   <rect x="60" y="386" width="236" height="198" rx="8" fill="#101622" stroke="#2c3a50"/>
   <text x="76" y="413" fill="#65ddec" font-family="Noto Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.4">TREE</text>
   <text x="76" y="447" fill="#edf3ff" font-family="DejaVu Sans Mono, monospace" font-size="17">team / review</text>

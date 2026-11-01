@@ -52,9 +52,9 @@ test('M9 management overlay uses ctx.ui.custom component path and disposes subsc
     actions,
   });
 
-  assert.equal((optionsSeen?.overlayOptions as { title?: string } | undefined)?.title, 'zerg config');
+  assert.equal((optionsSeen?.overlayOptions as { title?: string } | undefined)?.title, 'clankers config');
   const initialRender = component?.render(100, 24).join('\n') ?? '';
-  assert.ok(initialRender.includes('zerg config'));
+  assert.ok(initialRender.includes('clankers config'));
   assert.ok(initialRender.includes('Use three steps'));
   assert.ok(initialRender.includes('1 Select'));
   assert.ok(initialRender.includes('2 Settings'));

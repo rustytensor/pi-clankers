@@ -4,6 +4,7 @@ import http from 'node:http';
 import net from 'node:net';
 import tls from 'node:tls';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 
 // Standalone child-process instrumentation, NOT an OS sandbox. Call before any
 // SDK/resource import. Never restore ambient credentials or unguarded transports.
@@ -12,7 +13,7 @@ export function installFixtureSafety({ name = 'sdk', maxRequests = 64,
   maxRequestBytes = 1024 * 1024, maxOutputBytes = 8 * 1024 * 1024,
   timeoutMs = 195000 } = {}) {
   if (globalThis[Symbol.for('zerg/fixture-safety')]) throw Error('Fixture guard already installed');
-  const root = mkdtempSync('/tmp/zerg-fixture-' + name.replace(/[^a-z0-9-]/gi, '-') + '-');
+  const root = mkdtempSync(join(tmpdir(), 'zerg-fixture-' + name.replace(/[^a-z0-9-]/gi, '-') + '-'));
   const environment = { PATH: '/usr/bin:/bin', HOME: join(root, 'home'),
     TMPDIR: join(root, 'tmp'), XDG_CONFIG_HOME: join(root, 'home'),
     XDG_CACHE_HOME: join(root, 'cache'), XDG_DATA_HOME: join(root, 'data'),

@@ -69,7 +69,7 @@ export function renderBackgroundActivity(p: ActivityProjection, width: number, o
   const parts: string[] = [];
   const attention = pending > 0 || options.permissionUnavailable || p.attention.length > 0 || c.unknown > 0;
   parts.push(`${attention ? '!' : active(p) ? (options.ascii ? '*' : '●')
-    : f?.phase === 'paused' ? (options.ascii ? '||' : 'Ⅱ') : (options.ascii ? '-' : '○')} Zerg`);
+    : f?.phase === 'paused' ? (options.ascii ? '||' : 'Ⅱ') : (options.ascii ? '-' : '○')} Clankers`);
   if (pending) parts.push(`${pending} permissions pending`);
   if (options.permissionUnavailable) parts.push('permission visibility unavailable');
   if (f) {

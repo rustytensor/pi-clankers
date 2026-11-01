@@ -218,7 +218,7 @@ try:
         key(b'\x1b[B', 'Down exact finalized branch'); key(b'\r', 'Enter inspect branch locally'); pause(0.3)
         key(b'\x1b[F', 'End explicitly inspected branch'); until(lambda: emitted(output, begin), 'branch output remains available')
         if continuation:
-            before = len(raw); key(b'n', 'n draft only on fresh restart'); until(lambda: emitted('zerg NEW continuation', before), 'new editor on recovered saved source')
+            before = len(raw); key(b'n', 'n draft only on fresh restart'); until(lambda: emitted('clankers NEW continuation', before), 'new editor on recovered saved source')
             until(lambda: emitted('normalizes CRLF/CR', before), 'normal Pi editing disclosure')
             key(b'\x1b', 'Escape draft without preparing'); pause(0.3)
         key(b'\x1b', 'Escape saved viewer without reconnect')
@@ -235,7 +235,7 @@ try:
         key(b'b', 'b inspect original branch, not continue'); pause(0.2)
         key(b'\x1b[B', 'Down exact original finalized branch'); key(b'\r', 'Enter inspect original entry'); pause(0.3)
         draft_start = len(raw); key(b'n', 'n opens NEW task editor only')
-        until(lambda: emitted('zerg NEW continuation', draft_start), 'new task editor')
+        until(lambda: emitted('clankers NEW continuation', draft_start), 'new task editor')
         until(lambda: emitted(source_data['entryId'], draft_start), 'last rendered exact inspected entry bound')
         until(lambda: emitted('normalizes CRLF/CR', draft_start), 'normal Pi Editor disclosure visible before review')
         task = b'/never-expand q b c n\n  PTY_NEW_LITERAL_TASK: preserve indentation; !not-shell'

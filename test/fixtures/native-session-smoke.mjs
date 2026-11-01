@@ -265,7 +265,7 @@ try {
   for (const mode of ['interrupt', 'dispose', 'shutdown']) {
     const shutdownHooks = [];
     let nativeTool;
-    const registered = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(value) { nativeTool = value; }, on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); } });
+    const registered = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') nativeTool = value; }, on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); } });
     controls.push(registered.control);
     const local = registered.control;
     let resume; let bound = 0;
