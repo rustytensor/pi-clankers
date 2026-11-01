@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-11-01
+
+### Added
+- Original animated uni-wheel robot logo with 1980s CRT/neon styling and a linked non-animated alternative.
+
+### Changed
+- Rename the GitHub repository to `rustytensor/pi-clankers`; update package metadata, installation links, and the public page.
+- Document removing the old Pi source declaration before adding the renamed repository URL. Saved-data paths, compatibility aliases, and runtime behavior remain unchanged.
+
 ## [1.1.26] - 2026-11-01
 
 ### Added

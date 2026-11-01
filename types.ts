@@ -18,7 +18,7 @@ export interface TrustedAutomationNativeContext {
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
 export const ZERG_COMMANDS = ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm'] as const;
-export const ZERG_EXTENSION_VERSION = '1.1.26' as const;
+export const ZERG_EXTENSION_VERSION = '1.1.27' as const;
 export type ZergCommandName = (typeof ZERG_COMMANDS)[number];
 export const ZERG_COMMAND_INVOCATIONS = ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm'] as const;
 export type ZergCommandInvocation = (typeof ZERG_COMMAND_INVOCATIONS)[number];

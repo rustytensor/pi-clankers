@@ -1,6 +1,8 @@
 # Clankers
 
-![Clankers: an original neon pixel-art swarm of coordinated agent drones](docs/assets/swarm-logo.svg)
+![Clankers: original weathered uni-wheel robots rolling beneath a steady neon wordmark](docs/assets/clankers.gif)
+
+[View the non-animated artwork](docs/assets/clankers-static.png).
 
 Distributed as the Pi extension package `pi-clankers`.
 
@@ -119,11 +121,13 @@ with the rename. There is no dual-install guard.
    it loads: personal settings, project settings, and explicit extension paths.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a v1.1.25 pin must explicitly select v1.1.26 instead.
+   one package identity; a pinned version must explicitly select v1.1.27 instead.
 
-This is a source/package rename to `pi-clankers`; the GitHub repository remains
-`https://github.com/rustytensor/pi-zerg-swarm`. Local checkout folders and the
-internal Larra project name remain unchanged. Storage stays at
+The package is `pi-clankers` and the GitHub repository is now
+`https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
+URL, but do not configure both URLs in Pi: remove the old declaration before
+adding the new URL. Existing local checkout folders remain unchanged.
+Storage stays at
 `.pi/zerg-swarm/v1/state.json` and `<agent-dir>/zerg-swarm/ui.json`.
 Native-session/result custom types retain the `pi-zerg-swarm/...` namespace;
 the authority enum remains `pi | zerg | operator`. No saved-data migration or
@@ -133,12 +137,12 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.26** Git tag
+Install the **v1.1.27** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
-Do not use an unpinned fresh install while the default branch is older:
+Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-zerg-swarm@v1.1.26
+pi install git:github.com/rustytensor/pi-clankers@v1.1.27
 pi
 ```
 
@@ -184,10 +188,10 @@ hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.26** (Clankers branding, canonical commands/tool/CLI, and compatibility migration).
+- Current release: **v1.1.27** (renamed GitHub repository, animated uni-wheel robot artwork, and updated installation links).
 - Historical milestones preserved for audit traceability: v0.8.0 implementation milestone and v0.8.1 audit follow-up patch.
 - The release path requires general, milestone, security, performance, hardening, and cleanup audits.
-- Canonical repository: https://github.com/rustytensor/pi-zerg-swarm.
+- Canonical repository: https://github.com/rustytensor/pi-clankers.
 
 ## Pi compatibility
 
@@ -1157,13 +1161,13 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.23: bounded structured-control help, exact-action topics, schema discovery and helpful errors
 - v1.1.24: original retro swarm logo and refreshed GitHub presentation
 - v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (released)
-- v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance (current release)
+- v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance
+- v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page (current release)
 
-## Artwork and affiliation
+## Artwork
 
-The pixel-art swarm logo is original artwork depicting abstract agent drones,
-not Blizzard characters or game assets. This independent Pi extension is not
-affiliated with, endorsed by, or sponsored by Blizzard Entertainment.
+Original Clankers artwork by Marc Mironescu: weathered uni-wheel robots with
+1980s CRT/neon styling. A non-animated version is linked above.
 
 ## License
 
