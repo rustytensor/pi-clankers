@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.28] - 2026-11-01
+
+### Changed
+- Replace the GitHub-page logo with the updated animated Clankers artwork and regenerate its matching non-animated alternative. Runtime behavior and saved data remain unchanged.
+
 ## [1.1.27] - 2026-11-01
 
 ### Added

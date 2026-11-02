@@ -121,7 +121,7 @@ with the rename. There is no dual-install guard.
    it loads: personal settings, project settings, and explicit extension paths.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.27 instead.
+   one package identity; a pinned version must explicitly select v1.1.28 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
@@ -137,12 +137,12 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.27** Git tag
+Install the **v1.1.28** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.27
+pi install git:github.com/rustytensor/pi-clankers@v1.1.28
 pi
 ```
 
@@ -188,7 +188,7 @@ hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.27** (renamed GitHub repository, animated uni-wheel robot artwork, and updated installation links).
+- Current release: **v1.1.28** (updated animated Clankers logo and matching non-animated artwork).
 - Historical milestones preserved for audit traceability: v0.8.0 implementation milestone and v0.8.1 audit follow-up patch.
 - The release path requires general, milestone, security, performance, hardening, and cleanup audits.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
@@ -1162,7 +1162,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.24: original retro swarm logo and refreshed GitHub presentation
 - v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (released)
 - v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance
-- v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page (current release)
+- v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
+- v1.1.28: updated animated logo and matching non-animated artwork (current release)
 
 ## Artwork
 
