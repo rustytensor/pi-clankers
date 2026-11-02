@@ -678,8 +678,18 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
       // Bound wrapping work before using Pi's public Text component.
       for (const part of clean.split('\n')) {
         if (lines.length >= MAX_LINES) { limited = true; break; }
-        const wrapped = new Text(part || ' ', 0, 0).render(width);
         const available = MAX_LINES - lines.length;
+        if (part.length > width && /^[!-~]+$/.test(part)) {
+          // Public Text hard-wraps this single-column ASCII token and pads its last row.
+          // Emit only the existing line budget; retain no additional wrapping cache.
+          const count = Math.ceil(part.length / width);
+          if (count > available) limited = true;
+          for (let row = 0; row < Math.min(count, available); row += 1) {
+            lines.push(styleText(this.theme, color, part.slice(row * width, (row + 1) * width).padEnd(width, ' ')));
+          }
+          continue;
+        }
+        const wrapped = new Text(part || ' ', 0, 0).render(width);
         if (wrapped.length > available) limited = true;
         lines.push(...wrapped.slice(0, available).map((line) => styleText(this.theme, color, line)));
       }

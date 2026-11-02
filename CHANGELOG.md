@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.29] - 2026-11-02
+
+### Fixed
+- Avoid repeated general-purpose wrapping work for long, unbroken printable ASCII in the coding overlay. Preserve exact displayed text, padding, existing limits, and the Unicode/whitespace fallback without adding a retained cache.
+
+### Changed
+- Clarify installation, single-copy migration, worker results, model costs, and current limitations on the GitHub page. Npm publication is pending; a tmux backend and interactive terminal takeover are not shipped.
+
 ## [1.1.28] - 2026-11-01
 
 ### Changed

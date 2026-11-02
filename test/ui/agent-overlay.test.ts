@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CURSOR_MARKER, visibleWidth } from '@earendil-works/pi-tui';
+import { CURSOR_MARKER, Text, truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import type { NativeTranscriptKey, NativeTranscriptReadHandle, NativeTranscriptSnapshot } from '../../native-transcript.js';
 import type { NativeContinuationPrepare, NativeContinuationReview } from '../../native-continuation.js';
 import type { ZergNativeSessionReference } from '../../types.js';
@@ -13,7 +13,7 @@ function reference(member = 'worker-a', parent = 'team-a'): ZergNativeSessionRef
 function snapshot(key: NativeTranscriptKey, patch: Partial<NativeTranscriptSnapshot> = {}): NativeTranscriptSnapshot {
   return { key, revision: 1, source: 'live', status: 'running', defaultLeafBasis: 'live', inspectedLeafId: 'tip', liveLeafId: 'tip', branches: [{ leafId: 'old-leaf', label: 'old branch' }, { leafId: 'tip', label: 'current branch' }], blocks: [{ id: 'a', kind: 'text', role: 'assistant', text: 'hello' }], truncated: false, droppedBlocks: 0, ...patch };
 }
-function fixture(refs = [reference()]) {
+function fixture(refs = [reference()], theme?: ConstructorParameters<typeof ZergAgentOverlayComponent>[1]) {
   let references = refs;
   let referenceListener: () => void = () => undefined;
   const opened: NativeTranscriptKey[] = [];
@@ -31,7 +31,7 @@ function fixture(refs = [reference()]) {
       return { getSnapshot: (selection) => { state.readCount += 1; state.selections.push(selection); return { ...state.value, blocks: selection?.leafId === null ? [] : state.value.blocks, inspectedLeafId: selection?.leafId === null ? null : selection?.leafId ?? state.value.inspectedLeafId }; }, subscribe: (listener) => { state.listener = listener; return () => { state.unsubscribeCount += 1; }; }, dispose: () => { state.disposeCount += 1; } };
     },
   };
-  const component = new ZergAgentOverlayComponent({ requestRender: () => { renders += 1; } }, undefined, () => { done += 1; }, options);
+  const component = new ZergAgentOverlayComponent({ requestRender: () => { renders += 1; } }, theme, () => { done += 1; }, options);
   component.render(180, 30); // A chooser action requires an actually displayed selection.
   return { component, options, opened, handles, get renders() { return renders; }, get done() { return done; }, get referenceUnsubscribes() { return referenceUnsubscribes; }, setReferences: (refs: ZergNativeSessionReference[]) => { references = refs; referenceListener(); }, referenceListener: () => referenceListener() };
 }
@@ -229,6 +229,49 @@ test('user scroll pauses live follow; End follows again without changing branch'
   f.component.handleInput('pageup');
   assert.match(f.component.render(100, 14).join('\n'), /scroll paused/);
   f.component.dispose();
+});
+
+test('long printable ASCII transcript wrapping matches public Text across tail updates', async () => {
+  const width = 20;
+  const first = 'A'.repeat(1024);
+  // Calculated before the fix: 1024 = 51 * 20 + 4; Text pads the final four As.
+  assert.deepEqual(new Text(first, 0, 0).render(width), [
+    ...Array<string>(51).fill('AAAAAAAAAAAAAAAAAAAA'), 'AAAA                ',
+  ]);
+  const theme = { fg: (color: string, text: string) => `\x1b[${color === 'accent' ? 36 : color === 'dim' ? 90 : 37}m${text}\x1b[0m` };
+  const f = fixture([reference()], theme);
+  try {
+    f.component.handleInput('enter');
+    await tick();
+    const h = f.handles[0]!;
+    const expected = (tail: string) => [
+      ['text', 'parent run: team-a'],
+      ['text', 'member run: worker-a'],
+      ['text', 'Pi session: pi-team-a-worker-a'],
+      ['dim', 'Raw branch history only; compaction/context_edit notices are not effective model context.'],
+      ['dim', 'inspected leaf: tip · live leaf: tip'],
+      ['accent', '[text · assistant]'], ['text', first],
+      ['accent', '[text · assistant]'], ['text', tail],
+    ].flatMap(([color, text]) => new Text(text!, 0, 0).render(width)
+      .map((line) => truncateToWidth(theme.fg(color!, line), width, '', true)));
+    const tail = 'b9!~'.repeat(256);
+    const before = expected(tail);
+    h.value = snapshot(h.value.key, { blocks: [
+      { id: 'first', kind: 'text', role: 'assistant', text: first },
+      { id: 'tail', kind: 'text', role: 'assistant', text: tail },
+    ] });
+    h.listener();
+    f.component.handleInput('home');
+    assert.deepEqual(f.component.render(width, 128).slice(2, -1), before);
+    const changedTail = tail.slice(0, -4) + 'TAIL';
+    const after = expected(changedTail);
+    h.value.blocks[1]!.text = changedTail;
+    h.value.revision += 1;
+    h.listener();
+    assert.deepEqual(f.component.render(width, 128).slice(2, -1), after);
+    assert.deepEqual(f.component.render(width, 128).slice(2, -1), after, 'cached redraw preserves bytes');
+    assert.notDeepEqual(after, before);
+  } finally { f.component.dispose(); }
 });
 
 test('untrusted ANSI/OSC/C1/APC stripped; Unicode, indentation and narrow widths fit', async () => {

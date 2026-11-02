@@ -13,13 +13,13 @@ Native parallel agents, programmable workflows, and a command center for the
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-![Clankers overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/swarm-hero.svg)
+**Install today:** [Pinned Git release](#quickstart). **npm publication is pending.**
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
 
 **Upgrading? [Load only one copy—migration guide](#migration-load-only-one-copy).**
 
-[Quickstart](#quickstart) · [Workflows](#workflows) ·
+[Quickstart](#quickstart) · [Scope and limits](#current-scope-and-limits) · [Workflows](#workflows) ·
 [Command center](#command-center) · [API help](#discover-actions-safely) · [Reference](#release-status) ·
 [Script language](workflow-script-language.md) · [Changelog](CHANGELOG.md)
 
@@ -33,7 +33,22 @@ exact conversations, and carry useful history into a fresh task.
 | **See the exact agent—not a guessed conversation** | Parent/member/Pi session identities, live text and tool inspection, saved raw branch history, explicit messages and receipts, and a read-only team/run timeline. |
 | **Stay in your main Pi conversation** | Background native runs, a compact below-editor activity strip, and **Alt+G** management without waiting for workers to finish. |
 | **Automate without driving a terminal** | `/clankers` for humans; `clankers_control` and `createZergControl(...)` for structured control, with [read-only action help](#discover-actions-safely) when you need the exact arguments. A separate local CLI runs approved read-only workflow profiles. |
+| **Collect a worker's actual answer** | Exact retained final text, explicit unavailable/oversized states, optional checked JSON for standalone agents, and owner-bound completion notices. [Result contracts](#native-agent-results). |
 | **Keep interrupted work inspectable** | Opt-in run/log snapshots, explicit retry attempts, and conservative workflow recovery with current evidence and fresh trusted-host authorization—not automatic replay. |
+
+## Current scope and limits
+
+- **Execution:** workers use native Pi SDK sessions. No tmux installation is required.
+  A tmux worker backend and interactive terminal takeover are **not shipped**.
+  Today's human controls are inspection, explicit messages, cancellation, and approval gates.
+- **Permissions:** extensions and approved checks run with host permissions.
+  Tool allowlists and write tracking are not an OS sandbox. Review source before installing.
+- **Recovery:** saved history can be inspected or used in an explicitly approved new task;
+  it does not reconnect a dead process or resume old permissions.
+- **Models:** use your own configured Pi providers and explicit models. Model work can
+  incur provider charges; installing Clankers does not include model access or credits.
+
+![Clankers overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/swarm-hero.svg)
 
 ## Workflows
 
@@ -117,11 +132,13 @@ sources can load duplicate controllers; the old v1.1.25 copy does not cooperate
 with the rename. There is no dual-install guard.
 
 1. Run `pi list` and identify the exact old declaration.
-2. Before adding a different source, remove or disable that declaration wherever
-   it loads: personal settings, project settings, and explicit extension paths.
+2. Before adding a different source, remove the exact old npm or Git declaration
+   with `pi remove <exact-old-source>`; use `--local` for project settings.
+   Check both scopes, plus any explicit `-e` flags or manually configured extension
+   paths, so the old copy cannot load alongside the new one.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.28 instead.
+   one package identity; a pinned version must explicitly select v1.1.29 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
@@ -137,23 +154,25 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.28** Git tag
+Install the **v1.1.29** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.28
+pi install git:github.com/rustytensor/pi-clankers@v1.1.29
 pi
 ```
 
-This is a Git-source package install, not npm publication. `pi-clankers` is not currently published on npm. Pi defaults
-to personal package settings; add `--local` to the install command for a
-project-scoped declaration, which loads only after Pi project trust is granted.
+For the extension, use Pi's package manager rather than `npm install -g`.
+The npm release is pending; use the published Git tag above for now.
+Pi defaults to personal package settings; add `--local` to the install command
+for a project-scoped declaration, which loads only after Pi project trust is granted.
 For an already-open Pi, load the installed extension with `/reload` when ready.
 
 Inside Pi, replace **both** `provider/model` placeholders with an explicit model
 available in your Pi environment. The following starts read-only workflow work;
-it does not enable staged coding or approve application:
+it does not enable staged coding or approve application. These commands start
+real model work and may incur provider charges:
 
 ```text
 /clankers agents update generalist --model provider/model
@@ -188,14 +207,16 @@ hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.28** (updated animated Clankers logo and matching non-animated artwork).
-- Historical milestones preserved for audit traceability: v0.8.0 implementation milestone and v0.8.1 audit follow-up patch.
-- The release path requires general, milestone, security, performance, hardening, and cleanup audits.
+- Current release: **v1.1.29** (faster narrow-terminal wrapping and clearer installation, migration, and feature guidance).
+- See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility notes.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
 
 ## Pi compatibility
 
-Tested with **Pi 1.0.0** (`@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui`). Requires **Node.js 22.19.0 or newer**, matching the current Pi host requirement.
+**Pi 1.0.0** is the development/test baseline. Focused offline SDK checks also
+passed with **Pi 1.4.0** for native worker results and rename compatibility;
+this is not certification of every host extension or provider configuration.
+Requires **Node.js 22.19.0 or newer**.
 
 Pi supplies its SDK and TUI libraries to installed extensions. They are declared as host-provided peer dependencies, with Pi 1.0.0 development dependencies for local checks, rather than bundled runtime copies. Native runs use Pi's `ModelRuntime` for model selection and credentials.
 
@@ -1163,7 +1184,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (released)
 - v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance
 - v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
-- v1.1.28: updated animated logo and matching non-animated artwork (current release)
+- v1.1.28: updated animated logo and matching non-animated artwork
+- v1.1.29: faster narrow-terminal wrapping and clearer public documentation (current release)
 
 ## Artwork
 
