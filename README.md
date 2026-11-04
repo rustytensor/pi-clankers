@@ -13,7 +13,7 @@ Native parallel agents, programmable workflows, and a command center for the
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-**Install today:** [Pinned Git release](#quickstart). **npm publication is pending.**
+**Install today:** [Pinned Git release v1.1.30](#quickstart), including the opt-in tmux preview, or the native-only `npm:pi-clankers@1.1.29` through Pi's package manager. Npm v1.1.30 is not published yet.
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
 
@@ -38,9 +38,9 @@ exact conversations, and carry useful history into a fresh task.
 
 ## Current scope and limits
 
-- **Execution:** workers use native Pi SDK sessions. No tmux installation is required.
-  A tmux worker backend and interactive terminal takeover are **not shipped**.
-  Today's human controls are inspection, explicit messages, cancellation, and approval gates.
+- **Execution:** native Pi SDK sessions remain the default and do not require tmux.
+  The [tmux preview](#tmux-worker-preview) adds one explicitly
+  selected, persistent interactive worker. Published v1.1.29 remains native-only.
 - **Permissions:** extensions and approved checks run with host permissions.
   Tool allowlists and write tracking are not an OS sandbox. Review source before installing.
 - **Recovery:** saved history can be inspected or used in an explicitly approved new task;
@@ -138,7 +138,7 @@ with the rename. There is no dual-install guard.
    paths, so the old copy cannot load alongside the new one.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.29 instead.
+   one package identity; a pinned version must explicitly select v1.1.30 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
@@ -154,17 +154,18 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.29** Git tag
+Install the **v1.1.30** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.29
+pi install git:github.com/rustytensor/pi-clankers@v1.1.30
 pi
 ```
 
 For the extension, use Pi's package manager rather than `npm install -g`.
-The npm release is pending; use the published Git tag above for now.
+The published native release is also available with `pi install npm:pi-clankers@1.1.29`.
+Remove any old package declaration before changing installation sources.
 Pi defaults to personal package settings; add `--local` to the install command
 for a project-scoped declaration, which loads only after Pi project trust is granted.
 For an already-open Pi, load the installed extension with `/reload` when ready.
@@ -207,7 +208,7 @@ hardware swarm project.
 
 ## Release status
 
-- Current release: **v1.1.29** (faster narrow-terminal wrapping and clearer installation, migration, and feature guidance).
+- Current Git release: **v1.1.30** (opt-in persistent standalone tmux workers, shared human control, and bounded MCP tools). Npm remains at **v1.1.29**.
 - See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility notes.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
 
@@ -1185,7 +1186,98 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance
 - v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
 - v1.1.28: updated animated logo and matching non-animated artwork
-- v1.1.29: faster narrow-terminal wrapping and clearer public documentation (current release)
+- v1.1.29: faster narrow-terminal wrapping and clearer public documentation
+- v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools (current Git release)
+
+## Tmux worker preview
+
+Native execution remains the default. This opt-in preview requires Linux,
+Pi 1.4 capabilities, and tmux. Standalone gates used Pi 1.4.0 with tmux 3.7c;
+the MCP and cancellation gates used Pi 1.4.0 with tmux 3.8.
+It is not included in npm v1.1.29. Model work uses your configured provider and
+can incur charges. Idle waiting does not request model work.
+
+Configure a standalone agent with an explicit `provider/model` and built-in tools
+or the Larra tools below. Use the automatic, writable controller mode and explicitly
+select tmux:
+
+```text
+/clankers mode automatic
+/clankers run <agent> --backend tmux --bg -- <literal task>
+/clankers tmux workers list
+/clankers tmux workers show <workerId>
+```
+
+`show` returns an attach command for the exact owned terminal. In that worker Pi,
+use `/clankers-control takeover` while idle to take human control, and
+`/clankers-control return` while idle to return it. Coordinator submissions are
+refused while the human owns the worker. Inputs remain subject to the fixed
+launch-time model/tool policy; takeover does not expand task permissions.
+
+Task completion retains an immutable result and leaves the same worker/Pi session
+open. To send more work or steer the exact active run:
+
+```text
+/clankers tmux workers prompt <workerId> --bg -- <literal task>
+/clankers tmux workers steer <workerId> <runId> -- <literal body>
+/clankers interrupt <runId>
+/clankers tmux workers show <workerId> <jobId>
+/clankers tmux workers close <workerId>
+```
+
+The equivalent structured actions are `run` with `backend: "tmux"`, and
+`tmux.workers.list`, `.show`, `.prompt`, `.steer`, and `.close`; use structured
+`help` with an exact action name for parameters. Each coordinator task receives
+new run/task IDs. `agents.result` retrieves its retained result; exact worker-job
+inspection uses `run.metadata.tmuxJobId` or an observed human `job.jobId`.
+Omitting a job selector does not guess the latest result. Admission, steering,
+and cancellation receipts are not evidence of completion.
+
+Close is explicit; the worker also stops when its owning parent shuts down or its
+control lease is lost. It never reconnects a recovered worker automatically.
+Session files are retained; only owned processes and socket/control artifacts are
+cleaned up. Other tmux servers are not touched.
+
+### Larra tools
+
+Declare `mcp` or `larra` in the agent's tools for the Larra-only gateway, or declare
+named tools such as `larra_search_text` or `mcp__larra__search_text`. Gateway calls
+use `{ "tool": "search_text", "args": { "project": "example", "pattern": "example" } }`;
+`server`, when supplied, must be `"larra"`. Named tools take the operation's arguments
+directly. Other MCP servers, codemode, deferred discovery, and arbitrary custom
+tools are not supported by this preview.
+
+Operation denies in `disallowedTools` apply across bare and prefixed spellings.
+Both controller tools (`clankers_control` and `zerg_control`) are blocked. Declaring
+a gateway otherwise permits Larra operations: it is not a read-only permission or
+an OS sandbox. Returned tool data does not grant permissions.
+
+The worker starts an owned local Larra stdio process per call, using
+`LARRA_MCP_PYTHON` or `/opt/larra/venv/bin/python`. Larra must already be installed
+and configured; Clankers does not install it or change operator settings. Calls
+are serialized with at most eight admitted calls, a 30-second deadline, and
+bounded text/structured results. Children are reaped on completion or cancellation;
+uncertain failures are not replayed automatically. Cancelled or failed jobs retain
+their own observed partial assistant text, not text from a previous job.
+
+Validation used real Pi/tmux with a synthetic MCP server for allowed/denied calls,
+cancellation, and parent loss. A separate read-only `describe_param` call through
+the same bridge passed against actual Larra. Paid-provider coding against Larra
+has not been tested.
+
+**Preview limits:** one worker including idle/setup/cleanup; built-in and declared
+Larra tools only. Teams, workflows, automation, staged coding, other MCP/custom tools, `may_write`,
+fork/resume/recovery, virtual/extension-only models missing from the offline
+catalog, turn limits, fallback models, and manual/assisted modes are refused.
+Project resources require saved trust. Model and callable-tool drift invalidates
+the worker. Native transcript/continuation/coding UI is unavailable for tmux.
+
+Transport text is limited to 8 KiB; clipped canonical final text is reported as
+unavailable, not falsely complete. Telemetry and tool-write evidence are currently
+unavailable. Retention is bounded to 128 jobs and 1,024 mutation requests; idle
+inspection and heartbeats do not consume that mutation budget. A task has a
+one-hour settlement deadline. These controls are not an OS or hostile-same-user
+sandbox.
 
 ## Artwork
 

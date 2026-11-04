@@ -37,6 +37,7 @@ import { openZergTeamTimeline } from './ui/team-timeline.js';
 import { openZergManagementOverlay } from './ui/management-overlay.js';
 import { renderZergTimeline, renderNativeSessionReferences, renderAgentDefinitionSummary, renderAgentDefinitionsList, renderAgentTree, renderHelp, renderMonitor, renderPermissionQueueList, renderPermissionQueueStatus, renderStatusLine, renderZergLogList, renderZergLogStatus, renderZergLogSummary, renderZergManagementOverlay, renderZergSubagentRunList, renderZergSubagentRunSummary, type ZergManagementOverlayRow } from './render.js';
 import { appendZergLogRecord, applyInterventionRecord, applyModeTransition, applyRuntimeTransition, createZergState, createZergStateContainer, updateZergState, createZergSubagentRunSnapshot, enqueuePermissionRequest, getAgentDefinition, getAgentDefinitions, getPendingPermissionRequests, getPermissionQueueState, getSubagentRunSnapshot, getSubagentRunSnapshots, getZergLogs, getZergLogState, readSharedZergState, removeAgentDefinition, replaceSharedZergState, resolvePermissionRequest, seedBuiltinAgentDefinitions, snapshotZergState, upsertAgentDefinition, upsertTask, type ZergLogFilter } from './state.js';
+import { createTmuxControl, type TmuxControl, type TrustedTmuxOptions } from './tmux-control.js';
 import { ZERG_COMMANDS, type TrustedAutomationNativeContext, type AgentKind, type AgentStatus, type AutomationMode, type PermissionModeTransitionInput, type StructuralPiCommand, type StructuralPiCommandContext, type StructuralPiCommandOptions, type StructuralPiExtensionContext, type StructuralPiToolDefinition, type StructuralPiTuiHandle, type TeamKind, type ZergAgentDefinition, ZERG_EXTENSION_VERSION, type ZergCommandName, type ZergCommandResult, type ZergConfigOverlayTab, type ZergControl, type ZergControlAction, type ZergControlController, type ZergControlResult, type ZergControlState, type ZergInternalPatchController, type ZergLifecycleSubstate, type ZergManagementTargetKind, type ZergOperatorMessageDeliveryStatus, type ZergOperatorMessageMode, type ZergOperatorMessageResult, type ZergPersistenceOptions, type ZergPermissionDecision, type ZergPermissionRequestKind, type ZergPiCommandHandler, type ZergRuntimeEntity, type ZergRuntimeTransition, type ZergRuntimeTransitionAction, type ZergState, type ZergStateContainer, type ZergSubagentControlAdapter, type ZergSubagentLaunchMode, type ZergSubagentLaunchRequest, type ZergSubagentRunSnapshot, type ZergNativeSessionReference, type ZergTimelineFilter, type ZergSessionMessageKey } from './types.js';
 
 type ZergIdFactory = {
@@ -45,6 +46,8 @@ type ZergIdFactory = {
 };
 
 export interface ZergCommandHandlerOptions {
+  /** Trusted host-only tmux paths; never supplied in action JSON. */
+  trustedTmux?: TrustedTmuxOptions;
   /** Trusted base cwd for explicit local script import; never supplied in action JSON. */
   cwd?: string;
   now?: () => Date;
@@ -69,7 +72,8 @@ export interface ZergCommandHandlerOptions {
 }
 
 const resultNoticeOwners = new WeakMap<ZergSubagentLaunchRequest, { notice?: (result: AgentResult) => AgentResult['notice'] }>();
-type RuntimeCommandOptions = ZergControlOptions & { syncSharedState?: boolean; persistenceManager?: ZergPersistenceManager; isOwnerDisposed?: () => boolean; workflowService?: WorkflowService; workflowScriptOwner?: WorkflowScriptControlOwner; startupRecoveryBlock?: StartupRecoveryBlock; nativeActivity?: NativeActivityRecorder; captureResultNotice?: () => ((result: AgentResult) => AgentResult['notice']) | undefined; resultNotice?: (result: AgentResult) => AgentResult['notice'] };
+const tmuxControlOwners = new WeakMap<ZergControl, () => TmuxControl>();
+type RuntimeCommandOptions = ZergControlOptions & { getTmuxControl?: () => TmuxControl; syncSharedState?: boolean; persistenceManager?: ZergPersistenceManager; isOwnerDisposed?: () => boolean; workflowService?: WorkflowService; workflowScriptOwner?: WorkflowScriptControlOwner; startupRecoveryBlock?: StartupRecoveryBlock; nativeActivity?: NativeActivityRecorder; captureResultNotice?: () => ((result: AgentResult) => AgentResult['notice']) | undefined; resultNotice?: (result: AgentResult) => AgentResult['notice'] };
 
 export interface ZergExtensionRegistration {
   commands: ZergCommandName[];
@@ -430,6 +434,7 @@ export function registerZergSwarmExtension(
   // The registered wrapper already owns this internal manager/commit path. Do not
   // reinterpret runtime plumbing as the standalone externally prepared option.
   const control = createZergControl(syncedStateContainer, { ...runtimeOptions, persistenceManager: undefined, subagentAdapter });
+  runtimeOptions.getTmuxControl = tmuxControlOwners.get(control);
   runtimeOptions.workflowService = workflowControlServices.get(control);
   runtimeOptions.workflowScriptOwner = workflowScriptControlOwners.get(control);
   let disposeActivityUi = () => {};
@@ -1111,6 +1116,20 @@ export function createZergControl(
   const runtimeOptions = { ...options, persistenceManager, nativeTranscriptService, sessionMessageService, isOwnerDisposed: () => disposed || (options as RuntimeCommandOptions).isOwnerDisposed?.() === true, workflowScriptOwner } as RuntimeCommandOptions;
   const adapter = options.subagentAdapter ?? createPiNativeAdapter({}, container, runtimeOptions);
   runtimeOptions.subagentAdapter = adapter;
+  let tmux: TmuxControl | undefined;
+  runtimeOptions.getTmuxControl = () => {
+    if (!workflowNativeOwners.has(adapter)) throw new Error('Tmux requires an owned native runner; adapter kind/metadata is not authority.');
+    return tmux ??= createTmuxControl(container, {
+    cwd: options.cwd ?? process.cwd(), trusted: options.trustedTmux,
+    ids: () => ({ runId: resolveRunId(options.idFactory), taskId: resolveTaskId(options.idFactory) }),
+    captureNotice: () => runtimeOptions.captureResultNotice?.() ?? runtimeOptions.resultNotice,
+    assertAuthority: () => {
+      if (!workflowNativeOwners.has(adapter)) throw new Error('Tmux requires an owned native runner.');
+      if (runtimeOptions.isOwnerDisposed?.()) throw new Error('Tmux owner disposed.');
+      if (options.trustedAutomationNative || options.trustedWorkflow || options.coding?.enabled || options.recovery?.enabled || startupRecoveryBlock) throw new Error('Tmux does not support automation, coding, workflows or recovery contexts.');
+    },
+    });
+  };
   const owner = workflowNativeOwners.get(adapter);
   const unavailable: WorkflowNativePort = { preflight() { throw new Error('Workflows require an owned native runner; adapter kind/metadata is not authority.'); }, async execute() { throw new Error('Workflow native owner unavailable.'); } };
   // Lazy ledger initialization preserves ordinary control construction/revisions.
@@ -1204,7 +1223,7 @@ export function createZergControl(
       return workflowService.recovery;
     },
     async drain() {
-      const settled = await Promise.allSettled([workflowScriptOwner.drain(), workflowService.drain(), owner?.drain()]);
+      const settled = await Promise.allSettled([workflowScriptOwner.drain(), workflowService.drain(), owner?.drain(), tmux?.drain()]);
       const failure = settled.find((entry): entry is PromiseRejectedResult => entry.status === 'rejected');
       if (failure) throw failure.reason;
     },
@@ -1212,7 +1231,7 @@ export function createZergControl(
       if (disposed) return;
       disposed = true;
       let firstError: unknown;
-      for (const cleanup of [() => workflowScriptOwner.dispose(), () => workflowService.dispose(),
+      for (const cleanup of [() => tmux?.dispose(), () => workflowScriptOwner.dispose(), () => workflowService.dispose(),
         () => { if (!options.sessionMessageService) shutdownSessionMessages(sessionMessageService); },
         () => { if (!options.nativeTranscriptService) shutdownNativeTranscript(nativeTranscriptService); },
         () => { if (!options.subagentAdapter) adapter.dispose?.(); }]) {
@@ -1221,6 +1240,7 @@ export function createZergControl(
       if (firstError) throw firstError;
     },
   };
+  tmuxControlOwners.set(control, runtimeOptions.getTmuxControl);
   workflowControlServices.set(control, workflowService);
   workflowScriptControlOwners.set(control, workflowScriptOwner);
   return control;
@@ -1300,6 +1320,32 @@ async function executeZergControlAction(
       return controlOk('help', data, JSON.stringify(data), container.read().revision);
     }
     if (Object.hasOwn(action, 'topic')) return controlError(actionName, 'invalid_request', 'topic is supported only for help. Use {"action":"help","topic":"<exact action name>"}.', container.read().revision);
+    if (Object.hasOwn(action, 'backend') && action.action !== 'run') throw new Error('backend is supported only for standalone run.');
+    if (action.action.startsWith('tmux.workers.')) {
+      const fields: Record<string, string[]> = {
+        'tmux.workers.list': ['action'], 'tmux.workers.show': ['action', 'workerId', 'jobId'], 'tmux.workers.close': ['action', 'workerId'],
+        'tmux.workers.prompt': ['action', 'workerId', 'task', 'background'], 'tmux.workers.steer': ['action', 'workerId', 'runId', 'body'],
+      };
+      if (Object.keys(action).some(key => !fields[action.action]?.includes(key))) throw new Error('Unsupported tmux field; trusted paths and fixture options are never control JSON.');
+      if (!options.getTmuxControl) throw new Error('Owned tmux registry unavailable.');
+      const tmux = options.getTmuxControl();
+      let data: unknown;
+      switch (action.action) {
+        case 'tmux.workers.list': data = { workers: await tmux.list() }; break;
+        case 'tmux.workers.show': data = await tmux.show(action.workerId, action.jobId); break;
+        case 'tmux.workers.close': data = await tmux.close(action.workerId, signal); break;
+        case 'tmux.workers.steer': data = await tmux.steer(action.workerId, action.runId, action.body, signal); break;
+        case 'tmux.workers.prompt': {
+          if (action.background !== undefined && typeof action.background !== 'boolean') throw new Error('background must be boolean.');
+          const result = await tmux.prompt(action.workerId, action.task, action.background, signal);
+          const run = result.runId ? getSubagentRunSnapshot(container.read(), result.runId) : undefined;
+          if (!action.background && run?.status !== 'done') return controlError(action.action, 'run_failed', run?.substateReason ?? 'Tmux job failed.', container.read().revision, { runId: result.runId, taskId: result.taskId });
+          return controlOk(action.action, { ...result, run }, result.output, container.read().revision, { runId: result.runId, taskId: result.taskId });
+        }
+      }
+      if ((data as { ok?: boolean; closed?: boolean })?.ok === false || (data as { closed?: boolean })?.closed === false) return controlError(action.action, 'request_refused', JSON.stringify(data), container.read().revision);
+      return controlOk(action.action, data, JSON.stringify(data), container.read().revision);
+    }
     if (isWorkflowScriptActionName(action.action)) {
       if (options.isOwnerDisposed?.()) throw new Error('Workflow authoring owner disposed.');
       const execute = options.workflowScriptOwner?.execute ?? executeWorkflowScriptAction;
@@ -1431,12 +1477,20 @@ async function executeZergControlAction(
         return controlOk(action.action, { team: updated.teams[action.id] }, `team ${action.id} saved.`, updated.revision, { teamId: action.id });
       }
       case 'run': {
+        if (action.backend !== undefined && action.backend !== 'native' && action.backend !== 'tmux') throw new Error('Unknown backend; expected native or tmux.');
+        if (action.backend === 'tmux') {
+          const allowed = new Set(['action', 'backend', 'agent', 'task', 'background', 'launchMode', 'concurrency', 'model', 'fallbackModels', 'maxTurns']);
+          if (Object.keys(action).some(key => !allowed.has(key))) throw new Error('Unsupported tmux run field; no history, recovery, tool/resource override or private host configuration.');
+          if (action.background !== undefined && typeof action.background !== 'boolean') throw new Error('background must be boolean.');
+          if (action.maxTurns !== undefined || action.fallbackModels !== undefined) throw new Error('Tmux turn limits and fallback configuration unsupported.');
+        }
         if (!action.agent || !action.task) return controlError(action.action, 'invalid_request', 'run requires agent and task.', container.snapshot().revision);
         const parsedConcurrency = action.concurrency === undefined ? undefined : parsePositiveSafeIntegerOption(action.concurrency, 'concurrency');
         if (parsedConcurrency && !parsedConcurrency.ok) return controlError(action.action, 'invalid_request', parsedConcurrency.output, container.snapshot().revision, { agentId: action.agent });
         if (signal?.aborted) return controlError(action.action, 'run_cancelled', 'run cancelled before launch.', container.snapshot().revision, { agentId: action.agent });
         const result = dispatchRunRequest(container, {
           agent: action.agent,
+          ...(action.backend !== undefined ? { backend: action.backend } : {}),
           task: action.task,
           background: action.background,
           fork: action.launchMode === 'fork',
@@ -1447,6 +1501,12 @@ async function executeZergControlAction(
           ...(action.maxTurns ? { maxTurns: action.maxTurns } : {}),
         }, options, signal);
         if (!result.ok) return controlError(action.action, 'launch_failed', result.output, container.snapshot().revision, { runId: result.runId, taskId: result.taskId });
+        if (action.backend === 'tmux') {
+          if (!action.background && result.runId) await options.getTmuxControl!().awaitRun(result.runId);
+          const run = result.runId ? getSubagentRunSnapshot(container.read(), result.runId) : undefined;
+          if (!action.background && run?.status !== 'done') return controlError(action.action, 'run_failed', run?.substateReason ?? 'Tmux job failed or outcome unavailable.', container.read().revision, { runId: result.runId, taskId: result.taskId });
+          return controlOk(action.action, { run, runId: result.runId, taskId: result.taskId }, action.background ? result.output : `Tmux job ${run?.status ?? 'unknown'}; worker kept open.`, container.read().revision, { runId: result.runId, taskId: result.taskId });
+        }
         let abortListener: (() => void) | undefined;
         if (result.runId && !action.background && signal) {
           abortListener = () => { void Promise.resolve(options.subagentAdapter?.interrupt?.(result.runId)); };
@@ -1615,6 +1675,12 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
         workflowRunId: { type: 'string', maxLength: 160, description: 'Exact workflow attempt identity for show/pause/resume/cancel/retry/report/forget/recovery inspect/prepare; no fallback.' },
         selections: { type: 'object', additionalProperties: false, description: 'Optional read-only recovery projection selections for workflows.recovery.prepare only; prepare is not authorization and cannot execute recovered work.', properties: { reuseUnitIds: { type: 'array', maxItems: 256, items: { type: 'string', minLength: 1, maxLength: 160 } }, rerunUnitIds: { type: 'array', maxItems: 256, items: { type: 'string', minLength: 1, maxLength: 160 } } } },
         inputs: { description: 'Schema-validated bounded JSON data for workflows.start; never permissions.' },
+        backend: { type: 'string', enum: ['native', 'tmux'], description: 'run only; omitted means native. Tmux is one persistent standalone worker, kept open until explicit close.' },
+        workerId: { type: 'string', description: 'Exact owned tmux worker ID; no fallback.' },
+        jobId: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\\s\\S])', description: 'tmux.workers.show only: exact job selector from run metadata.tmuxJobId or active job.jobId; omitted never selects latest.' },
+        agent: { type: 'string' },
+        task: { type: 'string', description: 'Literal caller task and permission scope; not human authorization.' },
+        background: { type: 'boolean', description: 'Return admission rather than await actual task settlement.' },
         targetId: { type: 'string' },
         body: { type: 'string' },
         id: { type: 'string', description: 'Agent definition id for create/update/show/result.' },
@@ -1753,7 +1819,7 @@ export function createZergCommandHandler(
   options: ZergCommandHandlerOptions = {},
 ): (input?: string) => ZergCommandResult {
   const dispatchers: Record<ZergCommandTopic, ZergCommandDispatcher> = {
-    help: () => ({ ok: true, output: renderHelp(resolveZergStateSnapshot(stateOrReader)) }),
+    help: () => ({ ok: true, output: renderHelp(resolveZergStateSnapshot(stateOrReader)) + '\n\nTmux (opt-in, one persistent standalone worker):\n/clankers run <agent> --backend tmux [--model provider/model] [--bg] -- <literal task>\n/clankers tmux workers list | show <workerId> [jobId] | close <workerId>\n/clankers tmux workers prompt <workerId> [--bg] -- <literal task>\n/clankers tmux workers steer <workerId> <runId> -- <literal body>\n/clankers interrupt <runId> requests cancellation, not completion.\nTasks keep the worker open; close is explicit. Native transcript/history/continuation UI is unavailable for tmux. Structured help documents exact limits.' }),
     status: () => ({ ok: true, output: renderStatusLine(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
     tree: () => ({ ok: true, output: renderAgentTree(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
     steps: (payload: string) => {
@@ -2449,6 +2515,14 @@ function dispatchRunRequest(
     return { ok: false, output: RUNTIME_WRITABLE_STATE_ERROR };
   }
 
+  if (requestInput.backend !== undefined && requestInput.backend !== 'native' && requestInput.backend !== 'tmux') return { ok: false, output: 'Unknown run backend; expected native or tmux.' };
+  if (requestInput.backend === 'tmux') {
+    try {
+      if (!options.getTmuxControl) throw new Error('Tmux requires an owned createZergControl/registered controller.');
+      return options.getTmuxControl().start(requestInput, signal);
+    } catch (error) { return { ok: false, output: error instanceof Error ? error.message : 'Tmux admission refused.' }; }
+  }
+
   const concurrencyResult = requestInput.concurrency === undefined ? { ok: true as const, value: DEFAULT_NATIVE_WORKER_CONCURRENCY } : parsePositiveSafeIntegerOption(requestInput.concurrency, 'concurrency');
   if (!concurrencyResult.ok) {
     return { ok: false, output: concurrencyResult.output };
@@ -2761,6 +2835,14 @@ function dispatchInterruptCommand(
   const container = getWritableStateContainer(stateOrReader);
   const currentSnapshot = container?.read() ?? resolveZergStateSnapshot(stateOrReader);
 
+  const exactRunId = runId || getZergControlState(currentSnapshot).activeRunId;
+  if (exactRunId && currentSnapshot.agents[exactRunId]?.metadata?.backend === 'tmux') {
+    try {
+      if (!options.getTmuxControl) throw new Error('Owned tmux registry unavailable; no native fallback.');
+      return options.getTmuxControl().interrupt(exactRunId);
+    } catch (error) { return { ok: false, output: error instanceof Error ? error.message : 'Tmux interrupt refused.' }; }
+  }
+
   if (currentSnapshot.mode.readOnly) {
     if (!container) {
       return { ok: false, output: 'Clankers interrupt is blocked while read-only is enabled and requires writable Clankers state to queue permission.' };
@@ -2889,11 +2971,16 @@ function dispatchControlCommand(
 
 
 function parseRunCommand(payload: string): { ok: false; output: string } | { ok: true; request: ZergSubagentLaunchRequest } {
-  const tokens = tokenizeRuntimePayload(payload);
+  const literal = /^([\s\S]*?)\s+--\s([\s\S]*)$/.exec(payload);
+  const header = tokenizeRuntimePayload(literal?.[1] ?? payload);
+  const tmuxLiteral = header.some((token, index) => token === '--backend=tmux' || (token === '--backend' && header[index + 1] === 'tmux'));
+  if (tmuxLiteral && !literal) return { ok: false, output: 'Tmux run requires -- before the literal task: /clankers run <agent> --backend tmux -- <task>' };
+  const tokens = tmuxLiteral ? header : tokenizeRuntimePayload(payload);
   let background = false;
   let launchMode: ZergSubagentLaunchMode = 'fresh';
   let sawFresh = false;
   let sawFork = false;
+  let backend: 'native' | 'tmux' | undefined;
   let model: string | undefined;
   let fallbackModels: string[] | undefined;
   let maxTurns: number | undefined;
@@ -2906,8 +2993,14 @@ function parseRunCommand(payload: string): { ok: false; output: string } | { ok:
     const fallbackValue = readOptionValue(tokens, index, '--fallback-models') ?? readOptionValue(tokens, index, '--fallback');
     const maxTurnsValue = readOptionValue(tokens, index, '--max-turns') ?? readOptionValue(tokens, index, '--maxTurns');
     const concurrencyValue = readOptionValue(tokens, index, '--concurrency');
+    const backendValue = readOptionValue(tokens, index, '--backend');
 
-    if (token === '--bg' || token === '--background') {
+    if (token === '--backend' || token.startsWith('--backend=')) {
+      if (backend !== undefined) return { ok: false, output: 'Specify exactly one --backend; no fallback or mixed backends.' };
+      if (backendValue !== 'native' && backendValue !== 'tmux') return { ok: false, output: '--backend must be native or tmux.' };
+      backend = backendValue;
+      if (token === '--backend') index += 1;
+    } else if (token === '--bg' || token === '--background') {
       background = true;
     } else if (token === '--fresh') {
       sawFresh = true;
@@ -2950,8 +3043,9 @@ function parseRunCommand(payload: string): { ok: false; output: string } | { ok:
     return { ok: false, output: 'Usage: /clankers run <agent> <task> [--bg] [--fresh|--fork] [--concurrency <n>] [--model <model>]' };
   }
 
-  const task = taskTokens.join(' ').trim();
-  if (!task) {
+  if (backend === 'tmux' && taskTokens.length) return { ok: false, output: 'Unsupported tmux options/arguments; put the literal task after --.' };
+  const task = backend === 'tmux' ? literal?.[2] ?? '' : taskTokens.join(' ').trim();
+  if (!task.trim()) {
     return { ok: false, output: 'Clankers run requires a non-empty task.' };
   }
 
@@ -2963,6 +3057,7 @@ function parseRunCommand(payload: string): { ok: false; output: string } | { ok:
       background,
       fork: launchMode === 'fork',
       launchMode,
+      ...(backend ? { backend } : {}),
       ...(concurrency ? { concurrency } : {}),
       ...(model ? { model } : {}),
       ...(fallbackModels?.length ? { fallbackModels } : {}),
@@ -6620,6 +6715,43 @@ export function createPiZergCommandHandler(
   let uiPreferences: ManagementUiPreferencesFacade | undefined;
   const dispatch = async (input: string, context: StructuralPiCommandContext): Promise<void> => {
     const routed = stripOptionalZergInvocation(input.trimStart());
+    const runCommand = /^run\s+([\s\S]+)$/i.exec(routed);
+    if (runCommand) {
+      const parsed = parseRunCommand(runCommand[1]!);
+      if (parsed.ok && parsed.request.backend === 'tmux') {
+        const container = getWritableStateContainer(stateOrReader);
+        if (!container) { context.ui?.notify?.(RUNTIME_WRITABLE_STATE_ERROR, 'error'); return; }
+        const { fork: _fork, ...request } = parsed.request;
+        const reply = await executeZergControlAction(container, { ...request, action: 'run' }, runtimeOptions);
+        context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
+        return;
+      }
+    }
+    if (/^tmux(?:\s|$)/i.test(routed)) {
+      const match = /^tmux\s+workers\s+(list|show|prompt|steer|close)(?:\s+([\s\S]+))?$/i.exec(routed);
+      const container = getWritableStateContainer(stateOrReader);
+      try {
+        if (!match || !container) throw new Error('Usage: /clankers tmux workers list | show <workerId> [jobId] | close <workerId> | prompt <workerId> [--bg] -- <task> | steer <workerId> <runId> -- <body>');
+        const verb = match[1]!.toLowerCase(), payload = match[2] ?? '';
+        let action: ZergControlAction;
+        if (verb === 'list' && !payload) action = { action: 'tmux.workers.list' };
+        else if (verb === 'show' && /^\S+(?:\s+\S+)?$/.test(payload)) {
+          const [workerId, jobId] = payload.split(/\s+/);
+          action = { action: 'tmux.workers.show', workerId: workerId!, ...(jobId === undefined ? {} : { jobId }) };
+        }
+        else if (verb === 'close' && /^\S+$/.test(payload)) action = { action: 'tmux.workers.close', workerId: payload };
+        else {
+          const parts = /^(\S+)(?:\s+(--bg|\S+))?\s+--\s([\s\S]+)$/.exec(payload);
+          if (!parts) throw new Error('Exact workerId and -- literal task/body required.');
+          if (verb === 'prompt' && (!parts[2] || parts[2] === '--bg')) action = { action: 'tmux.workers.prompt', workerId: parts[1]!, task: parts[3]!, background: parts[2] === '--bg' };
+          else if (verb === 'steer' && parts[2]) action = { action: 'tmux.workers.steer', workerId: parts[1]!, runId: parts[2], body: parts[3]! };
+          else throw new Error('Invalid tmux worker action arguments.');
+        }
+        const reply = await executeZergControlAction(container, action, runtimeOptions);
+        context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
+      } catch (error) { context.ui?.notify?.(error instanceof Error ? error.message : 'Tmux request refused.', 'error'); }
+      return;
+    }
     if (/^workflows(?:\s|$)/i.test(routed)) {
       const container = getWritableStateContainer(stateOrReader);
       const service = runtimeOptions.workflowService;

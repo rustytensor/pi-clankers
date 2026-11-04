@@ -1,6 +1,6 @@
 {
   "name": "pi-clankers",
-  "version": "1.1.29",
+  "version": "1.1.30",
   "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and coordinated subagent orchestration.",
   "type": "module",
   "license": "MIT",
@@ -37,6 +37,14 @@
   },
   "files": [
     "control-help.ts",
+    "tmux-control.ts",
+    "tmux-mcp.ts",
+    "tmux-protocol.ts",
+    "tmux-runner.ts",
+    "tmux-worker-config.ts",
+    "tmux-worker-policy.ts",
+    "tmux-worker-bootstrap.ts",
+    "tmux-worker-entry.mjs",
     "activity.ts",
     "agent-results.ts",
     "automation-profile.ts",

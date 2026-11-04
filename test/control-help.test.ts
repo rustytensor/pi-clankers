@@ -44,6 +44,7 @@ const { createZergCommandHandler, createZergControl, registerZergSwarmExtension 
 const EXPECTED_ACTIONS = [
   'help', 'status', 'agents.list', 'agents.show', 'agents.result', 'agents.results', 'agents.create', 'agents.update', 'agents.delete',
   'team.create', 'team.update', 'run', 'runs.list', 'runs.show', 'timeline.list', 'logs.list',
+  'tmux.workers.list', 'tmux.workers.show', 'tmux.workers.prompt', 'tmux.workers.steer', 'tmux.workers.close',
   'session.message.send', 'session.messages.list', 'session.continuation.prepare',
   'session.continuation.start', 'session.continuation.discard', 'message', 'interrupt',
   'workflows.list', 'workflows.define', 'workflows.show', 'workflows.start', 'workflows.pause',
@@ -160,6 +161,9 @@ function exampleArguments(example: ZergControlAction): void {
     case 'run': nonempty('agent'); nonempty('task');
       if (value.concurrency !== undefined) assert.ok(Number.isSafeInteger(value.concurrency) && Number(value.concurrency) > 0); break;
     case 'runs.show': nonempty('runId'); break;
+    case 'tmux.workers.show': case 'tmux.workers.close': nonempty('workerId'); break;
+    case 'tmux.workers.prompt': nonempty('workerId'); nonempty('task'); break;
+    case 'tmux.workers.steer': nonempty('workerId'); nonempty('runId'); nonempty('body'); break;
     case 'message': nonempty('targetId'); nonempty('body'); assert.ok(value.mode === undefined || value.mode === 'steer' || value.mode === 'followUp'); break;
     case 'session.message.send': assert.ok(validateSessionMessageInput({ key: value, messageId: value.messageId, body: value.body, mode: value.mode })); break;
     case 'session.messages.list': assert.equal(validateSessionMessageKey(value), true);
@@ -178,7 +182,7 @@ function exampleArguments(example: ZergControlAction): void {
       if (value.concurrency !== undefined) assert.ok(Number.isInteger(value.concurrency) && Number(value.concurrency) >= 1 && Number(value.concurrency) <= 32); break;
     case 'workflows.pause': case 'workflows.resume': case 'workflows.cancel': case 'workflows.retry': case 'workflows.report': case 'workflows.forget':
     case 'workflows.recovery.inspect': case 'workflows.recovery.prepare': nonempty('workflowRunId'); break;
-    case 'status': case 'agents.list': case 'runs.list': case 'logs.list': case 'interrupt': case 'workflows.list': break;
+    case 'status': case 'agents.list': case 'runs.list': case 'logs.list': case 'interrupt': case 'workflows.list': case 'tmux.workers.list': break;
     default: assert.fail(`Missing example argument coverage: ${example.action}`);
   }
 }

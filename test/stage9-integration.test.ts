@@ -96,9 +96,18 @@ expected = {
  'reap': '24edc4170a0443b53eb660c0bb4e9e8c6a4aafb8acef6a468d6c2351b0a920f2',
  'stop': '8ab57f79e171903747420952416e94f2b87cb75d36c6698de4ec154349798919',
 }
+# Keep the pinned representation independent of ast.dump display changes:
+# Python 3.15 omits Load() contexts; the original hashes include them.
+def ownership_dump(value):
+ if isinstance(value, ast.AST):
+  fields = [name + '=' + ownership_dump(item) for name, item in ast.iter_fields(value)
+            if item != [] and not (item is None and getattr(type(value), name, ...) is None)]
+  return type(value).__name__ + '(' + ', '.join(fields) + ')'
+ if isinstance(value, list): return '[' + ', '.join(map(ownership_dump, value)) + ']'
+ return repr(value)
 for name, digest in expected.items():
  node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
- assert hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest() == digest
+ assert hashlib.sha256(ownership_dump(node).encode()).hexdigest() == digest
 now, rows, acks = [0.0], {}, {}
 def fresh():
  now[0] = 0.0; rows.clear(); acks.clear()

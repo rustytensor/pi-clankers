@@ -18,7 +18,7 @@ export interface TrustedAutomationNativeContext {
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
 export const ZERG_COMMANDS = ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm'] as const;
-export const ZERG_EXTENSION_VERSION = '1.1.29' as const;
+export const ZERG_EXTENSION_VERSION = '1.1.30' as const;
 export type ZergCommandName = (typeof ZERG_COMMANDS)[number];
 export const ZERG_COMMAND_INVOCATIONS = ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm'] as const;
 export type ZergCommandInvocation = (typeof ZERG_COMMAND_INVOCATIONS)[number];
@@ -145,6 +145,7 @@ export interface ZergRunRecoveryInfo {
 }
 
 export interface ZergSubagentLaunchRequest {
+  backend?: 'native' | 'tmux';
   agent: string;
   task: string;
   background?: boolean;
@@ -408,7 +409,12 @@ export type ZergControlAction =
   | { action: 'agents.create' | 'agents.update'; id: string; label?: string; description?: string; prompt?: string; model?: string; fallbackModels?: string[]; maxTurns?: number; tools?: string[]; disallowedTools?: string[]; permissionMode?: AutomationMode | 'inherit'; result_schema?: import('./agent-results.js').ResultSchema; may_write?: string[] }
   | { action: 'agents.delete'; id: string }
   | { action: 'team.create' | 'team.update'; id: string; label?: string; leader?: string; members?: string[]; kind?: TeamKind; model?: string; fallbackModels?: string[]; maxTurns?: number }
-  | { action: 'run'; agent: string; task: string; background?: boolean; launchMode?: ZergSubagentLaunchMode; concurrency?: number; model?: string; fallbackModels?: string[]; maxTurns?: number }
+  | { action: 'tmux.workers.list' }
+  | { action: 'tmux.workers.show'; workerId: string; jobId?: string }
+  | { action: 'tmux.workers.close'; workerId: string }
+  | { action: 'tmux.workers.prompt'; workerId: string; task: string; background?: boolean }
+  | { action: 'tmux.workers.steer'; workerId: string; runId: string; body: string }
+  | { action: 'run'; backend?: 'native' | 'tmux'; agent: string; task: string; background?: boolean; launchMode?: ZergSubagentLaunchMode; concurrency?: number; model?: string; fallbackModels?: string[]; maxTurns?: number }
   | { action: 'runs.list' }
   | { action: 'runs.show'; runId: string }
   | ({ action: 'session.message.send'; messageId: string; body: string; mode: ZergOperatorMessageMode } & ZergSessionMessageKey)

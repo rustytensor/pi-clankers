@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.30] - 2026-11-04
+
+### Added
+- Opt-in standalone tmux workers that keep the same interactive Pi session open between tasks, with explicit human takeover/return and close controls.
+- Exact per-task results, bounded local control, and owned-process cleanup on disposal or parent loss. Native execution remains the default.
+- Offline real-Pi acceptance fixtures for shared control, result immutability, cancellation, setup refusal, disposal, and parent-crash cleanup.
+- Larra-only MCP gateways and named aliases for tmux workers, with normalized operation denies, recursive-controller blocking, bounded per-call subprocesses, and cancellation cleanup.
+
+### Fixed
+- Preserve the current job's bounded partial assistant text when cancellation appends an empty error message; never substitute another job's text or label it a successful result.
+
+### Changed
+- Document the opt-in tmux preview, Larra setup and permission limits, and the distinction between synthetic Pi/tmux acceptance and the actual Larra read-only bridge check; update npm installation guidance for the already-published native release.
+
 ## [1.1.29] - 2026-11-02
 
 ### Fixed
