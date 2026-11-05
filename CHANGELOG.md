@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.31] - 2026-11-05
+
+### Added
+- Up to eight independent persistent tmux workers per controller, with exact worker/job routing and isolated cancellation, close, and result retention.
+- Configured tmux teams with atomic member/leader slot reservation, bounded FIFO member execution, leader aggregation, exact parent cancellation, and immutable member results.
+
+### Changed
+- Worker capacity includes setup, idle, closing, and unconfirmed cleanup. Disposal cleans every owned worker; standalone concurrency and the native default are unchanged.
+
 ## [1.1.30] - 2026-11-04
 
 ### Added

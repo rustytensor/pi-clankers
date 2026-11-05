@@ -1675,7 +1675,7 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
         workflowRunId: { type: 'string', maxLength: 160, description: 'Exact workflow attempt identity for show/pause/resume/cancel/retry/report/forget/recovery inspect/prepare; no fallback.' },
         selections: { type: 'object', additionalProperties: false, description: 'Optional read-only recovery projection selections for workflows.recovery.prepare only; prepare is not authorization and cannot execute recovered work.', properties: { reuseUnitIds: { type: 'array', maxItems: 256, items: { type: 'string', minLength: 1, maxLength: 160 } }, rerunUnitIds: { type: 'array', maxItems: 256, items: { type: 'string', minLength: 1, maxLength: 160 } } } },
         inputs: { description: 'Schema-validated bounded JSON data for workflows.start; never permissions.' },
-        backend: { type: 'string', enum: ['native', 'tmux'], description: 'run only; omitted means native. Tmux is one persistent standalone worker, kept open until explicit close.' },
+        backend: { type: 'string', enum: ['native', 'tmux'], description: 'run only; omitted means native. Tmux opens persistent standalone workers or configured teams. All member/leader slots must fit within eight per controller including reservations/setup/idle/closing/unconfirmed cleanup; kept open until explicit close.' },
         workerId: { type: 'string', description: 'Exact owned tmux worker ID; no fallback.' },
         jobId: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\\s\\S])', description: 'tmux.workers.show only: exact job selector from run metadata.tmuxJobId or active job.jobId; omitted never selects latest.' },
         agent: { type: 'string' },
@@ -1690,7 +1690,7 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
         may_write: { type: 'array', maxItems: 128, items: { type: 'string' }, description: 'Reporting-only relative path globs, not a sandbox; [] allows no observed writes.' },
         runId: { type: 'string' },
         mode: { type: 'string', enum: ['steer', 'followUp'], description: 'Required explicitly for session.message.send. Legacy message defaults to steer when omitted.' },
-        concurrency: { type: 'integer', minimum: 1, description: 'Positive safe integer per-run native team worker concurrency for run actions; defaults to 8.' },
+        concurrency: { type: 'integer', minimum: 1, description: 'Positive safe integer per-run team worker concurrency; defaults to 8. Tmux teams reserve all member/leader slots first; standalone tmux accepts omitted or 1 only.' },
         teamId: { type: 'string', description: 'timeline.list exact recorded team ID (no current membership inference).' },
         parentRunId: { type: 'string' },
         memberRunId: { type: 'string' },
@@ -1819,7 +1819,7 @@ export function createZergCommandHandler(
   options: ZergCommandHandlerOptions = {},
 ): (input?: string) => ZergCommandResult {
   const dispatchers: Record<ZergCommandTopic, ZergCommandDispatcher> = {
-    help: () => ({ ok: true, output: renderHelp(resolveZergStateSnapshot(stateOrReader)) + '\n\nTmux (opt-in, one persistent standalone worker):\n/clankers run <agent> --backend tmux [--model provider/model] [--bg] -- <literal task>\n/clankers tmux workers list | show <workerId> [jobId] | close <workerId>\n/clankers tmux workers prompt <workerId> [--bg] -- <literal task>\n/clankers tmux workers steer <workerId> <runId> -- <literal body>\n/clankers interrupt <runId> requests cancellation, not completion.\nTasks keep the worker open; close is explicit. Native transcript/history/continuation UI is unavailable for tmux. Structured help documents exact limits.' }),
+    help: () => ({ ok: true, output: renderHelp(resolveZergStateSnapshot(stateOrReader)) + '\n\nTmux (opt-in, standalone workers or configured teams; eight persistent slots):\n/clankers run <agent> --backend tmux [--model provider/model] [--bg] -- <literal task>\n/clankers tmux workers list | show <workerId> [jobId] | close <workerId>\n/clankers tmux workers prompt <workerId> [--bg] -- <literal task>\n/clankers tmux workers steer <workerId> <runId> -- <literal body>\n/clankers interrupt <runId> requests cancellation, not completion.\nTasks keep the worker open; close is explicit. Native transcript/history/continuation UI is unavailable for tmux. Structured help documents exact limits.' }),
     status: () => ({ ok: true, output: renderStatusLine(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
     tree: () => ({ ok: true, output: renderAgentTree(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
     steps: (payload: string) => {

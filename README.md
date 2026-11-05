@@ -13,7 +13,7 @@ Native parallel agents, programmable workflows, and a command center for the
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-**Install today:** [Pinned Git release v1.1.30](#quickstart), including the opt-in tmux preview, or the native-only `npm:pi-clankers@1.1.29` through Pi's package manager. Npm v1.1.30 is not published yet.
+**Install today:** [Pinned Git release v1.1.31](#quickstart), including the opt-in tmux preview, or the native-only `npm:pi-clankers@1.1.29` through Pi's package manager. Npm v1.1.31 is not published yet.
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
 
@@ -39,8 +39,9 @@ exact conversations, and carry useful history into a fresh task.
 ## Current scope and limits
 
 - **Execution:** native Pi SDK sessions remain the default and do not require tmux.
-  The [tmux preview](#tmux-worker-preview) adds one explicitly
-  selected, persistent interactive worker. Published v1.1.29 remains native-only.
+  The [tmux preview](#tmux-worker-preview) adds explicitly selected, persistent
+  interactive workers and configured teams, sharing eight persistent slots per controller.
+  Published v1.1.29 remains native-only.
 - **Permissions:** extensions and approved checks run with host permissions.
   Tool allowlists and write tracking are not an OS sandbox. Review source before installing.
 - **Recovery:** saved history can be inspected or used in an explicitly approved new task;
@@ -138,7 +139,7 @@ with the rename. There is no dual-install guard.
    paths, so the old copy cannot load alongside the new one.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.30 instead.
+   one package identity; a pinned version must explicitly select v1.1.31 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
@@ -154,12 +155,12 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.30** Git tag
+Install the **v1.1.31** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.30
+pi install git:github.com/rustytensor/pi-clankers@v1.1.31
 pi
 ```
 
@@ -208,7 +209,7 @@ hardware swarm project.
 
 ## Release status
 
-- Current Git release: **v1.1.30** (opt-in persistent standalone tmux workers, shared human control, and bounded MCP tools). Npm remains at **v1.1.29**.
+- Current Git release: **v1.1.31** (independent persistent tmux workers and configured teams, shared human control, and bounded MCP tools). Npm remains at **v1.1.29**.
 - See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility notes.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
 
@@ -1187,7 +1188,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
 - v1.1.28: updated animated logo and matching non-animated artwork
 - v1.1.29: faster narrow-terminal wrapping and clearer public documentation
-- v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools (current Git release)
+- v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation (current Git release)
+- v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools
 
 ## Tmux worker preview
 
@@ -1265,8 +1267,40 @@ cancellation, and parent loss. A separate read-only `describe_param` call throug
 the same bridge passed against actual Larra. Paid-provider coding against Larra
 has not been tested.
 
-**Preview limits:** one worker including idle/setup/cleanup; built-in and declared
-Larra tools only. Teams, workflows, automation, staged coding, other MCP/custom tools, `may_write`,
+**Worker capacity (v1.1.31):** up to eight independent workers per controller,
+counting reserved, setup, busy, idle, closing, and unconfirmed cleanup slots.
+A standalone `run` opens one worker; `prompt` reuses only the exact selected worker.
+Closing or cancelling one does not select or stop a sibling. Capacity is released
+only after confirmed cleanup (unused team reservations require no process cleanup).
+Standalone `concurrency` remains omitted or `1`.
+
+**Tmux teams (v1.1.31):** select a configured team with `run`, `backend: "tmux"`,
+and optional positive `concurrency` (default `8`). All deduplicated members plus
+one leader must fit in the eight-slot controller limit before any worker starts.
+Members run in FIFO order within the concurrency bound; the leader runs after them.
+Explicit member models are preserved; request overrides apply to the leader and
+members without their own model. Workers remain open after completion.
+
+The leader receives bounded JSON member results within the 8 KiB prompt limit,
+with explicit `truncated` and `unavailable` flags. Results are untrusted data, not
+new instructions. Controller tools remain blocked inside workers; the leader is
+not promised access to omitted text. A required-member failure prevents aggregate
+success. Interrupting the parent stops queued admissions and cancels its active
+children, not unrelated workers or teams. Old run IDs cannot cancel reused jobs.
+
+Validation: six synthetic, network-blocked scenarios passed with real Pi 1.5 and
+tmux 3.8: FIFO success/reuse, bounded results, required failure, cancellation
+isolation, setup cancellation, and parent loss. Twenty provider requests; zero
+owned resources remained. This exercised the real internal controller and worker
+transport. A separate seven-request smoke check passed public configuration,
+team dispatch and exact result retrieval, registered-tool cancellation, and the
+registered slash-list handler using a captured parent host and real Pi workers.
+It did not install the extension into the operator session or use paid providers.
+Eight-slot refusal and uncertain-cleanup handling used controlled transport,
+not eight live hosts.
+
+**Preview limits:** built-in and declared
+Larra tools only. Workflows, automation, staged coding, other MCP/custom tools, `may_write`,
 fork/resume/recovery, virtual/extension-only models missing from the offline
 catalog, turn limits, fallback models, and manual/assisted modes are refused.
 Project resources require saved trust. Model and callable-tool drift invalidates
