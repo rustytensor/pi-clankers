@@ -24,10 +24,10 @@ export function fakeWorker(workerId: string) {
   const calls = { prompts: 0, cancels: [] as string[], steers: [] as string[], closes: 0 };
   let inspectionFails = false;
   const request = (action: TmuxRequest['action'], expectedJobId: string | null = null): TmuxRequest => ({ version: 1, requestId: `request-${++sequence}`, identity, action, expectedJobId, job: null, text: null });
-  const settle = (text: string, outcome: TmuxJobResult['outcome'] = 'completed') => {
+  const settle = (text: string, outcome: TmuxJobResult['outcome'] = 'completed', observation?: Parameters<TmuxWorkerLedger['settle']>[4]) => {
     const job = ledger.snapshot().job;
     if (!job || !pending) throw new Error('No pending job');
-    const result = ledger.settle(job, outcome, text, false);
+    const result = ledger.settle(job, outcome, text, false, observation);
     pending.resolve(result); pending = undefined;
     return result;
   };

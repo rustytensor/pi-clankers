@@ -1321,6 +1321,30 @@ async function executeZergControlAction(
     }
     if (Object.hasOwn(action, 'topic')) return controlError(actionName, 'invalid_request', 'topic is supported only for help. Use {"action":"help","topic":"<exact action name>"}.', container.read().revision);
     if (Object.hasOwn(action, 'backend') && action.action !== 'run') throw new Error('backend is supported only for standalone run.');
+    if (action.action.startsWith('tmux.continuation.')) {
+      const fields: Record<string, string[]> = {
+        'tmux.continuation.prepare': ['action', 'workerId', 'jobId', 'task'],
+        'tmux.continuation.start': ['action', 'reviewId', 'confirm'],
+        'tmux.continuation.discard': ['action', 'reviewId'],
+      };
+      if (Object.keys(action).some(key => !fields[action.action]?.includes(key))) throw new Error('Unsupported continuation fields');
+      if (!options.getTmuxControl) throw new Error('Owned tmux registry unavailable');
+      const tmux = options.getTmuxControl();
+      if (signal?.aborted && action.action !== 'tmux.continuation.discard') throw new Error('Continuation cancelled');
+      if (action.action === 'tmux.continuation.prepare') {
+        const review = await tmux.prepare(action.workerId, action.jobId, action.task);
+        if (signal?.aborted) { tmux.discard(review.reviewId); throw new Error('Continuation cancelled'); }
+        return controlOk(action.action, review, JSON.stringify(review), container.read().revision);
+      }
+      if (action.action === 'tmux.continuation.start') {
+        const result = await tmux.startContinuation(action.reviewId, action.confirm, signal);
+        return controlOk(action.action, result, result.output, container.read().revision, { runId: result.runId, taskId: result.taskId });
+      }
+      if (action.action === 'tmux.continuation.discard') {
+        tmux.discard(action.reviewId);
+        return controlOk(action.action, { reviewId: action.reviewId }, 'Tmux continuation review discarded.', container.read().revision);
+      }
+    }
     if (action.action.startsWith('tmux.workers.')) {
       const fields: Record<string, string[]> = {
         'tmux.workers.list': ['action'], 'tmux.workers.show': ['action', 'workerId', 'jobId'], 'tmux.workers.close': ['action', 'workerId'],
@@ -1482,7 +1506,8 @@ async function executeZergControlAction(
           const allowed = new Set(['action', 'backend', 'agent', 'task', 'background', 'launchMode', 'concurrency', 'model', 'fallbackModels', 'maxTurns']);
           if (Object.keys(action).some(key => !allowed.has(key))) throw new Error('Unsupported tmux run field; no history, recovery, tool/resource override or private host configuration.');
           if (action.background !== undefined && typeof action.background !== 'boolean') throw new Error('background must be boolean.');
-          if (action.maxTurns !== undefined || action.fallbackModels !== undefined) throw new Error('Tmux turn limits and fallback configuration unsupported.');
+          if (action.fallbackModels !== undefined && (!Array.isArray(action.fallbackModels) || action.fallbackModels.length > 7 || action.fallbackModels.some(spec => typeof spec !== 'string'))) throw new Error('Tmux fallbackModels must be an ordered array of at most 7 canonical models.');
+          if (action.maxTurns !== undefined && (!Number.isSafeInteger(action.maxTurns) || action.maxTurns < 1 || action.maxTurns > 1024)) throw new Error('Tmux maxTurns must be an integer from 1 to 1024.');
         }
         if (!action.agent || !action.task) return controlError(action.action, 'invalid_request', 'run requires agent and task.', container.snapshot().revision);
         const parsedConcurrency = action.concurrency === undefined ? undefined : parsePositiveSafeIntegerOption(action.concurrency, 'concurrency');
@@ -1497,7 +1522,7 @@ async function executeZergControlAction(
           launchMode: action.launchMode,
           ...(parsedConcurrency?.ok ? { concurrency: parsedConcurrency.value } : {}),
           ...(action.model ? { model: action.model } : {}),
-          ...(action.fallbackModels?.length ? { fallbackModels: action.fallbackModels } : {}),
+          ...(action.backend === 'tmux' && action.fallbackModels !== undefined ? { fallbackModels: action.fallbackModels } : action.fallbackModels?.length ? { fallbackModels: action.fallbackModels } : {}),
           ...(action.maxTurns ? { maxTurns: action.maxTurns } : {}),
         }, options, signal);
         if (!result.ok) return controlError(action.action, 'launch_failed', result.output, container.snapshot().revision, { runId: result.runId, taskId: result.taskId });
@@ -1677,7 +1702,7 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
         inputs: { description: 'Schema-validated bounded JSON data for workflows.start; never permissions.' },
         backend: { type: 'string', enum: ['native', 'tmux'], description: 'run only; omitted means native. Tmux opens persistent standalone workers or configured teams. All member/leader slots must fit within eight per controller including reservations/setup/idle/closing/unconfirmed cleanup; kept open until explicit close.' },
         workerId: { type: 'string', description: 'Exact owned tmux worker ID; no fallback.' },
-        jobId: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\\s\\S])', description: 'tmux.workers.show only: exact job selector from run metadata.tmuxJobId or active job.jobId; omitted never selects latest.' },
+        jobId: { type: 'string', minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\\s\\S])', description: 'tmux.workers.show or tmux.continuation.prepare: exact job selector from run metadata.tmuxJobId or active job.jobId; omitted never selects latest.' },
         agent: { type: 'string' },
         task: { type: 'string', description: 'Literal caller task and permission scope; not human authorization.' },
         background: { type: 'boolean', description: 'Return admission rather than await actual task settlement.' },
@@ -6731,6 +6756,19 @@ export function createPiZergCommandHandler(
       const match = /^tmux\s+workers\s+(list|show|prompt|steer|close)(?:\s+([\s\S]+))?$/i.exec(routed);
       const container = getWritableStateContainer(stateOrReader);
       try {
+        if (/^tmux\s+continuation(?:\s|$)/i.test(routed)) {
+          if (!container) throw new Error('Owned tmux state unavailable');
+          const prepare = /^tmux\s+continuation\s+prepare\s+(\S+)\s+(\S+)\s+--\s([\s\S]+)$/i.exec(routed);
+          const start = /^tmux\s+continuation\s+start\s+(\S+)\s+--confirm$/i.exec(routed);
+          const discard = /^tmux\s+continuation\s+discard\s+(\S+)$/i.exec(routed);
+          const action: ZergControlAction | undefined = prepare ? { action: 'tmux.continuation.prepare', workerId: prepare[1]!, jobId: prepare[2]!, task: prepare[3]! }
+            : start ? { action: 'tmux.continuation.start', reviewId: start[1]!, confirm: true }
+            : discard ? { action: 'tmux.continuation.discard', reviewId: discard[1]! } : undefined;
+          if (!action) throw new Error('Usage: tmux continuation prepare <workerId> <jobId> -- <new task> | start <reviewId> --confirm | discard <reviewId>');
+          const reply = await executeZergControlAction(container, action, runtimeOptions);
+          context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
+          return;
+        }
         if (!match || !container) throw new Error('Usage: /clankers tmux workers list | show <workerId> [jobId] | close <workerId> | prompt <workerId> [--bg] -- <task> | steer <workerId> <runId> -- <body>');
         const verb = match[1]!.toLowerCase(), payload = match[2] ?? '';
         let action: ZergControlAction;

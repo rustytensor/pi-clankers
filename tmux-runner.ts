@@ -1,10 +1,11 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { constants, readFileSync } from 'node:fs';
-import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, unlink } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rmdir, unlink } from 'node:fs/promises';
 import { connect } from 'node:net';
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { performance } from 'node:perf_hooks';
 import { parseTmuxWorkerConfig, preflightTmuxWorkerConfig, parseTmuxModelSpec, type TmuxWorkerConfig } from './tmux-worker-config.js';
 import {
@@ -18,6 +19,9 @@ import {
 export type TmuxLaunchOptions = Omit<TmuxWorkerConfig,
   'version' | 'workerId' | 'generation' | 'ownerNonce' | 'runDir' | 'socketPath' |
   'readyPath' | 'sessionDir' | 'parentPid'> & {
+    /** Trusted parent capability only. Never serialized into the worker manifest. */
+    assertAdmission?: () => void;
+    fallbackModels?: readonly string[];
     workerId?: string;
     rootDir?: string;
     /** Trusted fixture preload only; never a manifest field or model-controlled input. */
@@ -124,14 +128,48 @@ export async function createTmuxWorker(options: TmuxLaunchOptions): Promise<Tmux
 }
 
 async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerHandle> {
+  const parentAdmission = options.assertAdmission;
+  let firstPromptAccepted = false;
+  const assertAdmission = () => {
+    try { if (!firstPromptAccepted) parentAdmission?.(); }
+    catch { throw new Error('Tmux parent admission revoked'); }
+  };
+  assertAdmission();
+  // Startup only: never wrap cleanup, reaping, close requests or cleanup commands.
+  const admitted = async <T>(operation: () => Promise<T>): Promise<T> => {
+    assertAdmission();
+    const result = await operation();
+    assertAdmission();
+    return result;
+  };
   if (process.platform !== 'linux' || !process.getuid) throw new Error('Tmux worker requires Linux /proc supervision');
+  if (options.fallbackModels !== undefined && !options.modelSelection) throw new Error('Fallback selection must be frozen before launch');
   const base = options.rootDir ?? join(options.agentDir, 'zerg-swarm', 'tmux');
   if (!isAbsolute(base) || /[\0\r\n]/.test(base)) throw new Error('Invalid tmux root');
-  await mkdir(base, { recursive: true, mode: 0o700 });
-  if (await realpath(base) !== base) throw new Error('Tmux root must be canonical');
-  await privateArtifact(base, 'directory');
+  await admitted(() => mkdir(base, { recursive: true, mode: 0o700 }));
+  if (await admitted(() => realpath(base)) !== base) throw new Error('Tmux root must be canonical');
+  await admitted(() => privateArtifact(base, 'directory'));
+  // Capture the newly owned directory before any post-await admission fence.
+  assertAdmission();
   const runDir = await mkdtemp(join(base, 'worker-'));
-  await chmod(runDir, 0o700);
+  let earlyDirectory: { dev: number; ino: number } | undefined;
+  try {
+    const stat = await lstat(runDir);
+    earlyDirectory = { dev: stat.dev, ino: stat.ino };
+    assertAdmission();
+    await admitted(() => chmod(runDir, 0o700));
+  } catch {
+    // No child or session artifact exists yet. Cleanup must not require admission.
+    let removed = false;
+    try {
+      const current = await lstat(runDir);
+      if (earlyDirectory && current.dev === earlyDirectory.dev && current.ino === earlyDirectory.ino &&
+          current.uid === uid() && current.isDirectory() && !current.isSymbolicLink()) {
+        await rmdir(runDir); removed = true;
+      }
+    } catch (error) { removed = missing(error); }
+    throw new TmuxLaunchError(true, !removed);
+  }
   const socketPath = join(runDir, 'control.sock');
   const serverSocket = join(runDir, 'tmux.sock');
   const readyPath = join(runDir, 'ready.json');
@@ -205,7 +243,12 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
         error ? reject(error) : resolve(response!);
       };
       const timer = setTimeout(() => finish(new Error('Tmux response timeout; mutation outcome uncertain, not replayed')), REQUEST_MS);
-      socket.once('connect', () => socket.write(encodeTmuxFrame(request)));
+      socket.once('connect', () => {
+        try {
+          if (request.action === 'prompt') assertAdmission();
+          socket.write(encodeTmuxFrame(request));
+        } catch { finish(new Error('Tmux prompt admission revoked')); }
+      });
       socket.on('data', (chunk: Buffer) => {
         try {
           const frames = decoder.push(chunk);
@@ -329,33 +372,39 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
 
   try {
     if (Buffer.byteLength(serverSocket) > 100 || Buffer.byteLength(socketPath) > 100) throw new Error('Tmux UNIX socket path too long');
-    await mkdir(sessionDir, { mode: 0o700 });
+    await admitted(() => mkdir(sessionDir, { mode: 0o700 }));
     const config = parseTmuxWorkerConfig({
       version: 1, workerId: options.workerId ?? `worker-${randomUUID()}`, generation: randomUUID(),
       ownerNonce: randomBytes(32).toString('hex'), cwd: options.cwd, agentDir: options.agentDir,
       runDir, sessionDir, socketPath, readyPath, sdkModulePath: options.sdkModulePath,
-      parentPid: process.pid, modelSpec: options.modelSpec, definitionPrompt: options.definitionPrompt,
+      parentPid: process.pid, modelSpec: options.modelSpec, ...(options.maxTurns === undefined ? {} : { maxTurns: options.maxTurns }), definitionPrompt: options.definitionPrompt,
       tools: options.tools, disallowedTools: options.disallowedTools,
+      ...(options.modelSelection ? { modelSelection: options.modelSelection } : {}),
       ...(options.fixtureExtensionPaths ? { fixtureExtensionPaths: options.fixtureExtensionPaths } : {}),
       ...(options.fixtureMcpCommand ? { fixtureMcpCommand: options.fixtureMcpCommand } : {}),
     });
-    await preflightTmuxWorkerConfig(config);
+    await admitted(() => preflightTmuxWorkerConfig(config));
     const fixtureImport = options.fixtureNodeImportPath;
     if (fixtureImport !== undefined) {
       if (typeof fixtureImport !== 'string' || !isAbsolute(fixtureImport) || /[\0\r\n]/.test(fixtureImport) ||
-          await realpath(fixtureImport) !== fixtureImport || !(await lstat(fixtureImport)).isFile()) {
+          await admitted(() => realpath(fixtureImport)) !== fixtureImport || !(await admitted(() => lstat(fixtureImport))).isFile()) {
         throw new Error('Fixture Node import must be an absolute canonical regular file');
       }
     }
     const childArgv = [process.execPath, ...(fixtureImport === undefined ? [] : ['--import', fixtureImport]), entry, manifestPath];
     const expectedPolicy = parseTmuxModelSpec(config.modelSpec);
-    if (!isAbsolute(config.sdkModulePath) || !(await lstat(config.sdkModulePath)).isFile() ||
-        !(await lstat(entry)).isFile()) throw new Error('Unsupported SDK/entry layout');
-    await readFile('/proc/self/stat', 'utf8'); // Reject platforms without process identity support.
-    await open(manifestPath, 'wx', 0o600).then(async fd => {
-      try { await fd.writeFile(JSON.stringify(config)); } finally { await fd.close(); }
+    if (!isAbsolute(config.sdkModulePath) || !(await admitted(() => lstat(config.sdkModulePath))).isFile() ||
+        !(await admitted(() => lstat(entry))).isFile()) throw new Error('Unsupported SDK/entry layout');
+    await admitted(() => readFile('/proc/self/stat', 'utf8')); // Reject platforms without process identity support.
+    await admitted(async () => {
+      const fd = await open(manifestPath, 'wx', 0o600);
+      try {
+        // Register ownership before a revocation can throw; closing fd is unconditional.
+        await rememberArtifact(manifestPath);
+        assertAdmission();
+        await fd.writeFile(JSON.stringify(config));
+      } finally { await fd.close(); }
     });
-    await rememberArtifact(manifestPath);
     // Small owned broker keeps a parent-death guard armed even before a pane exists.
     // IPC disconnect (including SIGKILL of the parent) terminates its exact child;
     // no process-name matching, inherited tmux server, shell, or global kill-server.
@@ -397,6 +446,7 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
       });
       if(process.connected)process.send({pid:child.pid});else stop();
     `;
+    assertAdmission();
     server = spawn(process.execPath, ['-e', broker, serverSocket, manifestPath], {
       detached: true, env, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     });
@@ -423,15 +473,18 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
       if (serverFailed) throw new Error('Tmux foreground server failed (requires -D support)');
       if (!serverIdentity) {
         if (performance.now() >= until) throw new Error('Tmux broker boot timeout');
-        await pause(40); continue;
+        await admitted(() => pause(40)); continue;
       }
       try {
-        const stat = await lstat(serverSocket);
+        const stat = await admitted(() => lstat(serverSocket));
         if (!stat.isSocket() || stat.uid !== uid() || stat.isSymbolicLink()) throw new Error('Unsafe tmux server socket');
-        await chmod(serverSocket, 0o600); await rememberArtifact(serverSocket); break;
+        await admitted(async () => {
+          await chmod(serverSocket, 0o600);
+          await rememberArtifact(serverSocket);
+        }); break;
       } catch (error) { if (!missing(error)) throw error; }
       if (performance.now() >= until) throw new Error('Tmux server boot timeout');
-      await pause(40);
+      await admitted(() => pause(40));
     }
     // Transfer exact socket cleanup ownership before creating a pane. The broker
     // survives parent SIGKILL and removes only this inode after its server exits.
@@ -441,9 +494,10 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
     while (!serverSocketOwned) {
       if (serverFailed || !alive(serverIdentity)) throw new Error('Tmux socket ownership handshake failed');
       if (performance.now() >= until) throw new Error('Tmux socket ownership handshake timeout');
-      await pause(20);
+      await admitted(() => pause(20));
     }
     // tmux >= 3 direct multi-argument execution: no shell command string, no send-keys prompt.
+    assertAdmission();
     const info = await command(['new-session', '-d', '-s', 'worker', '-x', '120', '-y', '40',
       '-P', '-F', '#{pane_id}:#{pane_pid}:#{pid}', '-c', config.cwd,
       ...childArgv]);
@@ -451,13 +505,15 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
     if (!match || Number(match[3]) !== serverPid) throw new Error('Unexpected tmux pane/server identity');
     pane = match[1]; paneIdentity = processIdentity(Number(match[2]));
     if (!paneIdentity || paneIdentity.parent !== serverPid || paneIdentity.group !== paneIdentity.pid) throw new Error('Unsupported tmux pane process layout');
-    await command(['set-option', '-s', 'exit-empty', 'on']);
+    // Capture pane identity before the post-await fence so revocation can reap it.
+    assertAdmission();
+    await admitted(() => command(['set-option', '-s', 'exit-empty', 'on']));
     while (true) {
       healthy();
       try {
-        const ready = await readReady(readyPath);
+        const ready = await admitted(() => readReady(readyPath));
         const keys = ['version', 'identity', 'pid', 'model', 'thinkingLevel', 'tools', 'socketPath',
-          'mode', 'hasUI', 'stdinTTY', 'stdoutTTY'];
+          'mode', 'hasUI', 'stdinTTY', 'stdoutTTY', 'maxTurns', ...(config.modelSelection !== undefined ? ['modelSelection'] : [])];
         if (Object.keys(ready).length !== keys.length || Object.keys(ready).some(key => !keys.includes(key))) throw new Error('Invalid ready fields');
         const pin = parseTmuxIdentity(ready.identity);
         const expectedModel = `${expectedPolicy.provider}/${expectedPolicy.modelId}`;
@@ -466,24 +522,25 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
             ready.pid !== paneIdentity.pid || ready.socketPath !== socketPath ||
             pin.workerId !== config.workerId || pin.generation !== config.generation ||
             pin.ownerNonce !== config.ownerNonce || pin.epoch !== 0 || ready.model !== expectedModel ||
-            ready.thinkingLevel !== expectedPolicy.thinkingLevel || !Array.isArray(ready.tools) ||
+            (config.modelSelection !== undefined && !isDeepStrictEqual(ready.modelSelection, config.modelSelection)) ||
+            ready.thinkingLevel !== expectedPolicy.thinkingLevel || ready.maxTurns !== (config.maxTurns ?? null) || !Array.isArray(ready.tools) ||
             ready.tools.length !== config.tools.length || new Set(ready.tools).size !== ready.tools.length ||
             ready.tools.some(tool => typeof tool !== 'string' || !config.tools.includes(tool) || config.disallowedTools.includes(tool))) {
           throw new Error('Tmux readiness identity/policy mismatch');
         }
-        const actual = await command(['display-message', '-p', '-t', pane, '#{pane_pid}:#{pid}']);
+        const actual = await admitted(() => command(['display-message', '-p', '-t', pane, '#{pane_pid}:#{pid}']));
         if (actual !== `${paneIdentity.pid}:${serverPid}` || !alive(paneIdentity)) throw new Error('Tmux ready pane replaced');
-        const argv = (await readFile(`/proc/${paneIdentity.pid}/cmdline`)).toString().split('\0');
+        const argv = (await admitted(() => readFile(`/proc/${paneIdentity!.pid}/cmdline`))).toString().split('\0');
         if (argv.pop() !== '') throw new Error('Malformed tmux child command line');
         if (argv.length !== childArgv.length || argv.some((arg, index) => arg !== childArgv[index])) throw new Error('Tmux child entry identity mismatch');
-        await privateArtifact(socketPath, 'socket');
-        await rememberArtifact(socketPath); await rememberArtifact(readyPath);
+        await admitted(() => privateArtifact(socketPath, 'socket'));
+        await admitted(() => rememberArtifact(socketPath)); await admitted(() => rememberArtifact(readyPath));
         identity = pin; break;
       } catch (error) { if (!missing(error)) throw error; }
       if (performance.now() >= until) throw new Error('Tmux worker readiness timeout');
-      await pause(50);
+      await admitted(() => pause(50));
     }
-    const initial = await inspect();
+    const initial = await admitted(() => inspect());
     if (initial.phase !== 'idle' || initial.ownership !== 'coordinator' || initial.job || initial.result) throw new Error('Worker was not idle at startup');
     heartbeat = setInterval(() => {
       if (heartbeatPending || closing || queued) return;
@@ -500,6 +557,7 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
       get isClosed() { return closed || serverFailed; },
       inspect,
       async prompt(input) {
+        assertAdmission();
         healthy();
         if (closing || activeJob) throw new Error('Worker already has a pending coordinator task');
         const job = parseTmuxJobIdentity({ ...identity, jobId: input.jobId, runId: input.runId, taskId: input.taskId, source: 'coordinator' });
@@ -512,6 +570,7 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
           const accepted = await send('prompt', null, input.text, job);
           if (accepted.status !== 'accepted') throw new Error(`Tmux prompt refused: ${accepted.reason}`);
           acceptedJob = true;
+          firstPromptAccepted = true; // Review/source TTL fences end at the first accepted prompt.
           const until = performance.now() + SETTLEMENT_MS;
           while (performance.now() < until) {
             const snapshot = await inspect(job.jobId);

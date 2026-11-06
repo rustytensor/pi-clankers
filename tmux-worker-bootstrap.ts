@@ -4,11 +4,12 @@ import { chmod, lstat, open, link, unlink, readFile } from 'node:fs/promises';
 import { lstatSync, unlinkSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import type { AgentSession, AgentSessionRuntime, ExtensionContext, ExtensionFactory } from '@earendil-works/pi-coding-agent';
-import { captureTmuxText, encodeTmuxFrame, parseTmuxRequest, TmuxFrameDecoder, TmuxWorkerLedger, TMUX_FRAME_BYTES, TMUX_TEXT_BYTES, type TmuxRequest } from './tmux-protocol.js';
+import { boundTmuxToolEvidence, type TmuxTelemetry, captureTmuxText, encodeTmuxFrame, parseTmuxRequest, TmuxFrameDecoder, TmuxWorkerLedger, TMUX_FRAME_BYTES, TMUX_TEXT_BYTES, type TmuxRequest } from './tmux-protocol.js';
 import { preflightTmuxWorkerConfig, TMUX_LEASE_MS, type TmuxWorkerConfig } from './tmux-worker-config.js';
 import { createTmuxWorkerPolicy, type TmuxWorkerPolicy } from './tmux-worker-policy.js';
 
 import { createTmuxMcp } from './tmux-mcp.js';
+import { createWriteEvidence } from './agent-results.js';
 
 type OwnedFile = { path: string; ino: number; dev: number };
 async function parentIdentity(pid: number): Promise<string> {
@@ -41,7 +42,36 @@ export async function startTmuxWorker(input: TmuxWorkerConfig): Promise<void> {
   let finalText = { text: '', clipped: false };
   let partialText = { text: '', clipped: false };
   let lastStop: string | undefined;
-  const resetCapture = () => { finalText = { text: '', clipped: false }; partialText = { text: '', clipped: false }; lastStop = undefined; };
+  let writeEvidence = createWriteEvidence(config.cwd, undefined);
+  let evidenceFailed = false;
+  const captureEvidence = () => {
+    if (evidenceFailed) return 'unavailable' as const;
+    try { return boundTmuxToolEvidence(writeEvidence.snapshot()); }
+    catch { evidenceFailed = true; return 'unavailable' as const; }
+  };
+  let baselineTokens: ReturnType<AgentSession['getSessionStats']>['tokens'] | undefined;
+  let startedAt = performance.now();
+  const resetCapture = () => {
+    policy!.beginJob();
+    finalText = { text: '', clipped: false }; partialText = { text: '', clipped: false }; lastStop = undefined;
+    writeEvidence = createWriteEvidence(config.cwd, undefined); evidenceFailed = false;
+    baselineTokens = undefined; startedAt = performance.now();
+    try { baselineTokens = session?.getSessionStats().tokens; } catch { /* Optional telemetry stays unknown. */ }
+  };
+  const captureTelemetry = (): TmuxTelemetry => {
+    const telemetry: { tokens: TmuxTelemetry['tokens']; context_percent: number | null; elapsed_seconds: number | null } = {
+      tokens: { input: null, output: null, cache_read: null, cache_write: null }, context_percent: null,
+      elapsed_seconds: Math.max(0, performance.now() - startedAt) / 1000,
+    };
+    try {
+      const after = session!.getSessionStats().tokens;
+      const delta = (key: keyof typeof after) => baselineTokens && Number.isFinite(after[key]) && Number.isFinite(baselineTokens[key]) && after[key] >= baselineTokens[key] && after[key] <= Number.MAX_SAFE_INTEGER ? after[key] - baselineTokens[key] : null;
+      telemetry.tokens = { input: delta('input'), output: delta('output'), cache_read: delta('cacheRead'), cache_write: delta('cacheWrite') };
+      const percent = session!.getContextUsage()?.percent;
+      telemetry.context_percent = typeof percent === 'number' && Number.isFinite(percent) && percent >= 0 && percent <= Number.MAX_SAFE_INTEGER ? percent : null;
+    } catch { /* Optional telemetry stays unknown. */ }
+    return telemetry;
+  };
   const cleanupSync = () => {
     for (const resource of owned) {
       try {
@@ -160,9 +190,13 @@ export async function startTmuxWorker(input: TmuxWorkerConfig): Promise<void> {
     policy.pin(session, () => armed && !stopping && !!ledger?.snapshot().job);
     session.subscribe(event => {
       if (stopping || !ledger) return;
+      if (ledger.snapshot().job && !evidenceFailed && (event.type === 'tool_execution_start' || event.type === 'tool_execution_end')) {
+        try { writeEvidence.event(event); } catch { evidenceFailed = true; }
+      }
       if ((event.type === 'message_start' || event.type === 'message_update' || event.type === 'message_end') && event.message.role === 'assistant' && ledger.snapshot().job) {
         // A new assistant message is not a new job: tool cancellation can append an empty error.
         if (event.type === 'message_start') { finalText = { text: '', clipped: false }; lastStop = undefined; }
+        ledger.observe(ledger.snapshot().job!, event.message.content);
         const captured = captureTmuxText(event.message.content);
         // An abort may finalize with empty content: retain only this message's bounded streamed partial.
         if (!(event.type !== 'message_start' && event.message.stopReason === 'aborted' && !captured.text && !captured.clipped)) finalText = captured;
@@ -177,7 +211,7 @@ export async function startTmuxWorker(input: TmuxWorkerConfig): Promise<void> {
           // Only unsuccessful jobs may fall back to their own bounded observed partial.
           // resetCapture clears it at every coordinator/human job admission, never on steering.
           const text = outcome !== 'completed' && !finalText.text && !finalText.clipped ? partialText : finalText;
-          ledger.settle(job, outcome, text.text, text.clipped);
+          ledger.settle(job, outcome, text.text, text.clipped, { telemetry: captureTelemetry(), toolEvidence: captureEvidence() });
         }
         catch { shutdown(); }
       }
@@ -238,7 +272,7 @@ export async function startTmuxWorker(input: TmuxWorkerConfig): Promise<void> {
     const temporaryStat = await file.stat();
     owned.push({ path: temporary, ino: temporaryStat.ino, dev: temporaryStat.dev });
     try {
-      await file.writeFile(JSON.stringify({ version: 1, mode: 'tui', hasUI: true, stdinTTY: true, stdoutTTY: true, identity: ledger.snapshot().identity, pid: process.pid, model: `${selection.provider}/${selection.modelId}`, thinkingLevel: session.thinkingLevel, tools: session.getActiveToolNames(), socketPath: config.socketPath }));
+      await file.writeFile(JSON.stringify({ version: 1, mode: 'tui', hasUI: true, stdinTTY: true, stdoutTTY: true, identity: ledger.snapshot().identity, pid: process.pid, model: `${selection.provider}/${selection.modelId}`, thinkingLevel: session.thinkingLevel, ...(config.modelSelection ? { modelSelection: config.modelSelection } : {}), maxTurns: config.maxTurns ?? null, tools: session.getActiveToolNames(), socketPath: config.socketPath }));
       await file.sync();
     } finally { await file.close(); }
     // Atomic no-replace publication: never overwrite an unexpected ready file.

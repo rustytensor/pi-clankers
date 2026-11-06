@@ -18,7 +18,7 @@ export interface TrustedAutomationNativeContext {
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
 export const ZERG_COMMANDS = ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm'] as const;
-export const ZERG_EXTENSION_VERSION = '1.1.31' as const;
+export const ZERG_EXTENSION_VERSION = '1.1.32' as const;
 export type ZergCommandName = (typeof ZERG_COMMANDS)[number];
 export const ZERG_COMMAND_INVOCATIONS = ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm'] as const;
 export type ZergCommandInvocation = (typeof ZERG_COMMAND_INVOCATIONS)[number];
@@ -90,7 +90,7 @@ export interface ZergAgentDefinition {
   may_write?: string[];
   /** LLM/model identifier to request when launching this agent. */
   model?: string;
-  /** Ordered fallback model identifiers for launch adapters that support fallbacks. */
+  /** Saved agent lists are normalized/sorted. Tmux uses that saved order; pass run fallbacks for explicit priority. */
   fallbackModels?: string[];
   /** Optional maximum agentic turns for launch adapters that support turn caps. */
   maxTurns?: number;
@@ -164,7 +164,7 @@ export interface ZergSubagentLaunchRequest {
   description?: string;
   /** LLM/model identifier requested for this launch. */
   model?: string;
-  /** Ordered fallback model identifiers requested for this launch. */
+  /** Ordered launch fallbacks. Tmux: at most 7 canonical specs, offline missing-model selection only; never dispatch retry. */
   fallbackModels?: string[];
   /** Optional maximum agentic turns requested for this launch. */
   maxTurns?: number;
@@ -409,6 +409,9 @@ export type ZergControlAction =
   | { action: 'agents.create' | 'agents.update'; id: string; label?: string; description?: string; prompt?: string; model?: string; fallbackModels?: string[]; maxTurns?: number; tools?: string[]; disallowedTools?: string[]; permissionMode?: AutomationMode | 'inherit'; result_schema?: import('./agent-results.js').ResultSchema; may_write?: string[] }
   | { action: 'agents.delete'; id: string }
   | { action: 'team.create' | 'team.update'; id: string; label?: string; leader?: string; members?: string[]; kind?: TeamKind; model?: string; fallbackModels?: string[]; maxTurns?: number }
+  | { action: 'tmux.continuation.prepare'; workerId: string; jobId: string; task: string }
+  | { action: 'tmux.continuation.start'; reviewId: string; confirm: true }
+  | { action: 'tmux.continuation.discard'; reviewId: string }
   | { action: 'tmux.workers.list' }
   | { action: 'tmux.workers.show'; workerId: string; jobId?: string }
   | { action: 'tmux.workers.close'; workerId: string }

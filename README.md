@@ -13,7 +13,7 @@ Native parallel agents, programmable workflows, and a command center for the
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-**Install today:** [Pinned Git release v1.1.31](#quickstart), including the opt-in tmux preview, or the native-only `npm:pi-clankers@1.1.29` through Pi's package manager. Npm v1.1.31 is not published yet.
+**Install today:** [Pinned Git release v1.1.32](#quickstart), including the tested tmux subset below. The published npm package remains native-only `npm:pi-clankers@1.1.29`; npm v1.1.32 is not published.
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
 
@@ -139,7 +139,7 @@ with the rename. There is no dual-install guard.
    paths, so the old copy cannot load alongside the new one.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.31 instead.
+   one package identity; a pinned version must explicitly select v1.1.32 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
@@ -155,12 +155,12 @@ runtime authority expansion is implied.
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.31** Git tag
+Install the **v1.1.32** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.31
+pi install git:github.com/rustytensor/pi-clankers@v1.1.32
 pi
 ```
 
@@ -209,7 +209,8 @@ hardware swarm project.
 
 ## Release status
 
-- Current Git release: **v1.1.31** (independent persistent tmux workers and configured teams, shared human control, and bounded MCP tools). Npm remains at **v1.1.29**.
+- Current Git release: **v1.1.32**. It finishes only the tested tmux subset documented below; remaining capabilities are intentionally deferred.
+- Npm remains at **v1.1.29**. No npm publication, installation or operator reload is implied.
 - See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility notes.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
 
@@ -1188,20 +1189,24 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
 - v1.1.28: updated animated logo and matching non-animated artwork
 - v1.1.29: faster narrow-terminal wrapping and clearer public documentation
-- v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation (current Git release)
 - v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools
+- v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation
+- v1.1.32: tested transport, telemetry, write reporting, request caps, direct tools, pre-dispatch fallback and reviewed result-context continuation subset (current Git release)
 
 ## Tmux worker preview
 
-Native execution remains the default. This opt-in preview requires Linux,
+Native execution remains the default. This section describes the tested subset
+in v1.1.32, including the existing opt-in preview. It requires Linux,
 Pi 1.4 capabilities, and tmux. Standalone gates used Pi 1.4.0 with tmux 3.7c;
-the MCP and cancellation gates used Pi 1.4.0 with tmux 3.8.
+the MCP and cancellation gates used Pi 1.4.0 with tmux 3.8. New subset and
+continuation gates used isolated Pi 1.5.0/tmux 3.8 fixtures, not the normal
+operator environment.
 It is not included in npm v1.1.29. Model work uses your configured provider and
 can incur charges. Idle waiting does not request model work.
 
-Configure a standalone agent with an explicit `provider/model` and built-in tools
-or the Larra tools below. Use the automatic, writable controller mode and explicitly
-select tmux:
+Configure a standalone agent with an explicit `provider/model` and built-in,
+Larra, or already-trusted declared direct extension tools as described below.
+Use the automatic, writable controller mode and explicitly select tmux:
 
 ```text
 /clankers mode automatic
@@ -1235,8 +1240,11 @@ inspection uses `run.metadata.tmuxJobId` or an observed human `job.jobId`.
 Omitting a job selector does not guess the latest result. Admission, steering,
 and cancellation receipts are not evidence of completion.
 
-Close is explicit; the worker also stops when its owning parent shuts down or its
-control lease is lost. It never reconnects a recovered worker automatically.
+Close is explicit. Public coordinator close requires current automatic,
+non-read-only authority and an uncancelled caller. Internal disposal/error cleanup
+still works after authority revocation. The worker also stops when its owning
+parent shuts down or its control lease is lost. It never reconnects a recovered
+worker automatically.
 Session files are retained; only owned processes and socket/control artifacts are
 cleaned up. Other tmux servers are not touched.
 
@@ -1246,8 +1254,11 @@ Declare `mcp` or `larra` in the agent's tools for the Larra-only gateway, or dec
 named tools such as `larra_search_text` or `mcp__larra__search_text`. Gateway calls
 use `{ "tool": "search_text", "args": { "project": "example", "pattern": "example" } }`;
 `server`, when supplied, must be `"larra"`. Named tools take the operation's arguments
-directly. Other MCP servers, codemode, deferred discovery, and arbitrary custom
-tools are not supported by this preview.
+directly. Other MCP servers, codemode and deferred discovery are unsupported.
+Already-trusted extension resources may supply other exact, declared direct tool
+names. The child verifies the complete active/callable loadout before readiness
+and provider dispatch; missing, deferred or broadened loadouts refuse. This is
+not a general MCP bridge or permission to load arbitrary untrusted tools.
 
 Operation denies in `disallowedTools` apply across bare and prefixed spellings.
 Both controller tools (`clankers_control` and `zerg_control`) are blocked. Declaring
@@ -1281,7 +1292,7 @@ Members run in FIFO order within the concurrency bound; the leader runs after th
 Explicit member models are preserved; request overrides apply to the leader and
 members without their own model. Workers remain open after completion.
 
-The leader receives bounded JSON member results within the 8 KiB prompt limit,
+The leader receives bounded JSON member results within the 128 KiB UTF-8 prompt limit,
 with explicit `truncated` and `unavailable` flags. Results are untrusted data, not
 new instructions. Controller tools remain blocked inside workers; the leader is
 not promised access to omitted text. A required-member failure prevents aggregate
@@ -1299,19 +1310,103 @@ It did not install the extension into the operator session or use paid providers
 Eight-slot refusal and uncertain-cleanup handling used controlled transport,
 not eight live hosts.
 
-**Preview limits:** built-in and declared
-Larra tools only. Workflows, automation, staged coding, other MCP/custom tools, `may_write`,
-fork/resume/recovery, virtual/extension-only models missing from the offline
-catalog, turn limits, fallback models, and manual/assisted modes are refused.
-Project resources require saved trust. Model and callable-tool drift invalidates
-the worker. Native transcript/continuation/coding UI is unavailable for tmux.
+### Tested subset in v1.1.32
 
-Transport text is limited to 8 KiB; clipped canonical final text is reported as
-unavailable, not falsely complete. Telemetry and tool-write evidence are currently
-unavailable. Retention is bounded to 128 jobs and 1,024 mutation requests; idle
-inspection and heartbeats do not consume that mutation budget. A task has a
-one-hour settlement deadline. These controls are not an OS or hostile-same-user
-sandbox.
+- **Text and inspection:** prompt, steering and settled assistant-result text are
+  bounded to **128 KiB UTF-8** each. Clipped canonical final text is unavailable,
+  not falsely complete. Exact active-job `show` can expose only the latest
+  assistant text prefix, bounded to **8 KiB**, with an explicit clipping flag;
+  it is not a full transcript or the native coding UI.
+- **Telemetry and writes:** per-job token deltas, current context percentage and
+  elapsed seconds are reported when observed; unavailable values remain `null`.
+  Observed successful named write/edit paths are partial tool evidence, not a
+  filesystem diff. `may_write` evaluates those paths for reporting only; it does
+  not permit writes or sandbox tools. Bash/MCP/external/partial writes remain
+  unknown, and `evidence_complete` stays false.
+- **Request cap:** tmux `maxTurns` accepts integers **1..1024**, counting provider
+  requests per job, including nested same-session requests, before dispatch.
+  It resets for each new coordinator/human job, not on steering. It is neither
+  elapsed-time nor cost budgeting; native execution still rejects turn limits.
+- **Finite model selection:** an explicit run `fallbackModels` list preserves
+  order and allows at most **7** canonical `provider/model[:thinking]` fallbacks
+  after the primary. Saved definition lists are trimmed/deduplicated/sorted;
+  supply an explicit run list when priority matters (`[]` overrides the saved
+  list). Only absence from the offline physical-model catalog permits skipping
+  a candidate. Catalog errors, trust failures and other preflight errors are
+  fatal. Selection finishes before dispatch, is attested by the child and is
+  reported as the actual selected model; exact worker reuse keeps that selection.
+  There is no retry or failover after provider dispatch, including provider,
+  credential or quota failures. Native execution still rejects fallback lists.
+
+### Reviewed result-context continuation
+
+This is a new task using a complete retained result, **not full conversation
+history, a fork, a reconnect or historical resume**. Use exact selectors:
+
+```text
+/clankers tmux continuation prepare <workerId> <jobId> -- <literal NEW task>
+/clankers tmux continuation start <reviewId> --confirm
+/clankers tmux continuation discard <reviewId>
+```
+
+Structured equivalents are `tmux.continuation.prepare` with `workerId`, `jobId`
+and `task`; `.start` with `reviewId` and `confirm:true`; and `.discard` with
+`reviewId`. Preparation reads bounded current-policy metadata without allocating
+a worker, requesting a provider or writing settings. Inspect the returned complete
+`prompt` before confirming. Start consumes the one-use review even on refusal and
+revalidates current authority, source and policy before the first accepted prompt.
+It admits a **new worker/Pi session/run/task**. The literal NEW task alone is
+assigned; the original task and result remain untrusted data, never permissions.
+
+The complete prompt, including framing, original task, result and NEW task, must
+fit **32 KiB UTF-8**; clipping is refused. At most **16** complete settled
+coordinator sources and **16** pending reviews are retained privately per parent
+owner. Reviews expire after **5 minutes**. Sources survive closing their original
+worker, but not eviction or owner disposal/restart; persisted results do not
+restore these sources. A review does not grant human approval. Later explicit
+reuse of the new worker uses its normal frozen policy, not the expired review.
+
+Continuation supports only a conservative exact-file resource/import subset:
+unbundled Node Pi with Jiti 2.7.0 default resolution; canonical existing
+relative/absolute module files with explicit `.ts`, `.mts`, `.cts`, `.js`, `.mjs`,
+`.cjs` or `.json` extensions and bounded transitive tracking. Literal imports/exports, literal `require()` and literal
+`import()` edges are tracked, including type-only edges. Bare/package, builtin,
+host-SDK, extensionless/unresolved, computed/aliased or reflective loader forms,
+module symlinks, native addons and unsupported formats refuse. This is not a
+JavaScript sandbox or universal extension compatibility.
+
+Package inventory uses verified managed npm metadata or canonical local resources;
+Git/nonlocal packages, unmanaged/legacy or mismatched npm, directory packages
+without an explicit `pi` manifest, `autoload:false` package deltas and ambiguous
+canonical roots refuse. PnP, linked worktrees, custom loader/environment overrides,
+unsupported discovery roots and MCP fixture commands also refuse. Settings, trust,
+models, current definitions and captured resource/context roots (including absent
+roots) are rechecked; additions or policy drift require a new review. Extra or
+disabled code in captured roots can conservatively cause refusal. These stricter
+checks apply to continuation, not ordinary standalone/team/native resource loading.
+
+If startup fails before submission after mode revocation, only the exact
+still-current owner receives an atomic failed run/task/result observation; a
+replaced or disposed owner is not overwritten. Internal cleanup can proceed after
+revocation, and an unconfirmed cleanup continues to occupy its slot.
+
+Isolated offline real-Pi/tmux fixtures exercised the supported subset and explicit
+refusals; the five-minute expiry check advanced the parent clock rather than
+waiting five wall-clock minutes. **Normal operator-environment continuation has
+not been tested.** No paid-provider or universal third-party acceptance is claimed.
+
+**Still unsupported on tmux:** workflows, staged coding, automation, general MCP,
+codemode/deferred tools, manual/assisted permissions, full-transcript UI and
+historical resume/recovery. The experimental capability broker is deferred, not
+shipped or integrated. Project resources require saved trust. Model and
+callable-tool drift invalidates the worker; native history/continuation/coding UI
+remains separate. Existing standalone/team behavior and the native default are
+preserved.
+
+Retention is bounded to 128 jobs and 1,024 mutation requests; idle inspection and
+heartbeats do not consume that mutation budget. A task has a one-hour settlement
+deadline, separate from `maxTurns`. These controls are not an OS or
+hostile-same-user sandbox.
 
 ## Artwork
 

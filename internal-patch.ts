@@ -3,6 +3,30 @@ import { ExtensionRunner } from '@earendil-works/pi-coding-agent';
 import { appendHookEvent } from './state.js';
 import type { HookLifecycleEvent, StructuralPiExtensionContext, ZergInternalPatchController, ZergState, ZergStateContainer } from './types.js';
 
+export type PiPackageMetadataEntry = { pkg: string | { source: string; autoload?: boolean }; scope: 'user' | 'project' };
+
+/** Guarded metadata-only Pi internals for continuation review. Never exposes
+ * getInstalledPath/resolve: npm legacy lookup can execute commands. */
+export function guardedPiPackageMetadata(manager: object) {
+  const metadata = manager as {
+    dedupePackages(entries: PiPackageMetadataEntry[]): PiPackageMetadataEntry[];
+    parseSource(source: string): { type: string; name: string; path: string };
+    getManagedNpmInstallPath(source: unknown, scope: string): string;
+    installedNpmMatchesConfiguredVersion(source: unknown, path: string): Promise<boolean>;
+    resolvePathFromBase(path: string, base: string): string;
+  };
+  for (const name of ['dedupePackages', 'parseSource', 'getManagedNpmInstallPath', 'installedNpmMatchesConfiguredVersion', 'resolvePathFromBase'] as const) {
+    if (typeof metadata[name] !== 'function') throw new Error('Unsupported Pi metadata resolver');
+  }
+  return Object.freeze({
+    dedupePackages: metadata.dedupePackages.bind(manager),
+    parseSource: metadata.parseSource.bind(manager),
+    getManagedNpmInstallPath: metadata.getManagedNpmInstallPath.bind(manager),
+    installedNpmMatchesConfiguredVersion: metadata.installedNpmMatchesConfiguredVersion.bind(manager),
+    resolvePathFromBase: metadata.resolvePathFromBase.bind(manager),
+  });
+}
+
 export interface InternalPatchOptions {
   maxEvents?: number;
   now?: () => Date;

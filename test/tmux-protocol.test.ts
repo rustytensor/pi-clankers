@@ -120,7 +120,7 @@ test('idle inspection and leases do not consume the worker mutation budget; newl
 
 test('text-only capture is a bounded UTF-8 prefix rather than unbounded concatenation', () => {
   assert.deepEqual(captureTmuxText([{ type: 'text', text: 'COORD_ONE_OK' }, { type: 'image', data: 'ignored' }]), { text: 'COORD_ONE_OK', clipped: false });
-  const captured = captureTmuxText([{ type: 'text', text: '😀'.repeat(10000) }, { type: 'text', text: 'NOT_A_PREFIX' }]);
+  const captured = captureTmuxText([{ type: 'text', text: '😀'.repeat(TMUX_TEXT_BYTES / 4 + 1) }, { type: 'text', text: 'NOT_A_PREFIX' }]);
   assert.equal(captured.text, '😀'.repeat(TMUX_TEXT_BYTES / 4));
   assert.equal(captured.clipped, true);
 });

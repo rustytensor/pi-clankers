@@ -7,6 +7,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.32] - 2026-11-06
+
+### Added
+- Tmux prompt, steering and settled-result transport up to 128 KiB UTF-8; exact-job live inspection retains only the latest assistant prefix up to 8 KiB, not a full transcript.
+- Nullable per-job token/context/elapsed telemetry, partial observed tool-write evidence and reporting-only `may_write` evaluation. Neither evidence nor globs grant write permission or prove a filesystem diff.
+- Tmux `maxTurns` from 1 to 1024 as a per-job provider-request cap; trusted declared direct extension tools; finite offline-catalog fallback selection before dispatch only, with at most seven ordered run fallbacks and frozen selected-model reuse.
+- Explicit prepare/start/discard for reviewed tmux result-context continuation into a new worker/session/run/task under current policy: complete 32 KiB prompt, 16 private owner-lifetime sources, 16 reviews and five-minute review expiry. Only the conservative exact-file import/resource subset is supported; no full history, fork, reconnect or historical resume.
+
+### Fixed
+- Preserve current standalone/team/native resource behavior outside the stricter continuation preflight; restore current-authority and cancellation guards on public worker close while retaining internal cleanup after revocation.
+- Observe pre-submission continuation startup failure atomically for its exact still-current owner, without granting execution authority or overwriting a replaced/disposed owner.
+
+### Changed
+- Document the tested subset and its refusals. Isolated offline Pi/tmux fixtures are not normal-operator-environment acceptance; workflows, staged coding, automation, general MCP, manual/assisted permissions and full-transcript UI remain unsupported on tmux.
+- Exclude the blocked capability-broker experiment from build, package and test discovery. Its socket-cleanup design is not shipped or integrated. Npm publication is separate from this Git release.
+
 ## [1.1.31] - 2026-11-05
 
 ### Added

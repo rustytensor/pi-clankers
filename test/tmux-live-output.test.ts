@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { TmuxWorkerLedger, parseTmuxRequest, parseTmuxResponse } from '../tmux-protocol.js';
+
+test('live assistant prefix is exact-job-only, clipped and never reused after settlement', () => {
+  const identity = { workerId: 'w', sessionId: 's', generation: 'g', ownerNonce: 'a'.repeat(64), epoch: 0 };
+  const job = { ...identity, jobId: 'j', runId: 'r', taskId: 't', source: 'coordinator' as const };
+  const ledger = new TmuxWorkerLedger(identity);
+  const prompt = parseTmuxRequest({ version: 1, requestId: 'p', identity, action: 'prompt', expectedJobId: null, job, text: 'task' });
+  ledger.accept(prompt);
+  ledger.observe(job, [{ type: 'text', text: '😀'.repeat(3000) }]);
+  const show = parseTmuxRequest({ ...prompt, requestId: 'show', action: 'show', job: null, text: null, expectedJobId: 'j' });
+  const live = parseTmuxResponse(ledger.accept(show), show).snapshot.liveOutput!;
+  assert.equal(live.text, '😀'.repeat(2048));
+  assert.equal(live.clipped, true);
+  assert.deepEqual(live.identity, job);
+  const wrong = process.env.CLANKERS_TMUX_LIVE_PLANTED_FAULT === '1' ? 'j' : 'other-job';
+  assert.equal(ledger.snapshot(wrong).liveOutput, undefined);
+  assert.equal(ledger.snapshot().liveOutput, undefined);
+  assert.throws(() => ledger.observe({ ...job, taskId: 'other-task' }, []), /Stale/);
+  const cancel = parseTmuxRequest({ ...show, requestId: 'cancel', action: 'cancel' });
+  assert.equal(parseTmuxResponse(ledger.accept(cancel), cancel).snapshot.liveOutput, undefined);
+  const receipt = ledger.accept(show);
+  assert.throws(() => parseTmuxResponse({ ...receipt, snapshot: { ...receipt.snapshot, liveOutput: { ...live, identity: { ...job, runId: 'other-run' } } } }, show), /binding/);
+  ledger.settle(job, 'aborted', 'partial', false);
+  assert.equal(ledger.snapshot('j').liveOutput, undefined);
+  assert.throws(() => ledger.observe(job, []), /Stale/);
+  const next = { ...job, jobId: 'j2', runId: 'r2', taskId: 't2' };
+  ledger.accept(parseTmuxRequest({ ...prompt, requestId: 'p2', job: next }));
+  assert.equal(ledger.snapshot('j2').liveOutput, undefined);
+  ledger.observe(next, [{ type: 'text', text: 'new' }]);
+  assert.equal(ledger.snapshot('j2').liveOutput?.text, 'new');
+  ledger.invalidate();
+  assert.equal(ledger.snapshot('j2').liveOutput, undefined);
+});

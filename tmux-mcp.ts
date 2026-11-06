@@ -28,7 +28,10 @@ export function resolveTmuxToolPolicy(tools: readonly string[] = ['read', 'bash'
   const active = [...new Set(expand(tools))].filter(name => {
     const operation = normalizeTmuxMcpOperation(name);
     if (controller(operation)) return false;
-    if (!BUILTINS.has(name) && !gateway(name) && !alias(name)) throw new Error('Unsupported worker tool');
+    // Other exact names must be supplied by already-trusted extension resources.
+    // The child pins the complete active/callable set before readiness or provider
+    // dispatch; unknown, deferred or broadened loadouts fail there, not silently.
+    if (!BUILTINS.has(name) && !gateway(name) && !alias(name) && name.startsWith('mcp__')) throw new Error('Unsupported worker MCP namespace');
     return !denied.includes(operation) && !((alias(name) || gateway(name)) && denied.some(gateway));
   });
   return { tools: active, disallowedTools: denied };

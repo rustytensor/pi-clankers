@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { createTmuxContinuationService, tmuxContinuationDigest, type TmuxContinuationAdmission, type TmuxContinuationSource } from './tmux-continuation.js';
+import { prepareTmuxContinuationPolicy, preflightTmuxWorkerPolicy } from './tmux-worker-policy.js';
+import { matchesGlob } from 'node:path';
+import { parseTmuxMaxTurns, tmuxModelCandidates, parseTmuxModelSelection, type TmuxModelSelection } from './tmux-worker-config.js';
 import { createJiti } from 'jiti';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createTmuxWorker, TmuxLaunchError, type TmuxLaunchOptions, type TmuxWorkerHandle } from './tmux-runner.js';
@@ -41,6 +45,7 @@ interface Worker {
   workerId: string;
   definition: ZergAgentDefinition;
   model: string;
+  selection?: TmuxModelSelection;
   handle?: TmuxWorkerHandle;
   opening?: Promise<TmuxWorkerHandle>;
   closing?: Promise<unknown>;
@@ -49,10 +54,13 @@ interface Worker {
   cleanupConfirmed?: boolean;
   current?: WorkerJob;
   teamReserved?: boolean;
+  continuation?: boolean;
 }
 
 /** Separate owner: never a native adapter, transcript or workflow capability. */
 export function createTmuxControl(container: ZergStateContainer, options: Options) {
+  // Trusted transport configuration is owner-scoped, never mutable control JSON.
+  options = { ...options, trusted: options.trusted ? structuredClone(options.trusted) : undefined };
   // Entries include setup, idle and unconfirmed cleanup, not just running jobs.
   const workers = new Map<string, Worker>();
   const teams = new Map<string, TeamRun>();
@@ -71,6 +79,8 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
   const pending = new Set<Promise<unknown>>();
   const jobs = new Map<string, Promise<void>>();
   const failures: string[] = [];
+  const sources = new Map<string, TmuxContinuationSource>();
+  const policies = new Map<string, Awaited<ReturnType<typeof prepareTmuxContinuationPolicy>>>();
   // Detached settlement retention never mutates a disposed canonical owner.
   let settledResults: AgentResultLedger | undefined;
   const rememberFailure = (message: string) => { failures.push(message); if (failures.length > 4) failures.shift(); };
@@ -118,19 +128,34 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     }));
     return target.closing;
   };
+  const bindSelection = (target: Worker, launch: TmuxLaunchOptions, value: TmuxModelSelection | undefined): TmuxLaunchOptions => {
+    if (launch.fallbackModels === undefined) return launch;
+    const selection = parseTmuxModelSelection(value);
+    if (JSON.stringify(selection.candidates) !== JSON.stringify(tmuxModelCandidates(launch.modelSpec, launch.fallbackModels))) throw new Error('Model selection plan changed');
+    Object.defineProperty(target, 'selection', { value: selection, writable: false });
+    Object.defineProperty(target, 'model', { value: selection.modelSpec, writable: false });
+    const job = target.current;
+    if (job && ownsRunningJob(target, job)) {
+      const state = container.read();
+      const agent = state.agents[job.runId], task = state.tasks[job.taskId];
+      container.replace({ ...state, agents: { ...state.agents, [job.runId]: { ...agent, metadata: { ...agent.metadata, model: selection.modelSpec, modelSelection: selection } } }, tasks: { ...state.tasks, [job.taskId]: { ...task, metadata: { ...task.metadata, model: selection.modelSpec, modelSelection: selection } } } });
+    }
+    return Object.freeze({ ...launch, modelSpec: selection.modelSpec, modelSelection: selection });
+  };
   const project = (target: Worker, snapshot?: TmuxSnapshot) => ({
     workerId: target.workerId, sessionId: target.handle?.sessionId ?? null,
     attachCommand: target.handle?.attachCommand ?? null,
-    agentId: target.definition.id, model: target.model,
+    agentId: target.definition.id, model: target.selection || target.definition.fallbackModels === undefined ? target.model : null, modelSelection: target.selection ?? null,
     policyBinding: 'launch-time definition and policy; registry edits require close and a new worker',
-    boundPolicy: { tools: [...(target.definition.tools ?? ['read', 'bash'])], disallowedTools: [...(target.definition.disallowedTools ?? [])], result_schema: structuredClone(target.definition.result_schema ?? null), may_write: null },
+    boundPolicy: { maxTurns: target.definition.maxTurns ?? null, tools: [...(target.definition.tools ?? ['read', 'bash'])], disallowedTools: [...(target.definition.disallowedTools ?? [])], result_schema: structuredClone(target.definition.result_schema ?? null), may_write: structuredClone(target.definition.may_write ?? null) },
     phase: target.launchFailed ? (target.cleanupConfirmed ? 'failed_cleaned' : 'failed_cleanup_unconfirmed') : target.closing ? 'closing' : target.handle?.isClosed ? 'closed' : snapshot?.phase ?? (target.handle ? 'unknown' : 'starting'),
     ownership: snapshot?.ownership ?? null,
     epoch: snapshot?.identity.epoch ?? null,
     currentRunId: target.current?.runId ?? null,
     job: snapshot?.job ? { jobId: snapshot.job.jobId, runId: snapshot.job.runId, taskId: snapshot.job.taskId, source: snapshot.job.source } : null,
     result: snapshot?.result ? { outcome: snapshot.result.outcome, source: snapshot.result.identity.source, jobId: snapshot.result.identity.jobId, runId: snapshot.result.identity.runId, taskId: snapshot.result.identity.taskId, text: snapshot.result.text, textClipped: snapshot.result.textClipped, settled: true } : null,
-    telemetry: null, toolEvidence: 'unavailable', nativeFeatures: 'unavailable: transcript, continuation, history, recovery and native coding UI',
+    liveOutput: snapshot?.liveOutput ? { jobId: snapshot.liveOutput.identity.jobId, runId: snapshot.liveOutput.identity.runId, taskId: snapshot.liveOutput.identity.taskId, source: snapshot.liveOutput.identity.source, text: snapshot.liveOutput.text, clipped: snapshot.liveOutput.clipped, scope: 'latest assistant text only; not a full transcript' } : null,
+    telemetry: snapshot?.result?.telemetry ?? null, toolEvidence: snapshot?.result?.toolEvidence ?? 'unavailable', nativeFeatures: 'unavailable: transcript, continuation, history, recovery and native coding UI',
   });
   const ownsRunningJob = (target: Worker, job: WorkerJob) => {
     try { authority(); } catch { return false; }
@@ -151,14 +176,14 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     const current = container.read();
     if (state === 'running' && (!ownsWorker(target) || target.current !== job || target.closing || current.agents[job.runId] || current.tasks[job.taskId])) throw new Error('Canonical job owner changed during admission.');
     const time = new Date().toISOString();
-    const metadata = { backend: 'tmux', workerId: target.workerId, tmuxJobId: job.jobId, agentDefinitionId: target.definition.id, agentDefinitionLabel: target.definition.label, runId: job.runId, taskId: job.taskId, originalTask: task, model: target.model, launchMode: 'fresh', ...(job.binding ? { parentRunId: job.binding.parentRunId, parentTaskId: job.binding.parentTaskId, teamId: job.binding.teamId, tmuxTeamToken: job.binding.token } : {}) };
+    const metadata = { backend: 'tmux', workerId: target.workerId, tmuxJobId: job.jobId, agentDefinitionId: target.definition.id, agentDefinitionLabel: target.definition.label, runId: job.runId, taskId: job.taskId, originalTask: task, model: target.selection || target.definition.fallbackModels === undefined ? target.model : null, ...(target.selection ? { modelSelection: target.selection } : {}), launchMode: 'fresh', ...(job.binding ? { parentRunId: job.binding.parentRunId, parentTaskId: job.binding.parentTaskId, teamId: job.binding.teamId, tmuxTeamToken: job.binding.token } : {}) };
     const next = applyRuntimeTransition(current, { entity: 'agent', action: state === 'running' ? 'create' : state === 'done' ? 'stop' : 'fail', id: job.runId, label: target.definition.label, kind: 'subagent', status: state, activity: reason, substate: state === 'done' ? 'completed' : state === 'running' ? 'executing' : state, substateReason: reason, metadata }, { now: () => new Date(time) });
     container.replace(upsertTask(next, { id: job.taskId, title: task, status: state, ownerAgentId: job.runId, updatedAt: time, substate: state === 'done' ? 'completed' : state === 'running' ? 'executing' : state, substateReason: reason, substateUpdatedAt: time, metadata }));
   };
-  const begin = (target: Worker, task: string, signal?: AbortSignal, binding?: TeamBinding): ZergCommandResult => {
+  const begin = (target: Worker, task: string, signal?: AbortSignal, binding?: TeamBinding, literalTask = task): ZergCommandResult => {
     authority(signal);
     if (!ownsWorker(target) || target.current || target.closing || target.handle?.isClosed) throw new Error('Tmux worker busy, closing or closed.');
-    if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 8192 UTF-8 bytes.');
+    if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 131072 UTF-8 bytes.');
     const { runId, taskId } = binding ?? options.ids();
     const ids = { runId, taskId };
     if (![ids.runId, ids.taskId].every(id => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\s\S])/.test(id))) throw new Error('Canonical run/task IDs do not fit the tmux protocol.');
@@ -168,11 +193,12 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     authority(signal);
     if (!ownsWorker(target) || target.current || target.closing || target.handle?.isClosed) throw new Error('Worker admission changed during ID/notice capture.');
     target.current = job;
-    try { publish(target, job, task, 'running', 'tmux job admitted; not completed'); }
+    try { publish(target, job, literalTask, 'running', 'tmux job admitted; not completed'); }
     catch (error) { if (target.current === job) target.current = undefined; throw error; }
     const completion = own((async () => {
       let result: TmuxJobResult | undefined;
       let state: AgentResult['state'] = 'failed';
+      let submitted = false;
       try {
         authority(signal); // Recheck after reentrant canonical publication.
         const handle = target.handle ?? await target.opening;
@@ -182,25 +208,35 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
         if (!ownsRunningJob(target, job)) throw new Error('Job admission revoked.');
         const abort = () => { void own(handle.cancel(job.jobId).catch(() => { rememberFailure('Tmux cancellation not confirmed.'); })); };
         signal?.addEventListener('abort', abort, { once: true });
-        try { if (binding) binding.submitted = true; result = await handle.prompt({ runId: job.runId, taskId: job.taskId, jobId: job.jobId, text: task }); }
+        try { submitted = true; if (binding) binding.submitted = true; result = await handle.prompt({ runId: job.runId, taskId: job.taskId, jobId: job.jobId, text: task }); }
         finally { signal?.removeEventListener('abort', abort); }
         if (!result.settled || result.identity.source !== 'coordinator' || result.identity.jobId !== job.jobId || result.identity.runId !== job.runId || result.identity.taskId !== job.taskId || result.identity.workerId !== target.workerId || result.identity.sessionId !== handle.sessionId) {
           result = undefined;
           throw new Error('Exact coordinator settlement identity mismatch.');
         }
+        if (result.identity.generation !== handle.identity.generation || result.identity.epoch !== handle.identity.epoch || result.identity.ownerNonce !== handle.identity.ownerNonce) throw new Error('Exact result owner mismatch');
+        if (!disposed && !result.textClipped && Buffer.byteLength(result.text) <= 32768 && Buffer.byteLength(literalTask) <= 32768) {
+          const { workerId, sessionId, generation, epoch, jobId, runId, taskId } = result.identity;
+          const source: TmuxContinuationSource = { key: { backend: 'tmux', workerId, sessionId, generation, epoch, jobId, runId, taskId, resultDigest: tmuxContinuationDigest(result.text) }, agentId: target.definition.id, originalTask: literalTask, resultText: result.text, settled: true, complete: true };
+          sources.set(workerId + '/' + jobId, structuredClone(source));
+          while (sources.size > 16) sources.delete(sources.keys().next().value!);
+        }
         state = result.outcome === 'completed' ? 'done' : result.outcome === 'aborted' ? 'cancelled' : 'failed';
-      } catch { state = 'failed'; }
+      } catch { state = 'failed'; if (target.continuation) void closeOwned(target); }
       if (binding && signal?.aborted) state = 'cancelled';
       const captured = captureAssistantResultText(result && !result.textClipped ? { role: 'assistant', content: [{ type: 'text', text: result.text }] } : undefined);
       const checked = result?.textClipped
         ? { status: 'limit_exceeded' as const, errors: ['Transport clipped final text; exact JSON unavailable.'], result: undefined }
         : validateAgentResult(captured.final_message, target.definition.result_schema);
+      const evidence = result?.toolEvidence && result.toolEvidence !== 'unavailable' ? result.toolEvidence : undefined;
+      const files = evidence ? [...evidence.files_changed] : [];
+      const outside = target.definition.may_write === undefined || !evidence ? null : files.filter(path => path === '..' || path.startsWith('../') || !target.definition.may_write!.some(pattern => matchesGlob(path, pattern)));
       const record: AgentResult = {
         agent_id: target.definition.id, task_id: binding?.parentTaskId ?? job.taskId, run_id: binding?.parentRunId ?? job.runId, member_run_id: job.runId,
-        pi_session_id: target.handle?.sessionId ?? null, state, stop_reason: result?.outcome === 'completed' ? 'stop' : result?.outcome === 'aborted' ? 'aborted' : null, model: target.model,
-        ...captured, files_changed: [], files_outside_allowed: null, evidence_complete: false,
-        evidence_reasons: ['Tmux toolEvidence unavailable; writes cannot be assessed.', ...(result?.textClipped ? ['Transport text clipped; original character count unknown.'] : [])],
-        tokens: { input: null, output: null, cache_read: null, cache_write: null }, context_percent: null, elapsed_seconds: null,
+        pi_session_id: target.handle?.sessionId ?? null, state, stop_reason: result?.outcome === 'completed' ? 'stop' : result?.outcome === 'aborted' ? 'aborted' : null, model: target.selection || target.definition.fallbackModels === undefined ? target.model : null,
+        ...captured, files_changed: files, files_outside_allowed: outside, evidence_complete: false,
+        evidence_reasons: [...(evidence?.evidence_reasons ?? ['Tmux toolEvidence unavailable; writes cannot be assessed.']), ...(result?.textClipped ? ['Transport text clipped; original character count unknown.'] : [])],
+        tokens: result?.telemetry?.tokens ?? { input: null, output: null, cache_read: null, cache_write: null }, context_percent: result?.telemetry?.context_percent ?? null, elapsed_seconds: result?.telemetry?.elapsed_seconds ?? null,
         validation: { status: checked.status, errors: checked.errors }, result: checked.result ?? null, result_available: checked.status === 'valid', result_omitted: false,
         historical: false, notice: 'unavailable',
       };
@@ -212,10 +248,37 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
         try { record.notice = notice(projectAgentResult(record)); } catch { record.notice = 'failed'; }
       }
       settledResults = retainAgentResult(settledResults, record);
+      if (target.continuation && !binding && !submitted && state === 'failed') {
+        // Failure observation is not execution authority. Only this unsubmitted
+        // continuation may settle after mode revocation; owner lifetime still wins.
+        if (disposed) return;
+        try { options.assertAuthority(); } catch { return; }
+        const current = container.read();
+        const agent = current.agents[job.runId], task = current.tasks[job.taskId];
+        if (disposed || current.lifecycle === 'disposed' || !ownsWorker(target) || target.current !== job
+          || agent?.id !== job.runId || task?.id !== job.taskId
+          || agent.status !== 'running' || task.status !== 'running' || task.ownerAgentId !== job.runId
+          || ![agent.metadata, task.metadata].every(meta => meta?.backend === 'tmux'
+            && meta.workerId === target.workerId && meta.tmuxJobId === job.jobId
+            && meta.runId === job.runId && meta.taskId === job.taskId
+            && meta.agentDefinitionId === target.definition.id
+            && meta.parentRunId === undefined && meta.parentTaskId === undefined && meta.tmuxTeamToken === undefined)) return;
+        const ledger = current.extensions[AGENT_RESULTS_KEY] as AgentResultLedger | undefined;
+        if (ledger?.records.some(item => item.run_id === job.runId && item.task_id === job.taskId && item.member_run_id === job.runId)) return;
+        const time = new Date().toISOString();
+        const reason = 'tmux continuation startup failed before submission; owned cleanup may still be pending';
+        const next = applyRuntimeTransition(current, { entity: 'agent', action: 'fail', id: job.runId, status: 'failed', activity: reason, substate: 'failed', substateReason: reason }, { now: () => new Date(time) });
+        const terminal = upsertTask(next, { ...task, status: 'failed', updatedAt: time, substate: 'failed', substateReason: reason, substateUpdatedAt: time });
+        terminal.extensions = { ...terminal.extensions, [AGENT_RESULTS_KEY]: retainAgentResult(ledger, record) };
+        // One publication: subscribers cannot replace the owner between result
+        // retention and terminalization. No followup write after this callback.
+        container.replace(terminal);
+        return;
+      }
       if (!ownsRunningJob(target, job) || alreadyRetained()) return;
       const current = container.read();
       container.update({ extensions: { ...current.extensions, [AGENT_RESULTS_KEY]: retainAgentResult(current.extensions[AGENT_RESULTS_KEY] as AgentResultLedger | undefined, record) } });
-      if (ownsRunningJob(target, job)) publish(target, job, task, state, result ? `tmux job ${result.outcome}; worker kept open` : 'tmux job failed or submission uncertain; no retry');
+      if (ownsRunningJob(target, job)) publish(target, job, literalTask, state, result ? `tmux job ${result.outcome}; worker kept open` : 'tmux job failed or submission uncertain; no retry');
     })().catch(() => { rememberFailure('Tmux result publication failed; inspect retained state.'); }).finally(() => { if (target.current === job) target.current = undefined; releaseClean(target); }));
     jobs.set(job.runId, completion);
     // Bound completed await handles independently of immutable result retention.
@@ -234,7 +297,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     if (!Number.isSafeInteger(concurrency) || concurrency < 1) throw new Error('Tmux concurrency must be a positive safe integer.');
     if (workers.size + definitions.length > MAX_TMUX_WORKERS) throw new Error('Tmux worker capacity is 8; all persistent member and leader slots must fit before launch.');
     const teamPolicy = teamDefinition.metadata as { model?: unknown; maxTurns?: unknown; fallbackModels?: unknown } | undefined;
-    if (request.fork || (request.launchMode !== undefined && request.launchMode !== 'fresh') || request.maxTurns !== undefined || request.fallbackModels?.length || teamPolicy?.maxTurns !== undefined || (Array.isArray(teamPolicy?.fallbackModels) && teamPolicy.fallbackModels.length)) throw new Error('Tmux teams require fresh jobs without turn limits or fallback models.');
+    if (request.fork || (request.launchMode !== undefined && request.launchMode !== 'fresh')) throw new Error('Tmux teams require fresh jobs.');
     const parentIds = options.ids();
     const team: TeamRun = { ...parentIds, token: randomUUID(), abort: new AbortController(), children: new Map() };
     const notice = options.captureNotice?.();
@@ -246,20 +309,23 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     checkIds(parentIds);
     const prepared = definitions.map(definition => {
       const frozen = structuredClone(definition!);
-      if (frozen.maxTurns !== undefined || frozen.fallbackModels?.length || (frozen.permissionMode && !['automatic', 'inherit'].includes(frozen.permissionMode))) throw new Error('Unsupported tmux team member policy.');
+      frozen.maxTurns = parseTmuxMaxTurns(request.maxTurns ?? frozen.maxTurns ?? teamPolicy?.maxTurns);
+      if ((frozen.permissionMode && !['automatic', 'inherit'].includes(frozen.permissionMode))) throw new Error('Unsupported tmux team member policy.');
       // Native dispatch resolves the request agent/model to the leader first.
       const requestedModel = request.model ?? leader.model ?? (typeof teamPolicy?.model === 'string' ? teamPolicy.model : undefined);
       const model = frozen.id === leader.id ? requestedModel : frozen.model ?? requestedModel;
       if (typeof model !== 'string' || !/^[^\s/]+\/[^\s]+$/.test(model)) throw new Error('Tmux requires explicit canonical provider/model[:thinking].');
+      const fallbackModels = request.fallbackModels ?? frozen.fallbackModels ?? teamPolicy?.fallbackModels;
+      tmuxModelCandidates(model, fallbackModels ?? []);
+      frozen.fallbackModels = fallbackModels === undefined ? undefined : [...fallbackModels as string[]];
       const { tools, disallowedTools } = resolveTmuxToolPolicy(frozen.tools, frozen.disallowedTools);
       frozen.tools = [...tools]; frozen.disallowedTools = [...disallowedTools];
       frozen.result_schema = normalizeResultSchema(frozen.result_schema);
       frozen.may_write = normalizeMayWrite(frozen.may_write);
-      if (frozen.may_write !== undefined) throw new Error('Tmux may_write reporting policy unsupported without tool evidence.');
       const ids = options.ids(); checkIds(ids);
       const binding: TeamBinding = { ...ids, parentRunId: team.runId, parentTaskId: team.taskId, teamId: teamDefinition.id, token: team.token };
       const target: Worker = { workerId: `clankers-${randomUUID()}`, definition: frozen, model, teamReserved: true };
-      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
+      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
       return { target, binding, launch };
     });
     const base = `Run id: ${team.runId}\nTask: ${request.task}\nFollow the original task and permission constraints exactly. Do not modify files or run mutating commands unless the task authorizes it. Return results in your final message; no additional handoff-file writes are authorized.`;
@@ -271,7 +337,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     // string, cancelled is the longest outcome, and false exceeds true.
     const worstSummary = members.map(item => summaryRow(item, null, 'cancelled', false, false)).join('\n');
     const resultBudget = TMUX_TEXT_BYTES - Buffer.byteLength(leaderBase + worstSummary, 'utf8');
-    if (prepared.some(item => Buffer.byteLength(memberPrompt(item.target.definition.id), 'utf8') > TMUX_TEXT_BYTES) || resultBudget < 0) throw new Error('Expanded tmux team prompts exceed 8192 UTF-8 bytes; shorten the task.');
+    if (prepared.some(item => Buffer.byteLength(memberPrompt(item.target.definition.id), 'utf8') > TMUX_TEXT_BYTES) || resultBudget < 0) throw new Error('Expanded tmux team prompts exceed 131072 UTF-8 bytes; shorten the task.');
     const leaderPrompt = () => {
       const rows = members.map(item => {
         const result = item.binding.result;
@@ -376,7 +442,8 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
             if (typeof sdk.getAgentDir !== 'function') throw new Error('Trusted Pi SDK getAgentDir capability unavailable.');
             item.launch = { ...item.launch, agentDir: sdk.getAgentDir() };
           }
-          await policy.preflightTmuxWorkerPolicy(item.launch.sdkModulePath, item.launch);
+          const selection = await policy.preflightTmuxWorkerPolicy(item.launch.sdkModulePath, item.launch);
+          item.launch = bindSelection(item.target, item.launch, selection);
         }
         assertTeam();
         let cursor = 0;
@@ -416,10 +483,37 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     jobs.set(team.runId, completion);
     return { ok: true, ...parentIds, output: `Tmux team admitted (${team.runId}); ${prepared.length} persistent slots reserved, concurrency ${concurrency}; not completed.` };
   };
-  return {
-    start(request: ZergSubagentLaunchRequest, signal?: AbortSignal): ZergCommandResult {
+  const continuation = createTmuxContinuationService<ZergCommandResult>({
+    source: key => sources.get(key.workerId + '/' + key.jobId),
+    assertAuthority: authority,
+    policy: agentId => {
+      const policy = policies.get(agentId);
+      if (!policy) throw new Error('Continuation inventory unavailable');
+      return { resources: policy.read(), loaderEnvironment: { home: process.env.HOME ?? null, agentDir: process.env.PI_CODING_AGENT_DIR ?? null, packageDir: process.env.PI_PACKAGE_DIR ?? null } };
+    },
+    async preflight(admission) {
+      admission.assertCurrent();
+      const input = await continuationInput(admission.agentId);
+      admission.assertCurrent();
+      await preflightTmuxWorkerPolicy(input.sdkModulePath, input);
+      admission.assertCurrent();
+    },
+    launch: admission => start({ agent: admission.agentId, task: admission.review.prompt, backend: 'tmux', launchMode: 'fresh' }, admission.signal, admission),
+  });
+  async function continuationInput(agentId: string) {
+    if (options.trusted?.fixtureNodeImportPath || options.trusted?.fixtureMcpCommand) throw new Error('Continuation refuses custom loader preloads and MCP commands');
+    const definition = getAgentDefinition(container.read(), agentId);
+    if (!definition || container.read().teams[agentId]) throw new Error('Exact current standalone definition required');
+    const sdkModulePath = options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent'));
+    const sdk = await import(pathToFileURL(sdkModulePath).href) as { getAgentDir(): string };
+    const agentDir = options.trusted?.agentDir ?? sdk.getAgentDir();
+    const { tools, disallowedTools } = resolveTmuxToolPolicy(definition.tools, definition.disallowedTools);
+    if (!definition.model) throw new Error('Continuation requires current explicit model');
+    return { cwd: options.cwd, agentDir, sdkModulePath, modelSpec: definition.model, definitionPrompt: definition.prompt, tools, disallowedTools, maxTurns: definition.maxTurns, fallbackModels: definition.fallbackModels, fixtureExtensionPaths: options.trusted?.fixtureExtensionPaths };
+  }
+  const start = (request: ZergSubagentLaunchRequest, signal?: AbortSignal, admission?: TmuxContinuationAdmission): ZergCommandResult => {
       authority(signal);
-      if (typeof request.task !== 'string' || !request.task.trim() || Buffer.byteLength(request.task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 8192 UTF-8 bytes.');
+      if (typeof request.task !== 'string' || !request.task.trim() || Buffer.byteLength(request.task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 131072 UTF-8 bytes.');
       const allowed = new Set(['backend', 'agent', 'task', 'background', 'fork', 'launchMode', 'concurrency', 'model', 'fallbackModels', 'maxTurns']);
       if (Object.keys(request).some(key => !allowed.has(key))) throw new Error('Unsupported tmux launch field; no resume/history/recovery or private overrides.');
       if (workers.size >= MAX_TMUX_WORKERS) throw new Error('Tmux worker capacity is 8, including setup/idle/closing/unconfirmed cleanup. Close a worker explicitly first.');
@@ -427,19 +521,23 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
       if (state.teams[request.agent]) return startTeam(request, signal);
       const definition = getAgentDefinition(state, request.agent);
       if (!definition) throw new Error('Tmux requires an exact configured standalone agent.');
-      if (request.fork || (request.launchMode !== undefined && request.launchMode !== 'fresh') || request.maxTurns !== undefined || definition.maxTurns !== undefined || request.fallbackModels?.length || definition.fallbackModels?.length || (request.concurrency !== undefined && request.concurrency !== 1)) throw new Error('Tmux supports only fresh standalone jobs, no turn limits, fallback models or fanout.');
+      if (request.fork || (request.launchMode !== undefined && request.launchMode !== 'fresh') || (request.concurrency !== undefined && request.concurrency !== 1)) throw new Error('Tmux supports only fresh standalone jobs, no fanout.');
       if (definition.permissionMode && !['automatic', 'inherit'].includes(definition.permissionMode)) throw new Error('Tmux manual/assisted permission policy unsupported.');
       const model = request.model ?? definition.model;
       if (typeof model !== 'string' || !/^[^\s/]+\/[^\s]+$/.test(model)) throw new Error('Tmux requires explicit canonical provider/model[:thinking].');
       const { tools, disallowedTools } = resolveTmuxToolPolicy(definition.tools, definition.disallowedTools);
       const frozen = structuredClone(definition);
+      frozen.maxTurns = parseTmuxMaxTurns(request.maxTurns ?? definition.maxTurns);
+      const fallbackModels = request.fallbackModels ?? definition.fallbackModels;
+      tmuxModelCandidates(model, fallbackModels ?? []);
+      frozen.fallbackModels = fallbackModels === undefined ? undefined : [...fallbackModels];
       frozen.tools = [...tools]; frozen.disallowedTools = [...disallowedTools];
       frozen.result_schema = normalizeResultSchema(definition.result_schema);
       frozen.may_write = normalizeMayWrite(definition.may_write);
-      if (frozen.may_write !== undefined) throw new Error('Tmux may_write reporting policy unsupported without tool evidence.');
-      const target: Worker = { workerId: `clankers-${randomUUID()}`, definition: frozen, model };
-      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
-      authority(signal);
+      const target: Worker = { workerId: `clankers-${randomUUID()}`, definition: frozen, model, continuation: !!admission };
+      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
+      if (admission) launch.assertAdmission = () => { authority(); admission.assertCurrent(); if (!ownsWorker(target) || target.closing) throw new Error('Continuation launch revoked'); };
+      authority(signal); admission?.assertCurrent();
       // Recheck after all host-controlled launch inputs; no callback between check and reserve.
       if (workers.size >= MAX_TMUX_WORKERS) throw new Error('Tmux worker capacity is 8, including setup/idle/closing/unconfirmed cleanup.');
       workers.set(target.workerId, target); // Reserve before any await or process creation.
@@ -457,13 +555,15 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
         // Fail closed until the worker policy supplies pre-child model/resource
         // validation. Path/syntax checks alone do not establish SDK capabilities.
         const policy = await import('./tmux-worker-policy.js') as unknown as {
-          preflightTmuxWorkerPolicy?: (sdkModulePath: string, input: TmuxLaunchOptions) => Promise<void>;
+          preflightTmuxWorkerPolicy?: (sdkModulePath: string, input: TmuxLaunchOptions) => Promise<TmuxModelSelection | undefined>;
         };
         if (typeof policy.preflightTmuxWorkerPolicy !== 'function') throw new Error('Tmux pre-child model/resource validation unavailable.');
-        const resolvedLaunch = { ...launch, agentDir };
-        await policy.preflightTmuxWorkerPolicy(launch.sdkModulePath, resolvedLaunch);
+        let resolvedLaunch = { ...launch, agentDir };
+        const selection = await policy.preflightTmuxWorkerPolicy(launch.sdkModulePath, resolvedLaunch);
+        resolvedLaunch = bindSelection(target, resolvedLaunch, selection);
         authority(signal);
         if (target.closing || !target.current || !ownsRunningJob(target, target.current)) throw new Error('Tmux launch admission revoked.');
+        admission?.assertCurrent();
         target.runnerStarted = true;
         return createTmuxWorker(resolvedLaunch);
       }).then(handle => { target.handle = handle; if (disposed) void closeOwned(target); return handle; }, error => {
@@ -475,9 +575,29 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
       }));
       // Observe rejection even when synchronous admission was revoked.
       void target.opening.catch(() => undefined);
-      try { return begin(target, request.task, signal); }
+      try { return begin(target, request.task, signal, undefined, admission?.review.task ?? request.task); }
       catch (error) { void closeOwned(target); throw error; }
+  };
+  return {
+    start(request: ZergSubagentLaunchRequest, signal?: AbortSignal) { return start(request, signal); },
+    async prepare(workerId: string, jobId: string, task: string) {
+      authority();
+      const source = sources.get(workerId + '/' + jobId);
+      if (!source || source.key.workerId !== workerId || source.key.jobId !== jobId) throw new Error('Exact retained workerId/jobId required');
+      const input = await continuationInput(source.agentId);
+      authority();
+      const policy = await prepareTmuxContinuationPolicy(input.sdkModulePath, input, () => {
+        const definition = getAgentDefinition(container.read(), source.agentId);
+        if (!definition) throw new Error('Current definition unavailable');
+        return definition;
+      });
+      authority();
+      policies.set(source.agentId, policy);
+      while (policies.size > 16) policies.delete(policies.keys().next().value!);
+      return continuation.prepare({ source: source.key, task });
     },
+    startContinuation(reviewId: string, confirm: true, signal?: AbortSignal) { return continuation.start({ reviewId, confirm }, signal); },
+    discard(reviewId: string) { continuation.discard({ reviewId }); },
     async list() {
       return Promise.all([...workers.values()].map(async target => {
         try { return project(target, target.handle && !target.closing && !target.handle.isClosed ? await target.handle.inspect() : undefined); }
@@ -502,7 +622,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     async steer(workerId: string, runId: string, body: string, signal?: AbortSignal) {
       authority(signal); const target = exact(workerId);
       if (!target.handle || !target.current || target.current.runId !== runId || target.closing) throw new Error('Exact current worker/run required for steer.');
-      if (typeof body !== 'string' || !body.trim() || Buffer.byteLength(body, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Steer body must be nonempty and at most 8192 UTF-8 bytes.');
+      if (typeof body !== 'string' || !body.trim() || Buffer.byteLength(body, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Steer body must be nonempty and at most 131072 UTF-8 bytes.');
       const job = target.current;
       if (!ownsRunningJob(target, job) || target.closing) throw new Error('Canonical job admission revoked.');
       const reply = await target.handle.steer(job.jobId, body);
@@ -531,7 +651,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     async close(workerId: string, signal?: AbortSignal) { authority(signal); return closeOwned(exact(workerId)); },
     async awaitRun(runId: string) { await jobs.get(runId); },
     retainedResults() { return settledResults?.records.map(record => projectAgentResult(record)) ?? []; },
-    dispose() { if (disposed) return; disposed = true; for (const team of teams.values()) team.abort.abort(); for (const target of workers.values()) { if (target.teamReserved && !target.opening) { target.cleanupConfirmed = true; releaseClean(target); } else void closeOwned(target); } },
+    dispose() { if (disposed) return; disposed = true; continuation.dispose(); sources.clear(); policies.clear(); for (const team of teams.values()) team.abort.abort(); for (const target of workers.values()) { if (target.teamReserved && !target.opening) { target.cleanupConfirmed = true; releaseClean(target); } else void closeOwned(target); } },
     async drain() { while (pending.size) await Promise.allSettled([...pending]); if (failures.length) throw new Error(failures.slice(-4).join(' ')); },
   };
 }

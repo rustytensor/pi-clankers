@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { setTimeout as pause } from 'node:timers/promises';
+import { createJiti } from 'jiti';
+import { ProjectTrustStore } from '@earendil-works/pi-coding-agent';
+import { preflightTmuxWorkerPolicy, prepareTmuxContinuationPolicy } from '../tmux-worker-policy.js';
+import { guardedPiPackageMetadata } from '../internal-patch.js';
+import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+
+// Fixed oracle from parent findings11879/11880: ordinary metadata is admitted;
+// readonly/aborted public close => 0 effects, internal dispose => exactly 1 close.
+test('ordinary installed packages keep prior semantics while public close requires authority and internal disposal does not', async () => {
+  const root = await mkdtemp('/srv/devops/scratch/cc-');
+  const home = process.env.HOME;
+  process.env.HOME = join(root, 'home');
+  const cwd = join(root, 'cwd'), agentDir = join(root, 'agent');
+  await mkdir(join(cwd, '.pi'), { recursive: true }); await mkdir(agentDir);
+  const git = join(agentDir, 'git', 'github.com', 'example', 'controller');
+  const local = join(agentDir, 'local');
+  const npm = join(agentDir, 'npm', 'node_modules', 'synthetic-normal');
+  for (const dir of [git, local, npm]) await mkdir(join(dir, 'extensions'), { recursive: true });
+  await writeFile(join(git, 'package.json'), JSON.stringify({ name: 'pi-clankers', pi: { extensions: ['extensions/index.js'] } }));
+  await writeFile(join(git, 'extensions/index.js'), 'throw new Error("CONTROLLER FACTORY MUST NOT LOAD");');
+  await writeFile(join(npm, 'package.json'), JSON.stringify({ name: 'synthetic-normal', version: '1.0.0' }));
+  for (const dir of [local, npm]) await writeFile(join(dir, 'extensions/index.js'), 'export default function () {}');
+  const global = JSON.stringify({ packages: ['git:github.com/example/controller', './local', 'npm:synthetic-normal@1.0.0'] });
+  const project = JSON.stringify({ packages: [{ source: 'npm:synthetic-normal@1.0.0', autoload: false, extensions: [] }] });
+  await writeFile(join(agentDir, 'settings.json'), global); await writeFile(join(cwd, '.pi/settings.json'), project);
+  new ProjectTrustStore(agentDir).set(cwd, true);
+  await writeFile(join(agentDir, 'models.json'), JSON.stringify({ providers: { synthetic: { api: 'openai-completions', baseUrl: 'https://synthetic.invalid', models: [{ id: 'fixed', input: ['text'], contextWindow: 4096, maxTokens: 128 }] } } }));
+  const sdkModulePath = fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'));
+  const definition = { id: 'solo', label: 'Solo', source: 'user' as const, prompt: 'Synthetic only.', tools: [], model: 'synthetic/fixed' };
+  const input = { cwd, agentDir, modelSpec: definition.model, definitionPrompt: definition.prompt, tools: [], disallowedTools: [] };
+  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  state.replace(upsertAgentDefinition(state.read(), definition));
+  const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
+  const jiti = createJiti(import.meta.url, { fsCache: false, alias: { './tmux-runner.js': fakePath } });
+  const { createTmuxControl } = await jiti.import<typeof import('../tmux-control.js')>('../tmux-control.ts');
+  const fake = await jiti.import<typeof import('./fixtures/tmux-multiworker-fake.js')>(fakePath);
+  fake.launches.length = 0;
+  const control = createTmuxControl(state, { cwd, trusted: { agentDir, sdkModulePath }, assertAuthority() {}, ids: () => ({ runId: 'run-close', taskId: 'task-close' }) });
+  let worker: ReturnType<typeof fake.fakeWorker> | undefined;
+  try {
+    await preflightTmuxWorkerPolicy(sdkModulePath, input);
+    await assert.rejects(prepareTmuxContinuationPolicy(sdkModulePath, input, () => definition), /autoload|nonlocal/);
+    assert.throws(() => guardedPiPackageMetadata({}), /Unsupported Pi metadata resolver/);
+    const run = control.start({ agent: 'solo', task: 'Return ANSWER=42 only.' });
+    for (let n = 0; n < 500 && !fake.launches.length; n++) await pause(10);
+    assert.equal(fake.launches.length, 1, 'ordinary installed controller Git/local/npm metadata admitted');
+    worker = fake.fakeWorker(fake.launches[0].options.workerId!);
+    fake.launches[0].gate.resolve(worker.handle);
+    for (let n = 0; n < 500 && !worker.calls.prompts; n++) await pause(10);
+    assert.equal(worker.calls.prompts, 1); worker.settle('ANSWER=42'); await control.awaitRun(run.runId!);
+    state.update({ mode: { ...state.read().mode, readOnly: true } });
+    await assert.rejects(control.close(worker.handle.workerId), /read-only/);
+    assert.equal(worker.calls.closes, 0);
+    state.update({ mode: { ...state.read().mode, readOnly: false } });
+    await assert.rejects(control.close(worker.handle.workerId, AbortSignal.abort()), /cancelled/);
+    assert.equal(worker.calls.closes, 0);
+    state.update({ mode: { ...state.read().mode, readOnly: true } });
+    control.dispose(); await pause(0);
+    assert.equal(worker.calls.closes, 1);
+    worker.finishClose(); await control.drain();
+    assert.equal(worker.calls.closes, 1);
+    assert.equal((await control.list()).length, 0);
+    assert.equal(await readFile(join(agentDir, 'settings.json'), 'utf8'), global);
+    assert.equal(await readFile(join(cwd, '.pi/settings.json'), 'utf8'), project);
+  } finally {
+    worker?.finishClose(); control.dispose(); await control.drain();
+    if (home === undefined) delete process.env.HOME; else process.env.HOME = home;
+    await rm(root, { recursive: true, force: true });
+  }
+});
