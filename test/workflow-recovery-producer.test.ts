@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { workflowHash, workflowRecoveryDependencyHash, workflowRecoverySourceContract, workflowUnitHash } from '../workflow-model.js';
 import type { WorkflowDefinition, WorkflowNativePort, WorkflowRun, WorkflowSchema } from '../workflow-model.js';
@@ -9,7 +9,7 @@ const stringSchema: WorkflowSchema = { type: 'string', maxLength: 100 };
 const inputSchema: WorkflowSchema = { type: 'object', properties: { x: stringSchema }, required: ['x'], additionalProperties: false };
 const agent = { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'Do work', model: 'fake/model' } as const;
 const def: WorkflowDefinition = { id: 'producer-v2', version: 2, label: 'Producer', inputSchema, steps: [{ id: 'work', kind: 'native', dependsOn: [], agentId: 'worker', prompt: 'Return JSON string', outputSchema: stringSchema, inputs: { x: { ref: { source: 'inputs', path: ['x'] } } } }] };
-const container = () => createZergStateContainer({ agentDefinitions: { worker: agent }, extensions: {} });
+const container = () => createClankersStateContainer({ agentDefinitions: { worker: agent }, extensions: {} });
 const okPort = (events: string[] = []): WorkflowNativePort => ({ preflight() {}, execute: async req => { events.push('effect'); req.onIdentity({ runId: `native-${req.unitId}`, taskId: `task-${req.unitId}` }); return { status: 'completed', text: JSON.stringify('ok'), identity: { runId: `native-${req.unitId}`, taskId: `task-${req.unitId}` }, cleanupSettled: true }; } });
 const owner = { bootId: 'boot', pid: 123, startTimeTicks: '1', writerSessionId: 'writer', generation: 'gen-1' };
 const recovery = (events: string[] = [], failAfter = -1) => { let writes = 0; return { enabled: true, durablePort: { ensureWriter() { events.push('ensureWriter'); return owner; }, inspectOwner() { events.push('inspectOwner'); return { snapshotFile: 'snapshot.json', lockDir: 'lock', claimDir: 'claim', expectedSnapshotHash: '0'.repeat(64), owner, ownerValid: true, claimPresent: false }; } }, bump() { writes++; if (writes === failAfter) throw new Error('sync durable fault'); } }; };
@@ -130,7 +130,7 @@ test('cancellation after recovery intent remains readonly/no replay on recovery'
 test('restored service does not execute recovered queued/running native work', async () => {
   const events: string[] = [];
   const r = sampleRun('running');
-  const c = createZergStateContainer({ agentDefinitions: { worker: agent }, extensions: { workflows: { version: 1, definitions: [r.definition], runs: [r] } } });
+  const c = createClankersStateContainer({ agentDefinitions: { worker: agent }, extensions: { workflows: { version: 1, definitions: [r.definition], runs: [r] } } });
   const service = createWorkflowService(c, okPort(events), { recovery: recovery(events) });
   assert.equal(service.get('run1')!.status, 'needs-attention');
   await Promise.resolve();

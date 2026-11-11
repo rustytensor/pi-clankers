@@ -1,7 +1,8 @@
 import { readNativeHistory } from './native-history.js';
-import type { ZergNativeSessionReference } from './types.js';
+import { normalizeCustomType } from './legacy-names.js';
+import type { ClankersNativeSessionReference } from './types.js';
 
-export type NativeTranscriptKey = Pick<ZergNativeSessionReference, 'parentRunId' | 'memberRunId' | 'piSessionId'>;
+export type NativeTranscriptKey = Pick<ClankersNativeSessionReference, 'parentRunId' | 'memberRunId' | 'piSessionId'>;
 export type NativeTranscriptBlock = {
   id: string; entryId?: string; kind: 'text' | 'thinking' | 'tool' | 'event'; role?: string;
   text: string; toolCallId?: string; parentToolCallId?: string; toolName?: string;
@@ -84,7 +85,7 @@ function messageBlocks(message: unknown, id: string, entryId?: string): NativeTr
 }
 function entryBlocks(entry: Record<string, any>): NativeTranscriptBlock[] {
   if (entry.type === 'message') return messageBlocks(entry.message, entry.id, entry.id);
-  if (entry.type === 'custom_message' && entry.customType === 'pi-zerg-swarm/operator/v1') {
+  if (entry.type === 'custom_message' && normalizeCustomType(entry.customType) === 'pi-clankers/operator/v1') {
     // Whitelist content only. Details, signatures and opaque custom payloads
     // remain omitted, including in validated saved history.
     return messageBlocks({ role: 'custom', content: entry.content }, entry.id, entry.id);
@@ -150,12 +151,12 @@ function unavailable(key: NativeTranscriptKey, diagnostic: string): NativeTransc
 function inertHandle(snapshot: NativeTranscriptReadHandle['getSnapshot']): NativeTranscriptReadHandle {
   return { getSnapshot: snapshot, subscribe: () => () => undefined, dispose() {} };
 }
-export function createNativeTranscriptService(options: { getReferences: () => ZergNativeSessionReference[]; agentDir?: string }) {
+export function createNativeTranscriptService(options: { getReferences: () => ClankersNativeSessionReference[]; agentDir?: string }) {
   type Collector = { snapshot(selection?: { leafId?: string | null }): NativeTranscriptSnapshot; listeners: Set<() => void>; release(): void };
   const collectors = new Map<string, Collector>();
   const handles = new Set<() => void>();
   let stopped = false, loads = 0;
-  const list = (parentRunId?: string): ZergNativeSessionReference[] => {
+  const list = (parentRunId?: string): ClankersNativeSessionReference[] => {
     try { return options.getReferences().filter((ref) => !parentRunId || ref.parentRunId === parentRunId).map((ref) => ({ ...ref })); }
     catch { return []; }
   };
@@ -177,7 +178,7 @@ export function createNativeTranscriptService(options: { getReferences: () => Ze
       }, dispose,
     };
   }
-  function register(ref: ZergNativeSessionReference, facade: NativeTranscriptReadFacade): () => void {
+  function register(ref: ClankersNativeSessionReference, facade: NativeTranscriptReadFacade): () => void {
     if (stopped || collectors.size >= LIMIT.owners) return () => undefined;
     const key = copyKey(ref), identity = keyOf(key);
     collectors.get(identity)?.release();
@@ -350,7 +351,7 @@ export function createNativeTranscriptService(options: { getReferences: () => Ze
   };
 }
 
-async function readSaved(ref: ZergNativeSessionReference, agentDir?: string, signal?: AbortSignal): Promise<Data> {
+async function readSaved(ref: ClankersNativeSessionReference, agentDir?: string, signal?: AbortSignal): Promise<Data> {
   const history = await readNativeHistory(ref, { agentDir, signal });
   return normalize(history.entries, history.entries.at(-1)?.id ?? null);
 }

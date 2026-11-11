@@ -7,6 +7,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-10
+
+### Changed (breaking)
+- The project is renamed to **Clankers**. Every earlier name is removed from commands, tools, executables, source identifiers, storage keys, environment variables and file names. Only the one-time conversion module `legacy-names.ts` still contains the old names, to read data written before 2.0.0.
+- The aliases `/zerg-swarm` and `/swarm`, the `zerg` command, and the `zerg_control` tool alias are removed. `/clankers` and `/clank` are the only commands; `clankers_control` is the only control tool.
+- The `pi-zerg-automation` executable alias and the `swarm` package keyword are removed; `pi-clankers-automation` is the only executable.
+- Renamed artwork: `docs/assets/swarm-hero.svg` and `docs/assets/swarm-logo.svg` are now `clankers-hero.svg` and `clankers-logo.svg`.
+
+### Added
+- One-time conversion of data saved under the old names, written under the new names on first load. The old files are left untouched: the default project snapshot, shared-state extension keys inside any loaded snapshot, the old controller/requester/resolver value, Pi session metadata entry types, and the UI preferences file.
+
+### Old to new names
+
+| Kind | Before 2.0.0 | From 2.0.0 |
+| --- | --- | --- |
+| Slash commands | `/zerg`, `/zerg-swarm`, `/swarm` | `/clankers` (and `/clank`) |
+| Control tool | `zerg_control` (alias of `clankers_control`) | `clankers_control` |
+| Executable | `pi-zerg-automation` | `pi-clankers-automation` |
+| Extension entry point | `registerZergSwarmExtension` | `registerClankersExtension` |
+| Default snapshot | `<project>/.pi/zerg-swarm/v1/state.json` | `<project>/.pi/clankers/v1/state.json` |
+| UI preferences | `<agent dir>/zerg-swarm/ui.json` | `<agent dir>/clankers/ui.json` |
+| Tmux worker runtime directory | `<agent dir>/zerg-swarm/tmux` | `<agent dir>/clankers/tmux` |
+| State keys | `zergControl`, `zergPersistence`, `zergPermissions`, `zergLogs`, `zergSessionMessages` | `clankersControl`, `clankersPersistence`, `clankersPermissions`, `clankersLogs`, `clankersSessionMessages` |
+| Controller / requester / resolver value | `zerg` | `clankers` |
+| New run id prefix | `zerg-` | `clankers-` (existing `zerg-` run ids still load) |
+| Pi session entry types | `pi-zerg-swarm/native-session/v1`, `native-ancestor-session`, `native-continuation`, `native-ancestor-continuation`, `operator`, `agent-result` (all `/v1`) | `pi-clankers/...` with the same suffixes |
+| Background activity widget | `pi-zerg-swarm.background-activity` | `pi-clankers.background-activity` |
+| Coding lease directory | `pi-zerg-swarm-coding-leases-<uid>` (temp dir) | `pi-clankers-coding-leases-<uid>` |
+| Managed receipt root marker | `zerg-managed-root.json` | `clankers-managed-root.json` |
+| Test-harness environment variables | `ZERG_WORKFLOW_ACCEPTANCE`, `ZERG_WORKFLOW_SCRIPT_ACCEPTANCE`, `ZERG_WORKFLOW_AUTOMATION_ACCEPTANCE`, `ZERG_BACKGROUND_ACTIVITY_*`, `ZERG_RESULTS_*`, `ZERG_AUTOMATION_*`, `ZERG_OPERATOR_MESSAGE_MODES` | the same names with `CLANKERS_` instead of `ZERG_` |
+| Exported identifiers | `Zerg*`, `ZERG_*`, `zerg*` (for example `createZergControl`, `ZergState`) | `Clankers*`, `CLANKERS_*`, `clankers*` |
+
+### Not converted
+- Durable check receipt roots created by an earlier version (`managed-<hash>` directories with the old marker) are not adopted: finish or discard interrupted checks under the earlier version before upgrading.
+- The temporary coding lease directory and the tmux worker runtime directory are transient and are recreated under the new names.
+
 ## [1.1.32] - 2026-11-06
 
 ### Added

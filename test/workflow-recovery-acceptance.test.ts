@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 // Parent review opt-in ONLY. Skips explicitly are not passing acceptance.
-const approved = process.env.ZERG_WORKFLOW_ACCEPTANCE === 'parent-approved';
+const approved = process.env.CLANKERS_WORKFLOW_ACCEPTANCE === 'parent-approved';
 const loader = createRequire(import.meta.url).resolve('tsx');
 const safetyUrl = new URL('./fixtures/host-fixture-safety.mjs', import.meta.url).href;
 const driver = fileURLToPath(new URL('./fixtures/workflow-recovery-sdk-acceptance.mjs', import.meta.url));
@@ -16,12 +16,12 @@ const pinnedPi = join(homedir(), '.pi/agent/install/releases/1.0.2/node_modules/
 
 for (const mode of ['sdk', 'regular', 'fullscreen']) {
   test(`actual native recovery acceptance: ${mode}`, {
-    skip: approved ? false : 'requires integrating-parent review and ZERG_WORKFLOW_ACCEPTANCE=parent-approved; NOT acceptance passed',
+    skip: approved ? false : 'requires integrating-parent review and CLANKERS_WORKFLOW_ACCEPTANCE=parent-approved; NOT acceptance passed',
     timeout: 200_000,
   }, async () => {
     assert(existsSync(join(pinnedPi, 'package.json')), 'Installed Pi 1.0.2 required; never install or fall back');
     const safety = await import(safetyUrl);
-    const root = mkdtempSync(join(tmpdir(), 'zerg-recovery-acceptance-' + mode + '-'));
+    const root = mkdtempSync(join(tmpdir(), 'clankers-recovery-acceptance-' + mode + '-'));
     safety.assertAncestorIsolation(root); mkdirSync(join(root, 'work')); mkdirSync(join(root, 'evidence'));
     const identity = lstatSync(root);
     writeFileSync(join(root, 'evidence/parent-approval.json'), JSON.stringify({ guard: 'parent-approved', root, uid: identity.uid, dev: identity.dev, ino: identity.ino }), { flag: 'wx', mode: 0o600 });

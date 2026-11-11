@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import type { WorkflowDefinition, WorkflowNativePort, WorkflowNativeRequest, WorkflowSchema } from '../workflow-model.js';
 
@@ -42,7 +42,7 @@ test('simulated dead owner with original PID alive cannot prove interrupted nati
   const calls = { ensureWriter: 0, inspectOwner: 0, previous: 0 };
   let currentOwner: typeof oldOwner | undefined = oldOwner;
   const durable = { ensureWriter: () => { calls.ensureWriter++; return oldOwner; }, inspectOwner: () => { calls.inspectOwner++; return { snapshotFile: 's', lockDir: 'l', claimDir: 'c', claimPresent: false, ownerValid: true, ...(currentOwner ? { owner: currentOwner } : {}) }; }, inspectPreviousOwner: (e: any) => { calls.previous++; assert.deepEqual(e, oldOwner); return 'dead' as const; } };
-  const container = createZergStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'writer', model: 'fake/model', permissionMode: 'inherit' } } });
+  const container = createClankersStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'writer', model: 'fake/model', permissionMode: 'inherit' } } });
   const svc = createWorkflowService(container, port, { idFactory: () => `wf-${Math.random().toString(16).slice(2)}`, recovery: { enabled: true, durablePort: durable }, coding: { enabled: true, projectRoot: root, stagingParent: staging, writablePaths: ['src/a.txt'] } });
   t.after(async () => { release(); svc.dispose(); await svc.drain().catch(() => {}); rmSync(root, { recursive: true, force: true }); rmSync(staging, { recursive: true, force: true }); });
   assert.equal((await svc.execute({ action: 'workflows.define', definition: def })).ok, true);

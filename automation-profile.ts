@@ -3,7 +3,7 @@ import { constants, openSync, closeSync, fstatSync, readSync, readlinkSync } fro
 import type { Stats } from 'node:fs';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
-import type { ZergAgentDefinition } from './types.js';
+import type { ClankersAgentDefinition } from './types.js';
 import { freezeWorkflowData, normalizeWorkflowAgent, validateWorkflowDefinition, validateWorkflowValue, workflowHash, workflowJson } from './workflow-model.js';
 import type { WorkflowDefinition, WorkflowJson, WorkflowRunStatus, WorkflowStep } from './workflow-model.js';
 
@@ -20,7 +20,7 @@ export interface AutomationProfileV1 {
   version: 1; id: string; enabled: boolean; approvedProfileHash: string;
   projectRoot: string; snapshotFile: string; agentDir: string; sessionDir: string;
   definition: WorkflowDefinition; definitionId: string; definitionHash: string; fixedInputs: WorkflowJson;
-  readPaths: string[]; agents: ZergAgentDefinition[];
+  readPaths: string[]; agents: ClankersAgentDefinition[];
   modelPolicy: { provider: string; id: string; thinkingLevel: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' };
   credentialSourceRef: { kind: 'env'; name: string }; modelConfigFile: null | { path: string; sha256: string };
   limits: AutomationLimits;
@@ -124,7 +124,7 @@ function structuralProfile(value: unknown): AutomationProfileV1 {
   }
   insist(Array.isArray(v.agents) && v.agents.length >= 1 && v.agents.length <= 16, 'agent-bound');
   const agents = v.agents.map(a => {
-    const agent = normalizeWorkflowAgent(a as ZergAgentDefinition);
+    const agent = normalizeWorkflowAgent(a as ClankersAgentDefinition);
     insist(identifier(agent.id) && agent.label.length > 0 && agent.prompt.length > 0 && ['builtin', 'user', 'project', 'runtime'].includes(agent.source), 'invalid-agent');
     insist(agent.model === `${policy.provider}/${policy.id}:${policy.thinkingLevel}` && agent.permissionMode === 'inherit' &&
       Array.isArray(agent.tools) && agent.tools.length === 1 && agent.tools[0] === 'read' &&

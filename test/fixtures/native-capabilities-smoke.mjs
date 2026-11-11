@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const dir = mkdtempSync(join(tmpdir(), 'zerg-capabilities-host-'));
+const dir = mkdtempSync(join(tmpdir(), 'clankers-capabilities-host-'));
 const agentDir = join(dir, 'agent');
 mkdirSync(agentDir);
 process.env.PI_CODING_AGENT_DIR = agentDir;
@@ -45,20 +45,20 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { fixture: { api: 'openai-completions', baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: 'dummy-local-only', models: ['ok', 'lead', 'a', 'b'].map((id) => ({ id, reasoning: false, input: ['text'], contextWindow: 32768, maxTokens: 128 })) } } }));
 writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ defaultProvider: 'fixture', defaultModel: 'ok', packages: [] }));
 mkdirSync(join(dir, '.pi', 'extensions'), { recursive: true });
-writeFileSync(join(dir, '.pi', 'extensions', 'count-session-start.js'), "export default function(pi) { globalThis.__zergCapabilityFactories = (globalThis.__zergCapabilityFactories || 0) + 1; pi.on('session_start', () => { globalThis.__zergCapabilitySessionStarts = (globalThis.__zergCapabilitySessionStarts || 0) + 1; }); }");
+writeFileSync(join(dir, '.pi', 'extensions', 'count-session-start.js'), "export default function(pi) { globalThis.__clankersCapabilityFactories = (globalThis.__clankersCapabilityFactories || 0) + 1; pi.on('session_start', () => { globalThis.__clankersCapabilitySessionStarts = (globalThis.__clankersCapabilitySessionStarts || 0) + 1; }); }");
 
 const deadline = setTimeout(() => { console.error('Global capabilities smoke timeout'); process.exit(1); }, 60_000);
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const controls = [];
 let registration;
 
 function observeSessionStarts() {
-  sessionStarts = globalThis.__zergCapabilitySessionStarts || 0;
+  sessionStarts = globalThis.__clankersCapabilitySessionStarts || 0;
   return sessionStarts;
 }
 async function makeControl(options) {
-  const control = zerg.createZergControl({}, options);
+  const control = clankers.createClankersControl({}, options);
   controls.push(control);
   return control;
 }
@@ -72,7 +72,7 @@ async function show(control, runId) {
 async function expectRejected(control, action, expected, { background = false, execute } = {}) {
   const beforeRequests = requests.length;
   const beforeStarts = observeSessionStarts();
-  const beforeFactories = globalThis.__zergCapabilityFactories || 0;
+  const beforeFactories = globalThis.__clankersCapabilityFactories || 0;
   const result = await (execute ?? ((request) => control.execute(request)))({ ...action, background });
   assert(result.runId, JSON.stringify(result));
   if (!background) {
@@ -89,7 +89,7 @@ async function expectRejected(control, action, expected, { background = false, e
   assert.match(failureText, expected);
   assert.equal(requests.length, beforeRequests, `provider request leaked for ${expected}`);
   assert.equal(observeSessionStarts(), beforeStarts, `session_start leaked for ${expected}`);
-  assert.equal(globalThis.__zergCapabilityFactories || 0, beforeFactories, `extension factory loaded for ${expected}`);
+  assert.equal(globalThis.__clankersCapabilityFactories || 0, beforeFactories, `extension factory loaded for ${expected}`);
   assert.equal(existsSync(join(dir, 'coord', result.runId)), false, 'preflight must precede coordination directory creation');
   assert.equal(control.getState().tasks[result.taskId]?.status, 'failed');
   assert((run.metadata?.errorSummary?.length ?? Infinity) < 512, 'capability diagnostic must be bounded');
@@ -182,7 +182,7 @@ try {
       for (const fn of listeners.get(name) ?? []) fn(data);
     },
   };
-  registration = zerg.registerZergSwarmExtension({ events, registerCommand(name, command) { if (name === 'zerg') slashHandler = command.handler; }, registerTool(tool) { if (tool.name === 'zerg_control') registeredTool = tool; } });
+  registration = clankers.registerClankersExtension({ events, registerCommand(name, command) { if (name === 'clankers') slashHandler = command.handler; }, registerTool(tool) { if (tool.name === 'clankers_control') registeredTool = tool; } });
   assert((await registration.control.execute({ action: 'agents.create', id: 'bridge', prompt: 'No tools.', tools: [], model: 'fixture/ok' })).ok);
   start = requests.length;
   const bridged = await registration.control.execute({ action: 'run', agent: 'bridge', task: 'bridge keeps capability request', background: true, launchMode: 'fork', maxTurns: 6, fallbackModels: ['fixture/a'] });
@@ -197,7 +197,7 @@ try {
 
   acknowledge = false;
   const bridgeStarts = observeSessionStarts();
-  const bridgeFactories = globalThis.__zergCapabilityFactories || 0;
+  const bridgeFactories = globalThis.__clankersCapabilityFactories || 0;
   for (const options of [{ launchMode: 'fork' }, { maxTurns: 1 }, { fallbackModels: ['fixture/b'] }]) {
     await expectRejected(registration.control, { action: 'run', agent: 'bridge', task: 'native fallback rejects capability', ...options }, /unsupported capability/, { background: true });
     await expectRejected(registration.control, { action: 'run', agent: 'bridge', task: 'foreground tool native rejection', ...options }, /unsupported capability/, {
@@ -233,7 +233,7 @@ try {
   await sleep(180);
   assert.equal(requests.length, start);
   assert.equal(observeSessionStarts(), bridgeStarts);
-  assert.equal(globalThis.__zergCapabilityFactories || 0, bridgeFactories);
+  assert.equal(globalThis.__clankersCapabilityFactories || 0, bridgeFactories);
   console.log('PASS native fallback foreground tool/slash/background rejection and cancellation before startup');
   const validBridge = await registration.control.execute({ action: 'run', agent: 'bridge', task: 'supported fresh native fallback' });
   assert.equal(validBridge.ok, true, JSON.stringify(validBridge));

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { setImmediate as tick } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { createJiti } from 'jiti';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 import { AGENT_RESULTS_KEY, type AgentResultLedger } from '../agent-results.js';
 
 const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
@@ -17,7 +17,7 @@ async function until(check: () => boolean) {
 }
 test('controller preserves full large result, exact live output, frozen reporting policy and observed metrics', async () => {
   fake.launches.length = 0;
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   const definition = { id: 'fixture', label: 'Fixture', source: 'user' as const, prompt: 'Synthetic only.', tools: [], model: 'fixture/fixed', may_write: ['src/**'] };
   state.replace(upsertAgentDefinition(state.read(), definition));
   const control = createTmuxControl(state, { cwd: '/unused', trusted: { sdkModulePath: '/unused/sdk.js', agentDir: '/unused/agent' }, ids: () => ({ runId: 'r', taskId: 't' }), assertAuthority() {} });

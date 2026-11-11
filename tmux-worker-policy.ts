@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { existsSync, lstatSync } from 'node:fs';
 import { guardedPiPackageMetadata, type PiPackageMetadataEntry } from './internal-patch.js';
 import { captureTmuxPolicySnapshot, type TmuxPolicySnapshotInput } from './tmux-policy-snapshot.js';
-import type { ZergAgentDefinition } from './types.js';
+import type { ClankersAgentDefinition } from './types.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AgentSession, AgentSessionServices, ExtensionFactory, ModelRuntime, ResourceLoader, SettingsManager } from '@earendil-works/pi-coding-agent';
 import { parseTmuxMaxTurns, parseTmuxModelSpec, tmuxModelCandidates, tmuxModelDigest, parseTmuxModelSelection, type TmuxModelSelection, type TmuxWorkerConfig } from './tmux-worker-config.js';
@@ -55,7 +55,7 @@ export function attestTmuxModelSelection(catalog: Pick<ModelRuntime, 'getError' 
   const frozen = parseTmuxModelSelection(expected);
   if (!isDeepStrictEqual(selectTmuxModel(catalog, frozen.candidates), frozen)) throw new Error('Child model selection attestation failed');
 }
-const CONTROLLERS = new Set(['pi-clankers', 'pi-zerg-swarm']);
+const CONTROLLERS = new Set(['pi-clankers']);
 const MAX_RESOURCES = 512;
 async function smallFile(path: string): Promise<string | undefined> {
   try {
@@ -318,7 +318,7 @@ export async function createTmuxWorkerPolicy(sdk: SDK, config: TmuxWorkerConfig,
 
 /** Metadata-only preparation for the exact-file continuation subset. Raw original
  * settings are hashed, never the rewritten copy alone. No factories or installs. */
-export async function prepareTmuxContinuationPolicy(sdkModulePath: string, config: TmuxWorkerPolicyInput, currentDefinition: () => ZergAgentDefinition) {
+export async function prepareTmuxContinuationPolicy(sdkModulePath: string, config: TmuxWorkerPolicyInput, currentDefinition: () => ClankersAgentDefinition) {
   const loaderEnvironment = JSON.stringify([process.env.HOME, process.env.PI_CODING_AGENT_DIR, process.env.PI_PACKAGE_DIR]);
   const sdkRoot = dirname(dirname(sdkModulePath));
   const sdkPackage = JSON.parse(await smallFile(join(sdkRoot, 'package.json')) ?? '{}');

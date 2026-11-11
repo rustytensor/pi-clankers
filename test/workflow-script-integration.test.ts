@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 // Exact opt-in is a review gate, not a claim that skipped tests passed.
-const approved = process.env.ZERG_WORKFLOW_SCRIPT_ACCEPTANCE === 'parent-approved';
+const approved = process.env.CLANKERS_WORKFLOW_SCRIPT_ACCEPTANCE === 'parent-approved';
 const safetyURL = new URL('./fixtures/host-fixture-safety.mjs', import.meta.url).href;
 const driver = fileURLToPath(new URL('./fixtures/workflow-script-sdk-acceptance.mjs', import.meta.url));
 const controller = fileURLToPath(new URL('./fixtures/workflow-script-host-pty.py', import.meta.url));
@@ -14,12 +14,12 @@ const pinnedPi = join(homedir(), '.pi/agent/install/releases/1.0.2/node_modules/
 
 for (const mode of ['sdk', 'regular', 'fullscreen', 'packed']) {
   test(`restricted script actual isolated acceptance: ${mode}`, {
-    skip: approved ? false : 'requires parent fixture review and ZERG_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved; NOT acceptance passed',
+    skip: approved ? false : 'requires parent fixture review and CLANKERS_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved; NOT acceptance passed',
     timeout: 200_000,
   }, async () => {
     assert(existsSync(join(pinnedPi, 'package.json')), 'Pinned installed Pi 1.0.2 required; no install/fallback');
     const safety = await import(safetyURL);
-    const root = mkdtempSync(join(tmpdir(), `zerg-script-acceptance-${mode}-`));
+    const root = mkdtempSync(join(tmpdir(), `clankers-script-acceptance-${mode}-`));
     safety.assertAncestorIsolation(root);
     mkdirSync(join(root, 'work')); mkdirSync(join(root, 'evidence'));
     const identity = lstatSync(root);

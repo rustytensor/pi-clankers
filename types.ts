@@ -17,19 +17,19 @@ export interface TrustedAutomationNativeContext {
 }
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
-export const ZERG_COMMANDS = ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm'] as const;
-export const ZERG_EXTENSION_VERSION = '1.1.32' as const;
-export type ZergCommandName = (typeof ZERG_COMMANDS)[number];
-export const ZERG_COMMAND_INVOCATIONS = ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm'] as const;
-export type ZergCommandInvocation = (typeof ZERG_COMMAND_INVOCATIONS)[number];
+export const CLANKERS_COMMANDS = ['clankers', 'clank'] as const;
+export const CLANKERS_EXTENSION_VERSION = '2.0.0' as const;
+export type ClankersCommandName = (typeof CLANKERS_COMMANDS)[number];
+export const CLANKERS_COMMAND_INVOCATIONS = ['/clankers', '/clank'] as const;
+export type ClankersCommandInvocation = (typeof CLANKERS_COMMAND_INVOCATIONS)[number];
 export type AgentKind = 'subagent' | 'teammate' | 'team-leader';
 export type TeamKind = 'team' | 'squad' | 'worktree';
 export type AgentStatus = 'idle' | 'running' | 'blocked' | 'needs-attention' | 'done' | 'failed' | 'cancelled';
 export type TaskStatus = AgentStatus;
 export type AutomationMode = 'manual' | 'assisted' | 'automatic';
-export type ZergMode = AutomationMode;
-export type ZergRuntimeTransitionAction = 'create' | 'start' | 'progress' | 'stop' | 'fail' | 'reset';
-export type ZergLifecycleSubstate =
+export type ClankersMode = AutomationMode;
+export type ClankersRuntimeTransitionAction = 'create' | 'start' | 'progress' | 'stop' | 'fail' | 'reset';
+export type ClankersLifecycleSubstate =
   | 'queued'
   | 'spawning'
   | 'starting'
@@ -47,43 +47,43 @@ export type ZergLifecycleSubstate =
   | 'failed'
   | 'cancelled'
   | 'reset';
-export type ZergRuntimeHealth = 'unknown' | 'healthy' | 'degraded' | 'blocked' | 'failed' | 'stopped';
-export type ZergRuntimeEntity = 'agent' | 'team';
+export type ClankersRuntimeHealth = 'unknown' | 'healthy' | 'degraded' | 'blocked' | 'failed' | 'stopped';
+export type ClankersRuntimeEntity = 'agent' | 'team';
 export type ThinkingStepStatus = 'todo' | 'running' | 'blocked' | 'done' | 'failed' | 'unknown';
-export type ZergContextKind = 'command' | 'extension' | 'team' | 'agent' | 'task';
-export type ZergTreeNodeKind = 'agent' | 'task' | 'team';
-export type ZergLifecycleState = 'initializing' | 'ready' | 'resetting' | 'disposed';
-export type ZergAgentDefinitionSource = 'builtin' | 'project' | 'user' | 'runtime';
-export type ZergSubagentLaunchMode = 'fresh' | 'fork';
-export type ZergPermissionRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled' | 'expired';
-export type ZergPermissionDecision = 'approve' | 'deny' | 'cancel' | 'expire';
-export type ZergPermissionRequestKind = 'run' | 'interrupt' | 'tool' | 'mode' | 'intervention' | 'adapter';
-export type ZergPermissionRequester = 'operator' | 'pi' | 'zerg' | 'adapter';
-export type ZergPermissionResolver = 'operator' | 'pi' | 'zerg';
-export type ZergLogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type ZergLogSource = 'command' | 'adapter' | 'permission' | 'lifecycle' | 'overlay' | 'pi-event';
-export type ZergOutputKind = 'text' | 'json' | 'tool' | 'thinking' | 'result' | 'error';
-export const ZERG_STATE_SCHEMA_VERSION = '0.2.0' as const;
-export type ZergStateSchemaVersion = typeof ZERG_STATE_SCHEMA_VERSION;
+export type ClankersContextKind = 'command' | 'extension' | 'team' | 'agent' | 'task';
+export type ClankersTreeNodeKind = 'agent' | 'task' | 'team';
+export type ClankersLifecycleState = 'initializing' | 'ready' | 'resetting' | 'disposed';
+export type ClankersAgentDefinitionSource = 'builtin' | 'project' | 'user' | 'runtime';
+export type ClankersSubagentLaunchMode = 'fresh' | 'fork';
+export type ClankersPermissionRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled' | 'expired';
+export type ClankersPermissionDecision = 'approve' | 'deny' | 'cancel' | 'expire';
+export type ClankersPermissionRequestKind = 'run' | 'interrupt' | 'tool' | 'mode' | 'intervention' | 'adapter';
+export type ClankersPermissionRequester = 'operator' | 'pi' | 'clankers' | 'adapter';
+export type ClankersPermissionResolver = 'operator' | 'pi' | 'clankers';
+export type ClankersLogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type ClankersLogSource = 'command' | 'adapter' | 'permission' | 'lifecycle' | 'overlay' | 'pi-event';
+export type ClankersOutputKind = 'text' | 'json' | 'tool' | 'thinking' | 'result' | 'error';
+export const CLANKERS_STATE_SCHEMA_VERSION = '0.2.0' as const;
+export type ClankersStateSchemaVersion = typeof CLANKERS_STATE_SCHEMA_VERSION;
 
-export interface ZergExtensionFields {
+export interface ClankersExtensionFields {
   [key: string]: unknown;
 }
 
-export interface ZergContext {
+export interface ClankersContext {
   id: string;
-  kind: ZergContextKind;
+  kind: ClankersContextKind;
   title?: string;
   source?: string;
-  metadata?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
 }
 
-export interface ZergAgentDefinition {
+export interface ClankersAgentDefinition {
   id: string;
   label: string;
   description?: string;
   prompt: string;
-  source: ZergAgentDefinitionSource;
+  source: ClankersAgentDefinitionSource;
   /** Offline draft-07 result validation; does not alter execution authority. */
   result_schema?: import('./agent-results.js').ResultSchema;
   /** Reporting-only relative glob policy, not a sandbox. Absent differs from []. */
@@ -97,36 +97,36 @@ export interface ZergAgentDefinition {
   tools?: string[];
   disallowedTools?: string[];
   permissionMode?: AutomationMode | 'inherit';
-  metadata?: ZergExtensionFields;
-  extensions?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
 export type PermissionModeController = 'operator' | 'automation';
-export type ZergControlController = 'operator' | 'pi' | 'zerg';
+export type ClankersControlController = 'operator' | 'pi' | 'clankers';
 
-export interface ZergControlAuditEntry {
+export interface ClankersControlAuditEntry {
   id: string;
   action: string;
   message: string;
   createdAt: string;
 }
 
-export interface ZergControlState {
-  controller: ZergControlController;
+export interface ClankersControlState {
+  controller: ClankersControlController;
   selectedTargetId?: string;
-  selectedTargetKind?: ZergManagementTargetKind;
+  selectedTargetKind?: ClankersManagementTargetKind;
   selectedRunId?: string;
   activeRunId?: string;
-  auditLog?: ZergControlAuditEntry[];
+  auditLog?: ClankersControlAuditEntry[];
 }
 
-export interface ZergPersistenceOptions {
+export interface ClankersPersistenceOptions {
   enabled?: boolean;
   rootDir?: string;
   snapshotFile?: string;
 }
 
-export interface ZergPersistenceInfo {
+export interface ClankersPersistenceInfo {
   enabled: boolean;
   snapshotFile?: string;
   writerSessionId?: string;
@@ -136,22 +136,22 @@ export interface ZergPersistenceInfo {
   lastLoadError?: string;
 }
 
-export interface ZergRunRecoveryInfo {
+export interface ClankersRunRecoveryInfo {
   recoveredAt: string;
   reason: 'process-restart';
   previousStatus?: AgentStatus;
-  previousSubstate?: ZergLifecycleSubstate;
+  previousSubstate?: ClankersLifecycleSubstate;
   previousWriterSessionId?: string;
 }
 
-export interface ZergSubagentLaunchRequest {
+export interface ClankersSubagentLaunchRequest {
   backend?: 'native' | 'tmux';
   agent: string;
   task: string;
   background?: boolean;
   /** @deprecated Use launchMode: 'fork' instead. */
   fork?: boolean;
-  launchMode?: ZergSubagentLaunchMode;
+  launchMode?: ClankersSubagentLaunchMode;
   runId?: string;
   taskId?: string;
   agentDefinitionId?: string;
@@ -170,23 +170,23 @@ export interface ZergSubagentLaunchRequest {
   maxTurns?: number;
 }
 
-export interface ZergSubagentControlResult {
+export interface ClankersSubagentControlResult {
   ok: boolean;
   runId?: string;
   taskId?: string;
   message: string;
 }
 
-export interface ZergOperatorMessageResult {
+export interface ClankersOperatorMessageResult {
   ok: boolean;
   runId?: string;
   targetId?: string;
   routedTargetId?: string;
-  status: ZergOperatorMessageDeliveryStatus;
+  status: ClankersOperatorMessageDeliveryStatus;
   message: string;
 }
 
-export interface ZergSubagentMemberProgress {
+export interface ClankersSubagentMemberProgress {
   agentId: string;
   runId?: string;
   status: 'queued' | 'starting' | 'running' | 'done' | 'failed' | 'cancelled';
@@ -197,32 +197,32 @@ export interface ZergSubagentMemberProgress {
 }
 
 /** Pi-assigned locator and attachment state, not a transcript durability claim. */
-export type ZergSessionMessageKey = Pick<ZergNativeSessionReference, 'parentRunId' | 'memberRunId' | 'piSessionId'>;
-export interface ZergSessionMessageReceipt {
+export type ClankersSessionMessageKey = Pick<ClankersNativeSessionReference, 'parentRunId' | 'memberRunId' | 'piSessionId'>;
+export interface ClankersSessionMessageReceipt {
   schemaVersion: 1;
   messageId: string;
-  key: ZergSessionMessageKey;
+  key: ClankersSessionMessageKey;
   body: string;
-  mode: ZergOperatorMessageMode;
+  mode: ClankersOperatorMessageMode;
   status: 'recorded' | 'queued' | 'delivered' | 'failed' | 'needs-attention';
   detail: string;
   createdAt: string;
   updatedAt: string;
   persistence: 'memory' | 'saved' | 'failed';
 }
-export interface ZergSessionMessageInput {
-  key: ZergSessionMessageKey;
+export interface ClankersSessionMessageInput {
+  key: ClankersSessionMessageKey;
   messageId: string;
   body: string;
-  mode: ZergOperatorMessageMode;
+  mode: ClankersOperatorMessageMode;
 }
-export interface ZergSessionMessageResult {
+export interface ClankersSessionMessageResult {
   ok: boolean;
   message: string;
-  receipt?: ZergSessionMessageReceipt;
+  receipt?: ClankersSessionMessageReceipt;
 }
 
-export interface ZergNativeSessionReference {
+export interface ClankersNativeSessionReference {
   schemaVersion: 1;
   parentRunId: string;
   memberRunId: string;
@@ -237,22 +237,22 @@ export interface ZergNativeSessionReference {
 }
 
 /** Read-only durable provenance, never an executable resume/review token. */
-export interface ZergNativeContinuationLineage {
+export interface ClankersNativeContinuationLineage {
   schemaVersion: 1;
-  source: Pick<ZergNativeSessionReference, 'schemaVersion' | 'parentRunId' | 'memberRunId' | 'agentDefinitionId' | 'piSessionId' | 'sessionFile' | 'cwd' | 'createdAt'>;
+  source: Pick<ClankersNativeSessionReference, 'schemaVersion' | 'parentRunId' | 'memberRunId' | 'agentDefinitionId' | 'piSessionId' | 'sessionFile' | 'cwd' | 'createdAt'>;
   entryId: string;
   sourceFingerprint: string;
   policyDigest: string;
   policy: import('./native-continuation.js').NativeContinuationPolicy;
 }
-export interface ZergTimelineFilter {
+export interface ClankersTimelineFilter {
   teamId?: string;
   parentRunId?: string;
   memberRunId?: string;
   piSessionId?: string;
   limit?: number;
 }
-export interface ZergTimelineEntryBase {
+export interface ClankersTimelineEntryBase {
   id: string;
   timestamp?: string;
   timestampMeaning: 'created' | 'recorded' | 'current-update';
@@ -265,26 +265,26 @@ export interface ZergTimelineEntryBase {
   piSessionId?: string;
   agentDefinitionId?: string;
   /** Corroborated full tuple in this owner's current canonical reference ledger. */
-  exactKey?: ZergSessionMessageKey;
+  exactKey?: ClankersSessionMessageKey;
 }
-export type ZergTimelineEntry = ZergTimelineEntryBase & (
-  | { kind: 'operator-receipt'; messageId: string; mode: ZergOperatorMessageMode; status: ZergSessionMessageReceipt['status']; persistence: ZergSessionMessageReceipt['persistence']; updatedAt: string }
+export type ClankersTimelineEntry = ClankersTimelineEntryBase & (
+  | { kind: 'operator-receipt'; messageId: string; mode: ClankersOperatorMessageMode; status: ClankersSessionMessageReceipt['status']; persistence: ClankersSessionMessageReceipt['persistence']; updatedAt: string }
   | { kind: 'native-output'; source: 'log'; sourceId: string }
   | { kind: 'recorded-event'; source: 'log' | 'lifecycle'; sourceId: string; status?: string }
-  | { kind: 'run-snapshot' | 'member-snapshot'; status: string; attachment?: ZergNativeSessionReference['attachment'] }
+  | { kind: 'run-snapshot' | 'member-snapshot'; status: string; attachment?: ClankersNativeSessionReference['attachment'] }
 );
-export interface ZergTimelineSnapshot {
+export interface ClankersTimelineSnapshot {
   schemaVersion: 1;
   revision: number;
-  filter: ZergTimelineFilter;
-  entries: ZergTimelineEntry[];
+  filter: ClankersTimelineFilter;
+  entries: ClankersTimelineEntry[];
   /** Known matching rows omitted within the inspected window, NOT outside it. */
   omittedEntries: number;
   clippedEntries: number;
   limitations: string[];
 }
 
-export interface ZergSubagentRunSnapshot {
+export interface ClankersSubagentRunSnapshot {
   runId: string;
   agentId: string;
   agentDefinitionId?: string;
@@ -292,8 +292,8 @@ export interface ZergSubagentRunSnapshot {
   task?: string;
   status: AgentStatus;
   taskId?: string;
-  launchMode?: ZergSubagentLaunchMode;
-  substate?: ZergLifecycleSubstate;
+  launchMode?: ClankersSubagentLaunchMode;
+  substate?: ClankersLifecycleSubstate;
   substateReason?: string;
   substateUpdatedAt?: string;
   startedAt?: string;
@@ -301,104 +301,104 @@ export interface ZergSubagentRunSnapshot {
   completedAt?: string;
   finalSummary?: string;
   errorSummary?: string;
-  recovery?: ZergRunRecoveryInfo;
-  memberProgress?: ZergSubagentMemberProgress[];
+  recovery?: ClankersRunRecoveryInfo;
+  memberProgress?: ClankersSubagentMemberProgress[];
   /** Read-only projection of the canonical parent metadata.nativeSessions ledger. */
-  nativeSessions?: ZergNativeSessionReference[];
-  nativeContinuation?: ZergNativeContinuationLineage;
-  metadata?: ZergExtensionFields;
+  nativeSessions?: ClankersNativeSessionReference[];
+  nativeContinuation?: ClankersNativeContinuationLineage;
+  metadata?: ClankersExtensionFields;
 }
 
-export interface ZergPermissionRequest {
+export interface ClankersPermissionRequest {
   id: string;
-  kind: ZergPermissionRequestKind;
-  status: ZergPermissionRequestStatus;
+  kind: ClankersPermissionRequestKind;
+  status: ClankersPermissionRequestStatus;
   targetId?: string;
   agentId?: string;
   runId?: string;
-  requester: ZergPermissionRequester;
+  requester: ClankersPermissionRequester;
   summary: string;
   details?: string;
   createdAt: string;
   expiresAt?: string;
   resolvedAt?: string;
-  resolvedBy?: ZergPermissionResolver;
+  resolvedBy?: ClankersPermissionResolver;
   decisionReason?: string;
-  metadata?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
 }
 
-export interface ZergPermissionQueueState {
-  requests: ZergPermissionRequest[];
+export interface ClankersPermissionQueueState {
+  requests: ClankersPermissionRequest[];
   maxRequests: number;
   lastRequestId?: string;
   pendingCount: number;
 }
 
-export interface ZergLogRecord {
+export interface ClankersLogRecord {
   id: string;
   runId?: string;
   agentId?: string;
   taskId?: string;
   teamId?: string;
-  source: ZergLogSource;
-  level: ZergLogLevel;
-  kind: ZergOutputKind;
+  source: ClankersLogSource;
+  level: ClankersLogLevel;
+  kind: ClankersOutputKind;
   message: string;
-  data?: ZergExtensionFields;
+  data?: ClankersExtensionFields;
   sequence?: number;
   createdAt: string;
 }
 
-export interface ZergLogState {
-  records: ZergLogRecord[];
+export interface ClankersLogState {
+  records: ClankersLogRecord[];
   maxRecords: number;
   lastRecordId?: string;
 }
 
-export interface ZergSubagentControlAdapter {
+export interface ClankersSubagentControlAdapter {
   readonly kind: 'pi-native' | 'pi-slash-bridge' | 'fake' | 'unavailable';
   /** Compact owner observation; kind/status/session retention is not execution proof. */
   readonly activity?: import('./activity.js').ActivitySource<import('./activity.js').NativeActivitySnapshot>;
-  launch(request: ZergSubagentLaunchRequest): ZergSubagentControlResult;
-  interrupt?(runId?: string): ZergSubagentControlResult;
-  sendMessage?(targetId: string, body: string, runId?: string, mode?: ZergOperatorMessageMode): ZergOperatorMessageResult | Promise<ZergOperatorMessageResult>;
-  awaitRun?(runId: string): Promise<ZergSubagentRunSnapshot | undefined>;
-  listAgentDefinitions?(): readonly ZergAgentDefinition[];
-  getAgentDefinition?(id: string): ZergAgentDefinition | undefined;
-  listRuns?(): readonly ZergSubagentRunSnapshot[];
-  getRun?(runId: string): ZergSubagentRunSnapshot | undefined;
+  launch(request: ClankersSubagentLaunchRequest): ClankersSubagentControlResult;
+  interrupt?(runId?: string): ClankersSubagentControlResult;
+  sendMessage?(targetId: string, body: string, runId?: string, mode?: ClankersOperatorMessageMode): ClankersOperatorMessageResult | Promise<ClankersOperatorMessageResult>;
+  awaitRun?(runId: string): Promise<ClankersSubagentRunSnapshot | undefined>;
+  listAgentDefinitions?(): readonly ClankersAgentDefinition[];
+  getAgentDefinition?(id: string): ClankersAgentDefinition | undefined;
+  listRuns?(): readonly ClankersSubagentRunSnapshot[];
+  getRun?(runId: string): ClankersSubagentRunSnapshot | undefined;
   dispose?(): void;
 }
 
-export interface ZergControlHelpParameter {
+export interface ClankersControlHelpParameter {
   name: string;
   type: string;
   required: boolean;
   description: string;
 }
 
-export type ZergControlHelpData =
+export type ClankersControlHelpData =
   | {
     version: string;
     kind: 'directory';
-    groups: Array<{ name: string; actions: Array<{ action: ZergControlAction['action']; summary: string; effects: string[] }> }>;
+    groups: Array<{ name: string; actions: Array<{ action: ClankersControlAction['action']; summary: string; effects: string[] }> }>;
     hint: string;
     restrictions: string[];
   }
   | {
     version: string;
     kind: 'action';
-    action: ZergControlAction['action'];
+    action: ClankersControlAction['action'];
     summary: string;
-    parameters: readonly ZergControlHelpParameter[];
+    parameters: readonly ClankersControlHelpParameter[];
     constraints: readonly string[];
     effects: readonly string[];
-    example: ZergControlAction;
+    example: ClankersControlAction;
     restrictions: readonly string[];
   };
 
-export type ZergControlAction =
-  | { action: 'help'; topic?: ZergControlAction['action'] }
+export type ClankersControlAction =
+  | { action: 'help'; topic?: ClankersControlAction['action'] }
   | import('./workflow-script-format.js').WorkflowScriptAction
   | WorkflowAction
   | { action: 'status' }
@@ -417,41 +417,41 @@ export type ZergControlAction =
   | { action: 'tmux.workers.close'; workerId: string }
   | { action: 'tmux.workers.prompt'; workerId: string; task: string; background?: boolean }
   | { action: 'tmux.workers.steer'; workerId: string; runId: string; body: string }
-  | { action: 'run'; backend?: 'native' | 'tmux'; agent: string; task: string; background?: boolean; launchMode?: ZergSubagentLaunchMode; concurrency?: number; model?: string; fallbackModels?: string[]; maxTurns?: number }
+  | { action: 'run'; backend?: 'native' | 'tmux'; agent: string; task: string; background?: boolean; launchMode?: ClankersSubagentLaunchMode; concurrency?: number; model?: string; fallbackModels?: string[]; maxTurns?: number }
   | { action: 'runs.list' }
   | { action: 'runs.show'; runId: string }
-  | ({ action: 'session.message.send'; messageId: string; body: string; mode: ZergOperatorMessageMode } & ZergSessionMessageKey)
-  | ({ action: 'session.messages.list'; limit?: number } & ZergSessionMessageKey)
-  | ({ action: 'timeline.list' } & ZergTimelineFilter)
-  | ({ action: 'session.continuation.prepare'; entryId: string; body: string; model?: string; acknowledgeUnconfirmedSource?: boolean } & ZergSessionMessageKey)
+  | ({ action: 'session.message.send'; messageId: string; body: string; mode: ClankersOperatorMessageMode } & ClankersSessionMessageKey)
+  | ({ action: 'session.messages.list'; limit?: number } & ClankersSessionMessageKey)
+  | ({ action: 'timeline.list' } & ClankersTimelineFilter)
+  | ({ action: 'session.continuation.prepare'; entryId: string; body: string; model?: string; acknowledgeUnconfirmedSource?: boolean } & ClankersSessionMessageKey)
   | { action: 'session.continuation.start'; reviewId: string; confirm: true }
   | { action: 'session.continuation.discard'; reviewId: string }
-  | { action: 'logs.list'; runId?: string; level?: ZergLogLevel; limit?: number }
-  | { action: 'message'; targetId: string; body: string; runId?: string; mode?: ZergOperatorMessageMode }
+  | { action: 'logs.list'; runId?: string; level?: ClankersLogLevel; limit?: number }
+  | { action: 'message'; targetId: string; body: string; runId?: string; mode?: ClankersOperatorMessageMode }
   | { action: 'interrupt'; runId?: string };
 
-export interface ZergControlError {
+export interface ClankersControlError {
   code: string;
   message: string;
 }
 
-export interface ZergControlResult<T = unknown> {
+export interface ClankersControlResult<T = unknown> {
   ok: boolean;
-  action: ZergControlAction['action'];
+  action: ClankersControlAction['action'];
   output?: string;
   data?: T;
   runId?: string;
   taskId?: string;
   agentId?: string;
   teamId?: string;
-  error?: ZergControlError;
+  error?: ClankersControlError;
   stateRevision?: number;
 }
 
-export interface ZergControl {
-  execute(action: ZergControlAction, signal?: AbortSignal): Promise<ZergControlResult>;
-  getState(): ZergState;
-  /** Trusted host-only workflow approval API; not exposed through zerg_control actions. */
+export interface ClankersControl {
+  execute(action: ClankersControlAction, signal?: AbortSignal): Promise<ClankersControlResult>;
+  getState(): ClankersState;
+  /** Trusted host-only workflow approval API; not exposed through clankers_control actions. */
   readonly workflowApprovals?: import('./workflow-model.js').WorkflowTrustedApprovalApi;
   /** Trusted host-only exact recovery confirmation; never a model/tool or slash
    * JSON grant. May activate selected readonly work; fresh coding gates stay separate. */
@@ -481,7 +481,7 @@ export interface PermissionModeSnapshot {
   readOnly?: boolean;
 }
 
-export interface ZergRuntimeModeContext {
+export interface ClankersRuntimeModeContext {
   automation: AutomationMode;
   interventionEnabled: boolean;
   controller: PermissionModeController;
@@ -490,7 +490,7 @@ export interface ZergRuntimeModeContext {
   readOnly?: boolean;
 }
 
-export interface ZergRuntimeState {
+export interface ClankersRuntimeState {
   createdAt: string;
   updatedAt: string;
   startedAt?: string;
@@ -499,29 +499,29 @@ export interface ZergRuntimeState {
   lastActivity?: string;
   lastActivitySequence?: number;
   lastActivityRevision?: number;
-  substate?: ZergLifecycleSubstate;
+  substate?: ClankersLifecycleSubstate;
   substateReason?: string;
   substateUpdatedAt?: string;
-  health: ZergRuntimeHealth;
-  mode: ZergRuntimeModeContext;
+  health: ClankersRuntimeHealth;
+  mode: ClankersRuntimeModeContext;
 }
 
-interface ZergRuntimeTransitionBase {
-  action: ZergRuntimeTransitionAction;
+interface ClankersRuntimeTransitionBase {
+  action: ClankersRuntimeTransitionAction;
   id: string;
   label?: string;
   status?: AgentStatus;
-  health?: ZergRuntimeHealth;
+  health?: ClankersRuntimeHealth;
   activity?: string;
-  substate?: ZergLifecycleSubstate;
+  substate?: ClankersLifecycleSubstate;
   substateReason?: string;
   at?: string;
-  mode?: Partial<ZergRuntimeModeContext>;
+  mode?: Partial<ClankersRuntimeModeContext>;
   contextId?: string;
-  metadata?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
 }
 
-export interface ZergAgentRuntimeTransition extends ZergRuntimeTransitionBase {
+export interface ClankersAgentRuntimeTransition extends ClankersRuntimeTransitionBase {
   entity: 'agent';
   kind?: AgentKind;
   parentId?: string;
@@ -533,7 +533,7 @@ export interface ZergAgentRuntimeTransition extends ZergRuntimeTransitionBase {
   taskIds?: never;
 }
 
-export interface ZergTeamRuntimeTransition extends ZergRuntimeTransitionBase {
+export interface ClankersTeamRuntimeTransition extends ClankersRuntimeTransitionBase {
   entity: 'team';
   kind?: TeamKind;
   leaderAgentId?: string;
@@ -545,7 +545,7 @@ export interface ZergTeamRuntimeTransition extends ZergRuntimeTransitionBase {
   teamId?: never;
 }
 
-export type ZergRuntimeTransition = ZergAgentRuntimeTransition | ZergTeamRuntimeTransition;
+export type ClankersRuntimeTransition = ClankersAgentRuntimeTransition | ClankersTeamRuntimeTransition;
 
 export interface AgentIdentity {
   id: string;
@@ -556,9 +556,9 @@ export interface AgentIdentity {
   teamId?: string;
   childIds?: string[];
   contextId?: string;
-  runtime?: ZergRuntimeState;
-  metadata?: ZergExtensionFields;
-  extensions?: ZergExtensionFields;
+  runtime?: ClankersRuntimeState;
+  metadata?: ClankersExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
 export interface TeamIdentity {
@@ -570,9 +570,9 @@ export interface TeamIdentity {
   memberAgentIds: string[];
   parentTeamId?: string;
   taskIds?: string[];
-  runtime?: ZergRuntimeState;
-  metadata?: ZergExtensionFields;
-  extensions?: ZergExtensionFields;
+  runtime?: ClankersRuntimeState;
+  metadata?: ClankersExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
 export interface TaskRecord {
@@ -584,12 +584,12 @@ export interface TaskRecord {
   parentId?: string;
   blockedBy?: string[];
   contextId?: string;
-  substate?: ZergLifecycleSubstate;
+  substate?: ClankersLifecycleSubstate;
   substateReason?: string;
   substateUpdatedAt?: string;
   updatedAt: string;
-  metadata?: ZergExtensionFields;
-  extensions?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
 export interface HookLifecycleEvent {
@@ -597,11 +597,11 @@ export interface HookLifecycleEvent {
   type: 'agent' | 'task' | 'team' | 'tree' | 'hook' | 'permission' | 'mode' | 'state' | 'log';
   message: string;
   status?: AgentStatus | TaskStatus | ThinkingStepStatus;
-  action?: ZergRuntimeTransitionAction;
-  health?: ZergRuntimeHealth;
-  substate?: ZergLifecycleSubstate;
+  action?: ClankersRuntimeTransitionAction;
+  health?: ClankersRuntimeHealth;
+  substate?: ClankersLifecycleSubstate;
   substateReason?: string;
-  mode?: ZergRuntimeModeContext;
+  mode?: ClankersRuntimeModeContext;
   intervention?: PermissionModeIntervention;
   previousMode?: PermissionModeSnapshot;
   sequence?: number;
@@ -637,9 +637,9 @@ export interface PermissionModeInterventionInput {
   message: string;
 }
 
-export interface ZergTreeNode {
+export interface ClankersTreeNode {
   id: string;
-  kind: ZergTreeNodeKind;
+  kind: ClankersTreeNodeKind;
   label: string;
   status?: AgentStatus | TaskStatus;
   refId?: string;
@@ -647,52 +647,52 @@ export interface ZergTreeNode {
   childIds: string[];
   ownerAgentId?: string;
   teamId?: string;
-  metadata?: ZergExtensionFields;
-  extensions?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
-export interface ZergStateMetadata {
+export interface ClankersStateMetadata {
   createdAt: string;
   updatedAt: string;
   resetCount: number;
   source?: string;
   labels?: Record<string, string>;
-  extensions?: ZergExtensionFields;
+  extensions?: ClankersExtensionFields;
 }
 
-export interface ZergState {
-  schemaVersion: ZergStateSchemaVersion;
-  lifecycle: ZergLifecycleState;
+export interface ClankersState {
+  schemaVersion: ClankersStateSchemaVersion;
+  lifecycle: ClankersLifecycleState;
   revision: number;
-  metadata: ZergStateMetadata;
+  metadata: ClankersStateMetadata;
   agents: Record<string, AgentIdentity>;
   tasks: Record<string, TaskRecord>;
   teams: Record<string, TeamIdentity>;
-  tree: Record<string, ZergTreeNode>;
+  tree: Record<string, ClankersTreeNode>;
   events: HookLifecycleEvent[];
   selectedNodeId?: string;
   mode: PermissionModeState;
-  context?: ZergContext;
-  extensions: ZergExtensionFields;
-  agentDefinitions: Record<string, ZergAgentDefinition>;
+  context?: ClankersContext;
+  extensions: ClankersExtensionFields;
+  agentDefinitions: Record<string, ClankersAgentDefinition>;
 }
 
-export interface ZergStateUpdateOptions {
-  lifecycle?: ZergLifecycleState;
+export interface ClankersStateUpdateOptions {
+  lifecycle?: ClankersLifecycleState;
   updatedAt?: string;
   preserveRevision?: boolean;
 }
 
-export type ZergStatePatch = Partial<ZergState> | ((state: ZergState) => Partial<ZergState> | ZergState);
+export type ClankersStatePatch = Partial<ClankersState> | ((state: ClankersState) => Partial<ClankersState> | ClankersState);
 
-export type ZergStateListener = (state: ZergState) => void;
+export type ClankersStateListener = (state: ClankersState) => void;
 
-export interface ZergStateContainer {
-  read(): ZergState;
-  snapshot(): ZergState;
-  replace(nextState?: Partial<ZergState>): ZergState;
-  update(patch: ZergStatePatch, options?: ZergStateUpdateOptions): ZergState;
-  subscribe?(listener: ZergStateListener): () => void;
+export interface ClankersStateContainer {
+  read(): ClankersState;
+  snapshot(): ClankersState;
+  replace(nextState?: Partial<ClankersState>): ClankersState;
+  update(patch: ClankersStatePatch, options?: ClankersStateUpdateOptions): ClankersState;
+  subscribe?(listener: ClankersStateListener): () => void;
 }
 
 export interface ThinkingStep {
@@ -702,28 +702,28 @@ export interface ThinkingStep {
   sourceLine: number;
 }
 
-export type ZergThinkingStep = ThinkingStep;
+export type ClankersThinkingStep = ThinkingStep;
 
-export interface ZergThinkingContext {
-  mode: ZergMode;
+export interface ClankersThinkingContext {
+  mode: ClankersMode;
   steps: ThinkingStep[];
-  context?: ZergContext;
+  context?: ClankersContext;
 }
 
-export interface ZergCommandResult {
+export interface ClankersCommandResult {
   ok: boolean;
   output: string;
   runId?: string;
   taskId?: string;
 }
 
-export interface ZergInternalPatchController {
+export interface ClankersInternalPatchController {
   installed: boolean;
   emit(event: Omit<HookLifecycleEvent, 'id' | 'createdAt'> & Partial<Pick<HookLifecycleEvent, 'id' | 'createdAt'>>): HookLifecycleEvent;
   dispose(): void;
 }
 
-export type ZergCommandHandler = (input?: string) => ZergCommandResult | string | Promise<ZergCommandResult | string>;
+export type ClankersCommandHandler = (input?: string) => ClankersCommandResult | string | Promise<ClankersCommandResult | string>;
 
 export interface StructuralPiCustomComponent {
   render(width?: number): string[];
@@ -741,33 +741,33 @@ export interface StructuralPiTuiHandle {
   getFocusedComponent?(): unknown;
 }
 
-export type ZergConfigOverlayTab = 'monitor' | 'control' | 'targets' | 'permissions' | 'lifecycle' | 'logs' | 'intervene' | 'config';
+export type ClankersConfigOverlayTab = 'monitor' | 'control' | 'targets' | 'permissions' | 'lifecycle' | 'logs' | 'intervene' | 'config';
 
-export type ZergManagementPaneId = 'tree' | 'detail' | 'settings' | 'chat';
-export type ZergManagementTargetKind = 'agent' | 'team' | 'task';
-export type ZergOperatorMessageMode = 'steer' | 'followUp';
-export const ZERG_OPERATOR_MESSAGE_MODES: readonly ZergOperatorMessageMode[] = ['steer', 'followUp'] as const;
-export type ZergOperatorMessageDeliveryStatus = 'draft' | 'queued-local' | 'queued' | 'handled' | 'transport-unavailable' | 'intervention-recorded' | 'accepted' | 'delivered' | 'delivery-failed';
+export type ClankersManagementPaneId = 'tree' | 'detail' | 'settings' | 'chat';
+export type ClankersManagementTargetKind = 'agent' | 'team' | 'task';
+export type ClankersOperatorMessageMode = 'steer' | 'followUp';
+export const CLANKERS_OPERATOR_MESSAGE_MODES: readonly ClankersOperatorMessageMode[] = ['steer', 'followUp'] as const;
+export type ClankersOperatorMessageDeliveryStatus = 'draft' | 'queued-local' | 'queued' | 'handled' | 'transport-unavailable' | 'intervention-recorded' | 'accepted' | 'delivered' | 'delivery-failed';
 
-export interface ZergOperatorMessageRecord {
+export interface ClankersOperatorMessageRecord {
   id: string;
   targetId: string;
-  targetKind: ZergManagementTargetKind;
+  targetKind: ClankersManagementTargetKind;
   routedTargetId?: string;
   body: string;
-  status: ZergOperatorMessageDeliveryStatus;
+  status: ClankersOperatorMessageDeliveryStatus;
   statusDetail: string;
   createdAt: string;
 }
 
-export interface ZergManagementUiState {
-  focusedPane: ZergManagementPaneId;
+export interface ClankersManagementUiState {
+  focusedPane: ClankersManagementPaneId;
   selectedTargetId?: string;
-  selectedTargetKind?: ZergManagementTargetKind;
+  selectedTargetKind?: ClankersManagementTargetKind;
   expandedNodeIds: string[];
   chatDraft: string;
   statusMessage?: string;
-  messages: ZergOperatorMessageRecord[];
+  messages: ClankersOperatorMessageRecord[];
 }
 
 export type StructuralPiCustomFactory = (
@@ -802,15 +802,15 @@ export interface StructuralPiCommandContext {
   };
 }
 
-export type ZergPiCommandHandler = (args: string, ctx: StructuralPiCommandContext) => Promise<void> | void;
+export type ClankersPiCommandHandler = (args: string, ctx: StructuralPiCommandContext) => Promise<void> | void;
 
 export interface StructuralPiCommandOptions {
   description?: string;
-  handler: ZergPiCommandHandler;
+  handler: ClankersPiCommandHandler;
 }
 
 export interface StructuralPiCommand extends StructuralPiCommandOptions {
-  name: ZergCommandName;
+  name: ClankersCommandName;
 }
 
 export interface StructuralPiToolResult {
@@ -835,17 +835,17 @@ export interface StructuralPiExtensionContext {
   sendMessage?: import('@earendil-works/pi-coding-agent').ExtensionAPI['sendMessage'];
   registerShortcut?: import('@earendil-works/pi-coding-agent').ExtensionAPI['registerShortcut'];
   on?(eventName: unknown, handler: (...args: unknown[]) => unknown): unknown;
-  registerCommand?(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;
+  registerCommand?(name: ClankersCommandName, options: StructuralPiCommandOptions): unknown;
   registerTool?(definition: StructuralPiToolDefinition): unknown;
   events?: {
     emit?(eventName: unknown, ...args: unknown[]): unknown;
     on?(eventName: unknown, handler: (...args: unknown[]) => unknown): unknown;
   };
   commands?: {
-    register?(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;
-    registerCommand?(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;
+    register?(name: ClankersCommandName, options: StructuralPiCommandOptions): unknown;
+    registerCommand?(name: ClankersCommandName, options: StructuralPiCommandOptions): unknown;
   };
   commandRegistrar?: {
-    registerCommand?(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;
+    registerCommand?(name: ClankersCommandName, options: StructuralPiCommandOptions): unknown;
   };
 }

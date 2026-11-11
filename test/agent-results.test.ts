@@ -59,8 +59,8 @@ test('exact text, bounded head/tail preview and historical exact selection', asy
   assert.doesNotMatch(JSON.stringify(restored), /PRIVATE_/);
   historical.final_message = 'caller mutation';
   assert.equal(found(restored, 'run-1', true).final_message, A);
-  const { createZergControl } = await import('../index.js');
-  const control = createZergControl({ extensions: { agentResults: restored } }, {
+  const { createClankersControl } = await import('../index.js');
+  const control = createClankersControl({ extensions: { agentResults: restored } }, {
     subagentAdapter: { kind: 'fake', launch() { assert.fail('Historical results must not replay native work'); } },
   });
   try {

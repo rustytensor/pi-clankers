@@ -5,8 +5,8 @@ import { once } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergState, createZergStateContainer, updateZergState } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer, updateClankersState } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { appendRecoveryIntent, validateRecoveryCheckpoint } from '../workflow-recovery.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash, workflowUnitEnvelope } from '../workflow-model.js';
@@ -24,7 +24,7 @@ function processState(owner: RecoveryWriterOwnerEvidence): 'live' | 'dead' | 'un
 }
 type Mutation = (f: Awaited<ReturnType<typeof fixture>>) => void;
 async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clock?: Mutation; owner?: Mutation; failAfterSave?: boolean; failAfterPublish?: boolean; saveWithoutPublish?: boolean; repeat?: boolean } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-auth-kill-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-auth-kill-'));
   const previousTmpdir = process.env.TMPDIR; process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage'), snapshotFile = join(root, 'state.json');
   mkdirSync(projectRoot, { mode: 0o700 }); mkdirSync(stagingParent, { mode: 0o700 }); mkdirSync(join(projectRoot, 'src'));
@@ -36,8 +36,8 @@ async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clo
   let driver = `
     import { createHash } from 'node:crypto';
     import { createWorkflowService } from ${JSON.stringify(runtimeUrl)};
-    import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(stateUrl)};
-    import { createZergPersistenceManager } from ${JSON.stringify(persistUrl)};
+    import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(stateUrl)};
+    import { createClankersPersistenceManager } from ${JSON.stringify(persistUrl)};
     import { workflowHash } from ${JSON.stringify(modelUrl)};
     const projectRoot=process.argv[1], stagingParent=process.argv[2], snapshotFile=process.argv[3];
     const str={type:'string',maxLength:256}, array=items=>({type:'array',maxItems:32,items}), object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -50,9 +50,9 @@ async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clo
       {id:'apply',kind:'coding',dependsOn:['review'],inputs:{},outputSchema:object({status:str,candidateHash:str,appliedPaths:array(str),rejectedPaths:array(str),diagnostics:array(str),outcomeHash:str}),coding:{operation:'apply',policy}}
     ]};
     const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-    const base=createZergStateContainer({agentDefinitions:agents});
-    const store=createZergPersistenceManager({snapshotFile}); store.hydrate(base);
-    const container={...base, replace(next){const value=createZergState(next);store.save(value);return base.replace(value);}, update(patch,options){const next=updateZergState(base.read(),patch,options);store.save(next);return base.replace(next);}};
+    const base=createClankersStateContainer({agentDefinitions:agents});
+    const store=createClankersPersistenceManager({snapshotFile}); store.hydrate(base);
+    const container={...base, replace(next){const value=createClankersState(next);store.save(value);return base.replace(value);}, update(patch,options){const next=updateClankersState(base.read(),patch,options);store.save(next);return base.replace(next);}};
     let runId='', approval;
     const keepAlive=setInterval(()=>{},1000);
     const native={preflight(){},async execute(req){
@@ -97,8 +97,8 @@ async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clo
   const ready = JSON.parse(stdout.trim()) as { runId: string; owner: RecoveryWriterOwnerEvidence };
   assert.equal(ready.owner.pid, producer.pid); assert.equal(processState(ready.owner), 'live');
   producer.kill('SIGKILL'); const [, signal] = await closed; assert.equal(signal, 'SIGKILL'); assert.equal(processState(ready.owner), 'dead');
-  const store = createZergPersistenceManager({ snapshotFile })!;
-  const base = createZergStateContainer(); store.hydrate(base);
+  const store = createClankersPersistenceManager({ snapshotFile })!;
+  const base = createClankersStateContainer(); store.hydrate(base);
   let saves = 0, publications = 0, launched = 0, acquired: RecoveryWriterOwnerEvidence | undefined;
   const saveThenPublish = (next: ReturnType<typeof base.read>, authorization = false) => {
     saves++; store.save(next);
@@ -109,8 +109,8 @@ async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clo
     return result;
   };
   const container = { ...base,
-    replace(next: ReturnType<typeof base.read>) { return saveThenPublish(createZergState(next)); },
-    update(patch: any, opts: any) { return saveThenPublish(updateZergState(base.read(), patch, opts)); },
+    replace(next: ReturnType<typeof base.read>) { return saveThenPublish(createClankersState(next)); },
+    update(patch: any, opts: any) { return saveThenPublish(updateClankersState(base.read(), patch, opts)); },
   };
   const durable: WorkflowRecoveryDurablePort = {
     ensureWriter: () => store.acquireRecoveryOwnership!().owner,
@@ -158,7 +158,7 @@ async function fixture(t: any, options: { acquire?: Mutation; id?: Mutation; clo
     prepare: () => service.recovery!.prepare(ready.runId, selections),
     authorize: (fp: string) => service.recovery!.authorize({ workflowRunId: ready.runId, assessmentFingerprint: fp, selections }),
     restore: () => {
-      const restored = createZergStateContainer(); const persistence = createZergPersistenceManager({ snapshotFile })!; persistence.hydrate(restored);
+      const restored = createClankersStateContainer(); const persistence = createClankersPersistenceManager({ snapshotFile })!; persistence.hydrate(restored);
       let secondPublish = 0;
       const restoredService = createWorkflowService(restored, native, { ...config, recovery: { enabled: true, inspectNativeSettlement, durablePort: {
         ensureWriter: () => persistence.acquireRecoveryOwnership!().owner,

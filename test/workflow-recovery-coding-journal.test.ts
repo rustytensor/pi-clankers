@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { readFileSync as readOsFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import { workflowHash } from '../workflow-model.js';
 import { validateRecoveryCheckpoint } from '../workflow-recovery.js';
@@ -47,7 +47,7 @@ test('recovery-enabled coding journals workspace effects and durable check recei
   const startTimeTicks = readOsFileSync(`/proc/${process.pid}/stat`, 'utf8').split(') ').pop()!.trim().split(/\s+/)[19];
   const bootId = readOsFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
   const owner = { bootId, pid: process.pid, startTimeTicks, writerSessionId: 'writer', generation: 'owner-gen' };
-  const container = createZergStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'writer', model: 'fake/model', permissionMode: 'inherit' }, reviewer: { id: 'reviewer', label: 'Reviewer', source: 'builtin', prompt: 'review', model: 'fake/model', permissionMode: 'inherit' } } });
+  const container = createClankersStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'writer', model: 'fake/model', permissionMode: 'inherit' }, reviewer: { id: 'reviewer', label: 'Reviewer', source: 'builtin', prompt: 'review', model: 'fake/model', permissionMode: 'inherit' } } });
   let succeeded = false;
   const intentObservations: Array<{ kind: string; beforeMatches: boolean; rootProof: boolean }> = [];
   const unsubscribe = container.subscribe!(snapshot => {

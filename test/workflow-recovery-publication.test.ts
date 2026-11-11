@@ -5,17 +5,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
-import { createZergControl } from '../index.js';
-import { createZergPersistenceManager } from '../persistence.js';
-import { createZergState, createZergStateContainer, getAgentDefinition, snapshotZergState, updateZergState } from '../state.js';
-import type { ZergState, ZergStateContainer, ZergSubagentControlAdapter } from '../types.js';
+import { createClankersControl } from '../index.js';
+import { createClankersPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer, getAgentDefinition, snapshotClankersState, updateClankersState } from '../state.js';
+import type { ClankersState, ClankersStateContainer, ClankersSubagentControlAdapter } from '../types.js';
 
-const workerSeed = () => createZergState({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', prompt: 'Literal task only.', source: 'runtime' } } });
+const workerSeed = () => createClankersState({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', prompt: 'Literal task only.', source: 'runtime' } } });
 const ids = { runId: () => 'publication-run', taskId: () => 'publication-task' };
-const fakeAdapter = (launch: ZergSubagentControlAdapter['launch'] = () => ({ ok: true, message: 'accepted' })): ZergSubagentControlAdapter => ({ kind: 'fake', launch });
+const fakeAdapter = (launch: ClankersSubagentControlAdapter['launch'] = () => ({ ok: true, message: 'accepted' })): ClankersSubagentControlAdapter => ({ kind: 'fake', launch });
 
-function tempRoot() { return mkdtempSync(join(tmpdir(), 'zerg-publication-')); }
-function savedState(snapshotFile: string): ZergState { return (JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ZergState }).state; }
+function tempRoot() { return mkdtempSync(join(tmpdir(), 'clankers-publication-')); }
+function savedState(snapshotFile: string): ClankersState { return (JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ClankersState }).state; }
 function blockedSnapshotFile(root: string): string {
   const blocker = join(root, 'not-a-directory');
   writeFileSync(blocker, 'blocks mkdir');
@@ -25,7 +25,7 @@ function blockedSnapshotFile(root: string): string {
 test('persistence wrapper resolves functional update exactly once before publication', () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   const wrapped = extractControlPersistenceWrapper(base, snapshotFile);
   let calls = 0;
   try {
@@ -43,7 +43,7 @@ test('persistence wrapper resolves functional update exactly once before publica
 test('persistence wrapper replacement preserves replacement revision without duplicate increment', () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   const wrapped = extractControlPersistenceWrapper(base, snapshotFile);
   try {
     const result = wrapped.replace({ ...workerSeed(), revision: 41, selectedNodeId: 'chosen' });
@@ -57,8 +57,8 @@ test('persistence wrapper replacement preserves replacement revision without dup
 test('persistent control listeners see publication only after snapshot exists', async () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
-  const control = createZergControl(base, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
+  const base = createClankersStateContainer(workerSeed());
+  const control = createClankersControl(base, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
   const observations: boolean[] = [];
   const unsubscribe = base.subscribe!((state) => {
     if (getAgentDefinition(state, 'extra')) {
@@ -76,7 +76,7 @@ test('persistent control listeners see publication only after snapshot exists', 
 test('persistent wrapper refuses synchronous nested writes during commit while allowing observer reads', () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   const wrapped = extractControlPersistenceWrapper(base, snapshotFile);
   let readRevision: number | undefined;
   let nestedMessage = '';
@@ -97,7 +97,7 @@ test('persistent wrapper refuses synchronous nested writes during commit while a
 test('persistent wrapper refuses functional patch reentrant writes before nested effects', () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   const wrapped = extractControlPersistenceWrapper(base, snapshotFile);
   let nestedMessage = '';
   try {
@@ -115,7 +115,7 @@ test('persistent wrapper refuses functional patch reentrant writes before nested
 test('persistent wrapper re-saves canonical raw listener mutation and returns it', () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   const wrapped = extractControlPersistenceWrapper(base, snapshotFile);
   let reentered = false;
   const unsubscribe = base.subscribe!(() => {
@@ -133,7 +133,7 @@ test('persistent wrapper re-saves canonical raw listener mutation and returns it
 });
 
 test('persistent wrapper post-publication save failure is honest and leaves canonical publication visible', () => {
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   let saves = 0;
   const persistenceManager = {
     hydrate() { return undefined; },
@@ -161,9 +161,9 @@ test('persistent wrapper post-publication save failure is honest and leaves cano
 test('failed persistent pre-write gives zero native admission and leaves old state visible', async () => {
   const root = tempRoot();
   const snapshotFile = blockedSnapshotFile(root);
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   let launches = 0;
-  const control = createZergControl(base, { persistence: { snapshotFile }, idFactory: ids, subagentAdapter: fakeAdapter(() => { launches += 1; return { ok: true, message: 'accepted' }; }) });
+  const control = createClankersControl(base, { persistence: { snapshotFile }, idFactory: ids, subagentAdapter: fakeAdapter(() => { launches += 1; return { ok: true, message: 'accepted' }; }) });
   try {
     const before = base.snapshot();
     const result = await control.execute({ action: 'run', agent: 'worker', task: 'must not admit', background: true });
@@ -176,9 +176,9 @@ test('failed persistent pre-write gives zero native admission and leaves old sta
 test('persistent commit failure poisons subsequent workflow admission', async () => {
   const root = tempRoot();
   const snapshotFile = blockedSnapshotFile(root);
-  const base = createZergStateContainer(workerSeed());
+  const base = createClankersStateContainer(workerSeed());
   let launches = 0;
-  const control = createZergControl(base, { persistence: { snapshotFile }, idFactory: ids, subagentAdapter: fakeAdapter(() => { launches += 1; return { ok: true, message: 'accepted' }; }) });
+  const control = createClankersControl(base, { persistence: { snapshotFile }, idFactory: ids, subagentAdapter: fakeAdapter(() => { launches += 1; return { ok: true, message: 'accepted' }; }) });
   try {
     const failed = await control.execute({ action: 'agents.create', id: 'extra', prompt: 'Extra.' });
     assert.equal(failed.ok, false);
@@ -195,10 +195,10 @@ test('persistent commit failure poisons subsequent workflow admission', async ()
 test('independent persistent controls for same snapshot keep separate CAS heads and stale writer is blocked', async () => {
   const root = tempRoot();
   const snapshotFile = join(root, 'state.json');
-  const firstContainer = createZergStateContainer(workerSeed());
-  const secondContainer = createZergStateContainer(workerSeed());
-  const first = createZergControl(firstContainer, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
-  const second = createZergControl(secondContainer, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
+  const firstContainer = createClankersStateContainer(workerSeed());
+  const secondContainer = createClankersStateContainer(workerSeed());
+  const first = createClankersControl(firstContainer, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
+  const second = createClankersControl(secondContainer, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
   try {
     const written = await first.execute({ action: 'agents.create', id: 'first', prompt: 'First.' });
     assert.equal(written.ok, true);
@@ -211,9 +211,9 @@ test('independent persistent controls for same snapshot keep separate CAS heads 
 });
 
 test('non-persistent control keeps existing publication compatibility', async () => {
-  const base = createZergStateContainer(workerSeed());
-  const control = createZergControl(base, { subagentAdapter: fakeAdapter() });
-  const seen: ZergState[] = [];
+  const base = createClankersStateContainer(workerSeed());
+  const control = createClankersControl(base, { subagentAdapter: fakeAdapter() });
+  const seen: ClankersState[] = [];
   const unsubscribe = base.subscribe!((state) => { if (getAgentDefinition(state, 'direct')) seen.push(state); });
   try {
     const result = await control.execute({ action: 'agents.create', id: 'direct', prompt: 'Direct.' });
@@ -225,9 +225,9 @@ test('non-persistent control keeps existing publication compatibility', async ()
 
 const indexSource = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
 const parsed = ts.createSourceFile('index.ts', indexSource, ts.ScriptTarget.ES2022, true);
-function extractControlPersistenceWrapper(baseContainer: ZergStateContainer, snapshotFile: string, persistenceOverride?: unknown): ZergStateContainer {
-  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'createZergControl');
-  assert.ok(owner, 'createZergControl source missing');
+function extractControlPersistenceWrapper(baseContainer: ClankersStateContainer, snapshotFile: string, persistenceOverride?: unknown): ClankersStateContainer {
+  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'createClankersControl');
+  assert.ok(owner, 'createClankersControl source missing');
   const statements = owner.body?.statements ?? [];
   const start = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'committingPersistentState'));
   const end = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'container'));
@@ -237,6 +237,6 @@ function extractControlPersistenceWrapper(baseContainer: ZergStateContainer, sna
   assert.ok(preparedStart >= 0 && preparedEnd >= preparedStart, 'prepared owner initialization source missing');
   const source = `${[...statements.slice(preparedStart, preparedEnd + 1), ...statements.slice(start, end + 1)].map((node) => node.getText(parsed)).join('\n')}\nreturn container;`;
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-  const persistenceManager = persistenceOverride ?? createZergPersistenceManager({ snapshotFile });
-  return new Function('startupRecoveryBlock', 'baseContainer', 'persistenceManager', 'options', 'createZergState', 'updateZergState', 'snapshotZergState', 'isDeepStrictEqual', 'associatedPersistenceManager', js)(undefined, baseContainer, persistenceManager, {}, createZergState, updateZergState, snapshotZergState, isDeepStrictEqual, undefined) as ZergStateContainer;
+  const persistenceManager = persistenceOverride ?? createClankersPersistenceManager({ snapshotFile });
+  return new Function('startupRecoveryBlock', 'baseContainer', 'persistenceManager', 'options', 'createClankersState', 'updateClankersState', 'snapshotClankersState', 'isDeepStrictEqual', 'associatedPersistenceManager', js)(undefined, baseContainer, persistenceManager, {}, createClankersState, updateClankersState, snapshotClankersState, isDeepStrictEqual, undefined) as ClankersStateContainer;
 }

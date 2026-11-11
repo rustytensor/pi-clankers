@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const dir = mkdtempSync(join(tmpdir(), 'zerg-concurrency-host-'));
+const dir = mkdtempSync(join(tmpdir(), 'clankers-concurrency-host-'));
 const agentDir = join(dir, 'agent');
 mkdirSync(agentDir);
 process.env.PI_CODING_AGENT_DIR = agentDir;
@@ -62,7 +62,7 @@ writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ defaultProvider:
 
 const extensionDir = join(dir, '.pi', 'extensions');
 mkdirSync(extensionDir, { recursive: true });
-writeFileSync(join(extensionDir, 'startup.js'), "export default function(pi) { pi.on('session_start', async () => { await globalThis.__zergConcurrencyStartup?.(); }); }");
+writeFileSync(join(extensionDir, 'startup.js'), "export default function(pi) { pi.on('session_start', async () => { await globalThis.__clankersConcurrencyStartup?.(); }); }");
 const startupReleases = [];
 function eventBus() {
   const listeners = new Map();
@@ -72,9 +72,9 @@ function eventBus() {
   };
 }
 const deadline = setTimeout(() => { console.error('Global concurrency smoke timeout'); process.exit(1); }, 60000);
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
-const control = zerg.createZergControl();
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
+const control = clankers.createClankersControl();
 
 async function agent(control, id, model, extra = {}) {
   const result = await control.execute({ action: 'agents.create', id, model: `fixture/${model}`, prompt: 'Return concise status only. No tools or edits.', tools: [], ...extra });
@@ -93,7 +93,7 @@ try {
   for (let index = 0; index < 10; index += 1) await agent(control, `w${index}`, `slow${index}`);
   await team(control, 'default-team', Array.from({ length: 9 }, (_, index) => `w${index}`));
   let start = requests.length;
-  globalThis.__zergConcurrencyStartup = () => new Promise((resolve) => startupReleases.push(resolve));
+  globalThis.__clankersConcurrencyStartup = () => new Promise((resolve) => startupReleases.push(resolve));
   const defaultRun = await control.execute({ action: 'run', agent: 'default-team', task: 'Default concurrency.', background: true });
   assert(defaultRun.ok, JSON.stringify(defaultRun));
   await until(() => startupReleases.length === 8, 'eight admitted session_start handlers');
@@ -104,7 +104,7 @@ try {
   assert.deepEqual(starting.memberProgress.filter((m) => m.status === 'starting').map((m) => m.agentId), Array.from({ length: 8 }, (_, i) => `w${i}`));
   assert.equal(starting.memberProgress[8].status, 'queued');
   assert.equal(starting.memberProgress[8].startedAt, undefined);
-  delete globalThis.__zergConcurrencyStartup;
+  delete globalThis.__clankersConcurrencyStartup;
   for (const resume of startupReleases.splice(0)) resume();
   await until(() => requestModels(start).filter((model) => model.startsWith('slow')).length === 8, 'default first eight workers');
   assert.deepEqual([...requestModels(start)].sort(), workerModels.slice(0, 8).sort());
@@ -183,7 +183,7 @@ try {
   control.dispose();
 
   let bridgeTool;
-  const bridge = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(tool) { if (tool.name === 'zerg_control') bridgeTool = tool; } });
+  const bridge = clankers.registerClankersExtension({ events: eventBus(), registerCommand() {}, registerTool(tool) { if (tool.name === 'clankers_control') bridgeTool = tool; } });
   try {
     await agent(bridge.control, 'lead', 'lead');
     await agent(bridge.control, 'w0', 'slow0');
@@ -213,12 +213,12 @@ try {
   for (const mode of ['interrupt', 'dispose', 'foreground-abort', 'shutdown']) {
     let tool;
     const shutdownHooks = [];
-    const owner = zerg.registerZergSwarmExtension({
-      events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') tool = value; },
+    const owner = clankers.registerClankersExtension({
+      events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'clankers_control') tool = value; },
       on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); },
     });
     let entries = 0;
-    globalThis.__zergConcurrencyStartup = () => { entries += 1; return new Promise((resolve) => startupReleases.push(resolve)); };
+    globalThis.__clankersConcurrencyStartup = () => { entries += 1; return new Promise((resolve) => startupReleases.push(resolve)); };
     try {
       await agent(owner.control, 'lead', 'lead');
       for (let i = 0; i < 3; i += 1) await agent(owner.control, `w${i}`, 'ok');
@@ -242,7 +242,7 @@ try {
       else if (mode === 'foreground-abort') abort.abort();
       else { assert(shutdownHooks.length > 0); for (const hook of shutdownHooks) await hook({}, {}); }
       // Pi cannot forcibly unwind an arbitrary extension handler; release only admitted handlers.
-      globalThis.__zergConcurrencyStartup = () => { entries += 1; };
+      globalThis.__clankersConcurrencyStartup = () => { entries += 1; };
       for (const resume of startupReleases.splice(0)) resume();
       if (foreground) { const result = await foreground; assert.equal(result.isError, true); assert.equal(result.details.ok, false); }
       await until(async () => {
@@ -257,13 +257,13 @@ try {
       assert.equal(requests.length, beforeRequests, `${mode}: no model request after startup cancellation`);
     } finally {
       owner.dispose();
-      delete globalThis.__zergConcurrencyStartup;
+      delete globalThis.__clankersConcurrencyStartup;
       for (const resume of startupReleases.splice(0)) resume();
     }
   }
   console.log('PASS SDK startup bounds and interrupt/dispose/foreground-abort/shutdown queue cancellation');
 
-  const single = zerg.createZergControl();
+  const single = clankers.createClankersControl();
   try {
     await agent(single, 'solo', 'ok');
     const result = await single.execute({ action: 'run', agent: 'solo', task: 'Single agent unchanged.', concurrency: 1 });
@@ -275,7 +275,7 @@ try {
 } finally {
   clearTimeout(deadline);
   control.dispose();
-  delete globalThis.__zergConcurrencyStartup;
+  delete globalThis.__clankersConcurrencyStartup;
   for (const resume of startupReleases.splice(0)) resume();
   for (const release of releases.values()) release();
   server.closeAllConnections();

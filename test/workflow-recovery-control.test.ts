@@ -4,15 +4,15 @@ import { registerHooks } from 'node:module';
 import { mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createZergState, createZergStateContainer } from '../state.js';
-import type { StructuralPiCommandOptions, ZergStateContainer } from '../types.js';
+import { createClankersState, createClankersStateContainer } from '../state.js';
+import type { StructuralPiCommandOptions, ClankersStateContainer } from '../types.js';
 import type { WorkflowDefinition, WorkflowReply } from '../workflow-model.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 
 const fakeSource = `
 // Deliberately unsupported: no shortcut resolver or registration capability.
 export class ExtensionRunner {}
-const h = new Proxy({}, {get:(_t,k)=>globalThis.__zergRecoveryControlFakeHost[k],set:(_t,k,v)=>{globalThis.__zergRecoveryControlFakeHost[k]=v;return true;}});
+const h = new Proxy({}, {get:(_t,k)=>globalThis.__clankersRecoveryControlFakeHost[k],set:(_t,k,v)=>{globalThis.__clankersRecoveryControlFakeHost[k]=v;return true;}});
 export const getAgentDir = () => '/fake-owned-agent';
 export const ModelRuntime = { async create() { h.loads++; return { getAvailable: () => [{provider:'fake',id:'model'}] }; } };
 export const SettingsManager = { create() { return { getGlobalSettings:()=>({}),getProjectSettings:()=>({}),applyOverrides:v=>{h.settings=v;} }; } };
@@ -34,14 +34,14 @@ export async function createAgentSession(o) {
 const fakeUrl = `data:text/javascript,${encodeURIComponent(fakeSource)}`;
 const sdkHook = registerHooks({ resolve(specifier, context, next) { return specifier === '@earendil-works/pi-coding-agent' ? { url: fakeUrl, shortCircuit: true } : next(specifier, context); } });
 after(() => sdkHook.deregister());
-const { createZergControl, registerZergSwarmExtension } = await import('../index.js');
+const { createClankersControl, registerClankersExtension } = await import('../index.js');
 const { installManagementShortcutCatalogGuard } = await import('../internal-patch.js');
 const { ExtensionRunner } = await import(fakeUrl);
 
 type FakeHost = Record<string, any>;
 let host: FakeHost;
-function reset() { host ??= {}; for (const key of Object.keys(host)) delete host[key]; Object.assign(host, { loads: 0, managers: 0, creates: 0, binds: 0, providers: 0, aborts: 0, idles: 0, disposes: 0, shutdowns: 0, prompts: [], text: '{"ok":true}' }); (globalThis as any).__zergRecoveryControlFakeHost = host; }
-function container(): ZergStateContainer { return createZergStateContainer(createZergState({ agentDefinitions: { safe: { id: 'safe', label: 'Safe', prompt: 'Read only.', source: 'runtime', model: 'fake/model', tools: ['read'], disallowedTools: [] } } })); }
+function reset() { host ??= {}; for (const key of Object.keys(host)) delete host[key]; Object.assign(host, { loads: 0, managers: 0, creates: 0, binds: 0, providers: 0, aborts: 0, idles: 0, disposes: 0, shutdowns: 0, prompts: [], text: '{"ok":true}' }); (globalThis as any).__clankersRecoveryControlFakeHost = host; }
+function container(): ClankersStateContainer { return createClankersStateContainer(createClankersState({ agentDefinitions: { safe: { id: 'safe', label: 'Safe', prompt: 'Read only.', source: 'runtime', model: 'fake/model', tools: ['read'], disallowedTools: [] } } })); }
 const definition = (): WorkflowDefinition => ({ id: 'recovery-control', version: 1, label: 'Recovery control', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, steps: [{ id: 'step', kind: 'native', dependsOn: [], inputs: {}, agentId: 'safe', prompt: 'literal', outputSchema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false } }] });
 function reply(result: any): WorkflowReply { assert.equal(result.ok, true, result.error?.message); return result.data as WorkflowReply; }
 async function start(control: any) { const saved = await control.execute({ action: 'agents.create', id: 'safe', prompt: 'Read only.', model: 'fake/model', tools: ['read'] }); assert.equal(saved.ok, true, saved.error?.message); reply(await control.execute({ action: 'workflows.define', definition: definition() })); const started = reply(await control.execute({ action: 'workflows.start', definitionId: 'recovery-control', inputs: {}, concurrency: 1 })); await control.drain?.(); return started.view!.workflowRunId; }
@@ -68,7 +68,7 @@ test('fake Pi shortcut bridge stays unsupported, inert and unregistered', () => 
 });
 
 test('recovery inspect and prepare structured tool validate exact IDs, selections and no authorization fields', async () => {
-  reset(); let tool: any; const extension = registerZergSwarmExtension({ registerTool(value) { if (value.name === 'zerg_control') tool = value; }, registerCommand() {} });
+  reset(); let tool: any; const extension = registerClankersExtension({ registerTool(value) { if (value.name === 'clankers_control') tool = value; }, registerCommand() {} });
   try {
     const id = await start(extension.control);
     const inspect = await tool.execute('call', { action: 'workflows.recovery.inspect', workflowRunId: id });
@@ -91,13 +91,13 @@ test('recovery inspect and prepare structured tool validate exact IDs, selection
 
 test('slash workflow recovery commands share aliases and reject JSON/path/extra identities', async () => {
   reset(); const commands = new Map<string, StructuralPiCommandOptions>(); let tool: any;
-  const extension = registerZergSwarmExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
+  const extension = registerClankersExtension({ registerCommand(name, command) { commands.set(name, command); }, registerTool(value) { if (value.name === 'clankers_control') tool = value; } });
   try {
     const id = await start(extension.control); const notices: string[] = []; const context = { mode: 'print' as const, hasUI: false, ui: { notify(text: string) { notices.push(text); } } };
-    await commands.get('zerg')!.handler(`workflows recovery inspect ${id}`, context);
-    await commands.get('zerg-swarm')!.handler(`workflows recovery prepare ${id}`, context);
-    await commands.get('swarm')!.handler(`workflows recovery inspect ${id} ${id}`, context);
-    await commands.get('zerg')!.handler(`workflows recovery prepare ${JSON.stringify({ workflowRunId: id })}`, context);
+    await commands.get('clankers')!.handler(`workflows recovery inspect ${id}`, context);
+    await commands.get('clankers')!.handler(`workflows recovery prepare ${id}`, context);
+    await commands.get('clankers')!.handler(`workflows recovery inspect ${id} ${id}`, context);
+    await commands.get('clankers')!.handler(`workflows recovery prepare ${JSON.stringify({ workflowRunId: id })}`, context);
     assert.match(notices[0]!, /"action":"workflows.recovery.inspect"/);
     assert.match(notices[1]!, /"action":"workflows.recovery.prepare"/);
     assert.match(notices[2]!, /Usage: \/clankers workflows/);
@@ -107,12 +107,12 @@ test('slash workflow recovery commands share aliases and reject JSON/path/extra 
 });
 
 test('recovery host opt-in requires persistence and inspect/prepare never acquire writer or mutate persisted bytes', async () => {
-  reset(); assert.throws(() => createZergControl(container(), { recovery: { enabled: true } }), /persistence/);
-  const root = mkdtempSync(join(tmpdir(), 'zerg-recovery-control-'));
-  const pm = createZergPersistenceManager({ enabled: true, rootDir: root })!;
+  reset(); assert.throws(() => createClankersControl(container(), { recovery: { enabled: true } }), /persistence/);
+  const root = mkdtempSync(join(tmpdir(), 'clankers-recovery-control-'));
+  const pm = createClankersPersistenceManager({ enabled: true, rootDir: root })!;
   const state = container(); pm.hydrate(state); pm.save(state.read()); pm.acquireRecoveryOwnership!();
   const before = await bytes(root);
-  const control = createZergControl(container(), { persistence: { enabled: true, rootDir: root }, recovery: { enabled: true }, subagentAdapter: { kind: 'fake', launch() { return { ok: false, message: 'no launch' }; } } });
+  const control = createClankersControl(container(), { persistence: { enabled: true, rootDir: root }, recovery: { enabled: true }, subagentAdapter: { kind: 'fake', launch() { return { ok: false, message: 'no launch' }; } } });
   try {
     const missingInspect = await control.execute({ action: 'workflows.recovery.inspect', workflowRunId: 'missing-run' });
     const missingPrepare = await control.execute({ action: 'workflows.recovery.prepare', workflowRunId: 'missing-run', selections: { reuseUnitIds: ['u'] } });

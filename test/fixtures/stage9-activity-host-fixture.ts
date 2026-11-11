@@ -7,7 +7,7 @@ import { closeSync, fstatSync, openSync, unlinkSync, existsSync, lstatSync, real
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const root = process.env.STAGE9_ROOT!;
-assert(root && root.startsWith('/tmp/zerg-stage9-'));
+assert(root && root.startsWith('/tmp/clankers-stage9-'));
 const config = JSON.parse(readFileSync(join(root, 'evidence/config.json'), 'utf8'));
 assert.equal(config.root, root);
 assert.equal(realpathSync(root), root); const rootStat = lstatSync(root);
@@ -138,14 +138,14 @@ seam(backgroundModule, 'createBackgroundActivityController', original => (option
 seam(preferencesModule, 'createUiPreferences', original => (...args: any[]) => {
   shared.current.preferences++; return original(...args);
 });
-seam(managementModule, 'openZergManagementOverlay', original => (...args: any[]) => {
+seam(managementModule, 'openClankersManagementOverlay', original => (...args: any[]) => {
   const g = shared.current; assert(g && typeof g.witnessedContext === 'function');
   g.managementFactories++;
   // Observe BOTH real command and shortcut contexts here, without replacing
   // either registered handler identity or the production catalog anchor.
   return original(g.witnessedContext(args[0]), ...args.slice(1));
 });
-const zerg: any = await bounded(jiti.import(join(config.candidateRoot, 'index.ts')), 'pinned module startup');
+const clankers: any = await bounded(jiti.import(join(config.candidateRoot, 'index.ts')), 'pinned module startup');
 const persistence: any = await bounded(jiti.import(join(config.candidateRoot, 'persistence.ts')), 'pinned module startup');
 const workflowModel: any = await bounded(jiti.import(join(config.candidateRoot, 'workflow-model.ts')), 'pinned module startup');
 const codingExample: any = await bounded(jiti.import(join(config.candidateRoot, 'workflow-coding-example.ts')), 'pinned module startup');
@@ -167,7 +167,7 @@ function evidenceStat(path: string) {
 }
 function evidencePath(name: string) {
   assert(EVIDENCE_NAMES.includes(name) || name === EVIDENCE_PENDING, 'Unowned evidence path');
-  assert(root.startsWith('/tmp/zerg-stage9-') && resolve(root) === root);
+  assert(root.startsWith('/tmp/clankers-stage9-') && resolve(root) === root);
   const owner = lstatSync(root); assert(owner.isDirectory() && owner.uid === process.getuid!() && (owner.mode & 0o077) === 0);
   const path = join(root, 'evidence', name); assert(path.startsWith(root + '/evidence/') && resolve(path) === path);
   for (let parent = dirname(path);; parent = dirname(parent)) {
@@ -221,7 +221,7 @@ for (const host of [sdk, await bounded(import(config.sdk), 'actual host startup'
   const records = new WeakMap<object, any>();
   proto.prompt = function (...args: any[]) {
     shared.promptCalls++; // Includes main, repeated and rejected calls before forwarding.
-    // The main session dispatches configuration commands; it is NOT a Zerg worker.
+    // The main session dispatches configuration commands; it is NOT a Clankers worker.
     if (this === shared.mainSession) return prompt.apply(this, args);
     let record = records.get(this);
     if (!record) {
@@ -290,8 +290,8 @@ function witnessedContext(context: any, g = generation) {
       return () => { if (active) { active = false; remove(); g.inputs--; } };
     };
     if (key === 'setWidget') return (name: string, content: any, options: any) => {
-      if (name === 'pi-zerg-swarm.background-activity') g.widgets = content ? 1 : 0;
-      if (name !== 'pi-zerg-swarm.background-activity' || typeof content !== 'function') return target.setWidget(name, content, options);
+      if (name === 'pi-clankers.background-activity') g.widgets = content ? 1 : 0;
+      if (name !== 'pi-clankers.background-activity' || typeof content !== 'function') return target.setWidget(name, content, options);
       return target.setWidget(name, (...args: any[]) => {
         handle = args[0]; widget = witnessComponent(content(...args), 'widget', g, target); return widget;
       }, options);
@@ -302,7 +302,7 @@ function witnessedContext(context: any, g = generation) {
       assert.equal(typeof reentryHandler, 'function');
       opens++; observe(target, g);
       try { return await target.custom((...args: any[]) => {
-        const actual = factory(...args); assert(actual instanceof managementModule.ZergManagementOverlayComponent, 'Same real management component, no fallback');
+        const actual = factory(...args); assert(actual instanceof managementModule.ClankersManagementOverlayComponent, 'Same real management component, no fallback');
         const signature = hash([actual.constructor.name, String(actual.render), String(actual.handleInput)]);
         g.managementSignatures.push(signature);
         // Canonical handler reentry while the same actual custom UI is opening
@@ -385,7 +385,7 @@ async function journey() {
     put('live.json', { solo: solo.runId, team: team.runId, workflowRunId, native: serialNative() });
     await uiCheckpoint('live'); await verifiedStage('mixed');
     assert.deepEqual({ state: stateHash(), count: requests() }, before);
-    // Reviewed controller submits /zerg config and /s9modal through main.prompt.
+    // Reviewed controller submits /clankers config and /s9modal through main.prompt.
     // Passive/render prompt equality above remains total; UI must not start workers.
     const initiationAfter = initiationSnapshot();
     assert.deepEqual({ starts: initiationAfter.starts, sessions: initiationAfter.sessions },
@@ -415,7 +415,7 @@ async function journey() {
   await until(async () => (await shown(fail.runId)).status === 'failed' && native.filter(r => r.model === 'fail').every(r => r.disposed), 'failure with settled SDK handles');
   await actualCount(0); prove('failure');
   assert(native.every(r => r.disposed)); await verifiedStage('failure');
-  persistence.createZergPersistenceManager({ enabled: true, snapshotFile: recoveredSnapshot }).save(checkpoint);
+  persistence.createClankersPersistenceManager({ enabled: true, snapshotFile: recoveredSnapshot }).save(checkpoint);
   put('performance.json', { renders: generation.renders, totalRenderMs: generation.renderMs, snapshots: generation.snapshots, events: generation.events });
   put('restart-ready.json', { workflowRunId, requests: requests(), assertions: [...assertions], native: serialNative() });
   await uiCheckpoint('settings');
@@ -546,7 +546,7 @@ async function afterReload() {
     await uiCheckpoint('reload');
     for (const name of read('ui-reload.json').assertions) prove(name);
   }
-  // Structured control, not terminal /zerg automation: new-generation SDK proof.
+  // Structured control, not terminal /clankers automation: new-generation SDK proof.
   await exec({ action: 'agents.create', id: 'reloaded', model: 'fixture/reloaded', tools: [], prompt: 'Scripted dummy response only.' });
   const fresh = await exec({ action: 'run', agent: 'reloaded', task: 'new generation only', background: true });
   await until(async () => (await shown(fresh.runId)).status === 'done' && native.some(r => r.generation === generation.id && r.model === 'reloaded' && r.disposed), 'new generation genuinely owns SDK execution');
@@ -626,13 +626,13 @@ export default async function stage9HostFixture(pi: any) {
   const proxy = new Proxy(pi, { get(target, key) {
     if (key === 'registerShortcut') return (key: string, value: any) => { g.shortcuts.push({ key, ...value }); return target.registerShortcut(key, value); };
     if (key === 'registerCommand') return (name: string, value: any) => {
-      if (name === 'zerg') handler = g.handler = value.handler; return target.registerCommand(name, value);
+      if (name === 'clankers') handler = g.handler = value.handler; return target.registerCommand(name, value);
     };
     if (key === 'on') return (name: string, callback: any) => target.on(name, (event: any, context: any) => callback(event, g.witnessedContext(context)));
     const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
   } });
   const restart = process.env.STAGE9_PHASE === 'restart', reloaded = !restart && g.id > 1;
-  registration = g.registration = zerg.registerZergSwarmExtension(proxy, { persistence: { enabled: true,
+  registration = g.registration = clankers.registerClankersExtension(proxy, { persistence: { enabled: true,
     snapshotFile: restart ? recoveredSnapshot : snapshot }, recovery: { enabled: restart }, coding: example.coding });
   if (config.mode !== 'sdk') {
     pi.registerShortcut('alt+k', { description: 'Stage9 genuine collision owner', handler: () => put('collision-fired.json', { ok: true }) });
@@ -684,7 +684,7 @@ export async function runSDK() {
       extensionFactories: [(pi: any) => { const proxy = new Proxy(pi, { get(target, key) {
         if (key === 'registerShortcut') return () => { counts.shortcuts++; throw Error('NonTUI shortcut registration'); };
         const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
-      } }); control = zerg.registerZergSwarmExtension(proxy, { persistence: { enabled: false } }); }] });
+      } }); control = clankers.registerClankersExtension(proxy, { persistence: { enabled: false } }); }] });
     await bounded(loader.reload(), 'nonTUI resources startup');
     const { session } = await bounded(sdk.createAgentSession({ cwd: join(root, 'work'), agentDir: join(root, 'agent'), model, modelRuntime,
       tools: [], noTools: true, resourceLoader: loader, settingsManager: settings, thinkingLevel: 'off', sessionManager: sdk.SessionManager.inMemory(join(root, 'work')) }), 'actual main session startup');
@@ -693,7 +693,7 @@ export async function runSDK() {
       assert.equal(requests(), before); assert.equal(native.length, 0);
       assert.equal(control.control.getState().extensions.workflows, undefined, 'NonTUI binding initialized execution authority');
       counts.factories += g.factories + g.managementFactories; counts.preferences += g.preferences;
-      assert(!existsSync(join(root, 'agent/zerg-swarm/ui.json'))); control.dispose(); await bounded(control.control.drain(), 'nonTUI actual drain');
+      assert(!existsSync(join(root, 'agent/clankers/ui.json'))); control.dispose(); await bounded(control.control.drain(), 'nonTUI actual drain');
     } finally { session.dispose(); }
   }
   assert.deepEqual(counts, { methods: 0, factories: 0, inputs: 0, widgets: 0, preferences: 0, shortcuts: 0 });

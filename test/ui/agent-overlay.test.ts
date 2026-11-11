@@ -3,17 +3,17 @@ import test from 'node:test';
 import { CURSOR_MARKER, Text, truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import type { NativeTranscriptKey, NativeTranscriptReadHandle, NativeTranscriptSnapshot } from '../../native-transcript.js';
 import type { NativeContinuationPrepare, NativeContinuationReview } from '../../native-continuation.js';
-import type { ZergNativeSessionReference } from '../../types.js';
-import { openZergAgentOverlay, sanitizeTranscriptText, ZergAgentOverlayComponent, type ZergAgentOverlayOptions, type ZergComposerReceipt, type ZergComposerState, type ZergOverlayComposer } from '../../ui/agent-overlay.js';
+import type { ClankersNativeSessionReference } from '../../types.js';
+import { openClankersAgentOverlay, sanitizeTranscriptText, ClankersAgentOverlayComponent, type ClankersAgentOverlayOptions, type ClankersComposerReceipt, type ClankersComposerState, type ClankersOverlayComposer } from '../../ui/agent-overlay.js';
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
-function reference(member = 'worker-a', parent = 'team-a'): ZergNativeSessionReference {
+function reference(member = 'worker-a', parent = 'team-a'): ClankersNativeSessionReference {
   return { schemaVersion: 1, parentRunId: parent, memberRunId: member, piSessionId: `pi-${parent}-${member}`, agentDefinitionId: 'same-definition', sessionFile: '/never-opened-by-ui', cwd: '/fixture', createdAt: '2026-10-02T00:00:00Z', attachment: 'attached' };
 }
 function snapshot(key: NativeTranscriptKey, patch: Partial<NativeTranscriptSnapshot> = {}): NativeTranscriptSnapshot {
   return { key, revision: 1, source: 'live', status: 'running', defaultLeafBasis: 'live', inspectedLeafId: 'tip', liveLeafId: 'tip', branches: [{ leafId: 'old-leaf', label: 'old branch' }, { leafId: 'tip', label: 'current branch' }], blocks: [{ id: 'a', kind: 'text', role: 'assistant', text: 'hello' }], truncated: false, droppedBlocks: 0, ...patch };
 }
-function fixture(refs = [reference()], theme?: ConstructorParameters<typeof ZergAgentOverlayComponent>[1]) {
+function fixture(refs = [reference()], theme?: ConstructorParameters<typeof ClankersAgentOverlayComponent>[1]) {
   let references = refs;
   let referenceListener: () => void = () => undefined;
   const opened: NativeTranscriptKey[] = [];
@@ -21,7 +21,7 @@ function fixture(refs = [reference()], theme?: ConstructorParameters<typeof Zerg
   let renders = 0;
   let done = 0;
   let referenceUnsubscribes = 0;
-  const options: ZergAgentOverlayOptions = {
+  const options: ClankersAgentOverlayOptions = {
     getReferences: () => references,
     subscribeReferences: (listener) => { referenceListener = listener; return () => { referenceUnsubscribes += 1; }; },
     open: async (key, options) => {
@@ -31,9 +31,9 @@ function fixture(refs = [reference()], theme?: ConstructorParameters<typeof Zerg
       return { getSnapshot: (selection) => { state.readCount += 1; state.selections.push(selection); return { ...state.value, blocks: selection?.leafId === null ? [] : state.value.blocks, inspectedLeafId: selection?.leafId === null ? null : selection?.leafId ?? state.value.inspectedLeafId }; }, subscribe: (listener) => { state.listener = listener; return () => { state.unsubscribeCount += 1; }; }, dispose: () => { state.disposeCount += 1; } };
     },
   };
-  const component = new ZergAgentOverlayComponent({ requestRender: () => { renders += 1; } }, theme, () => { done += 1; }, options);
+  const component = new ClankersAgentOverlayComponent({ requestRender: () => { renders += 1; } }, theme, () => { done += 1; }, options);
   component.render(180, 30); // A chooser action requires an actually displayed selection.
-  return { component, options, opened, handles, get renders() { return renders; }, get done() { return done; }, get referenceUnsubscribes() { return referenceUnsubscribes; }, setReferences: (refs: ZergNativeSessionReference[]) => { references = refs; referenceListener(); }, referenceListener: () => referenceListener() };
+  return { component, options, opened, handles, get renders() { return renders; }, get done() { return done; }, get referenceUnsubscribes() { return referenceUnsubscribes; }, setReferences: (refs: ClankersNativeSessionReference[]) => { references = refs; referenceListener(); }, referenceListener: () => referenceListener() };
 }
 
 test('coding chooser never implicitly chooses a leader; concurrent definitions use exact triples', async () => {
@@ -68,7 +68,7 @@ test('empty, removed and stale references are explicit and do not fall back', as
   assert.equal(f.opened.length, 1);
   f.component.dispose();
   let refs = [reference()];
-  const stale = new ZergAgentOverlayComponent(undefined, undefined, undefined, { getReferences: () => refs, subscribeReferences: () => () => undefined, open: async () => { throw new Error('must not open stale'); } });
+  const stale = new ClankersAgentOverlayComponent(undefined, undefined, undefined, { getReferences: () => refs, subscribeReferences: () => () => undefined, open: async () => { throw new Error('must not open stale'); } });
   stale.render(100, 20);
   refs = [];
   stale.handleInput('enter');
@@ -121,7 +121,7 @@ test('switch and close abort only viewer loads; late handles disposed and callba
   let subscriptions = 0;
   let done = 0;
   let renders = 0;
-  const component = new ZergAgentOverlayComponent({ requestRender: () => { renders += 1; } }, undefined, () => { done += 1; }, {
+  const component = new ClankersAgentOverlayComponent({ requestRender: () => { renders += 1; } }, undefined, () => { done += 1; }, {
     getReferences: () => [reference('a'), reference('b')],
     subscribeReferences: (listener) => { referenceListener = listener; return () => undefined; },
     open: (key, options) => new Promise((resolve) => { pending.push({ key, signal: options?.signal, resolve }); }),
@@ -175,7 +175,7 @@ test('close removes both watchers once and never receives a runner API', async (
 test('failed open, identity mismatch and throwing observers cannot leak handles', async () => {
   for (const fault of ['open', 'snapshot', 'identity', 'subscribe']) {
     let disposed = 0;
-    const component = new ZergAgentOverlayComponent(undefined, undefined, undefined, {
+    const component = new ClankersAgentOverlayComponent(undefined, undefined, undefined, {
       getReferences: () => [reference()], subscribeReferences: () => () => { throw new Error('watcher'); },
       open: async (key) => {
         if (fault === 'open') throw new Error('missing transcript file');
@@ -295,7 +295,7 @@ test('formatted cache is single-width, bounded and invalidated for theme/revisio
   const f = fixture();
   let color = '31';
   let styles = 0;
-  const component = new ZergAgentOverlayComponent(undefined, { fg: (_token, text) => { styles += 1; return `\x1b[${color}m${text}\x1b[0m`; } }, undefined, f.options);
+  const component = new ClankersAgentOverlayComponent(undefined, { fg: (_token, text) => { styles += 1; return `\x1b[${color}m${text}\x1b[0m`; } }, undefined, f.options);
   component.render(180, 30);
   component.handleInput('enter');
   await tick();
@@ -319,12 +319,12 @@ test('formatted cache is single-width, bounded and invalidated for theme/revisio
 
 test('public overlay awaits custom completion, exposes no composer and rejects absent TUI', async () => {
   const f = fixture();
-  let component: ZergAgentOverlayComponent | undefined;
+  let component: ClankersAgentOverlayComponent | undefined;
   let seen: unknown;
   let resolved = false;
-  const promise = openZergAgentOverlay({ ui: { custom: (factory, options) => {
+  const promise = openClankersAgentOverlay({ ui: { custom: (factory, options) => {
     seen = options;
-    return new Promise<void>((resolve) => { component = (factory as (tui: undefined, theme: undefined, keys: undefined, done: () => void) => ZergAgentOverlayComponent)(undefined, undefined, undefined, resolve); });
+    return new Promise<void>((resolve) => { component = (factory as (tui: undefined, theme: undefined, keys: undefined, done: () => void) => ClankersAgentOverlayComponent)(undefined, undefined, undefined, resolve); });
   } } }, f.options).then(() => { resolved = true; });
   await tick();
   assert.equal(resolved, false);
@@ -334,7 +334,7 @@ test('public overlay awaits custom completion, exposes no composer and rejects a
   component!.handleInput('\x1b');
   await promise;
   assert.equal(resolved, true);
-  await assert.rejects(openZergAgentOverlay({}, f.options), /interactive Pi TUI/);
+  await assert.rejects(openClankersAgentOverlay({}, f.options), /interactive Pi TUI/);
   f.component.dispose();
 });
 
@@ -379,7 +379,7 @@ test('branch Default restores live and saved history; null would mean before-roo
 test('throwing redraw callbacks are contained across async open, updates and close', async () => {
   const f = fixture();
   let done = 0;
-  const component = new ZergAgentOverlayComponent({ requestRender: () => { throw new Error('host redraw'); } }, undefined, () => { done += 1; }, f.options);
+  const component = new ClankersAgentOverlayComponent({ requestRender: () => { throw new Error('host redraw'); } }, undefined, () => { done += 1; }, f.options);
   component.render(180, 30);
   assert.doesNotThrow(() => component.handleInput('enter'));
   await tick(); // An unhandled rejection here fails the Node test runner.
@@ -400,9 +400,9 @@ test('public coding helper rejects RPC/print/JSON and hasUI=false even with cust
   const f = fixture();
   let customCalls = 0;
   for (const mode of ['rpc', 'print', 'json'] as const) {
-    await assert.rejects(openZergAgentOverlay({ mode, hasUI: true, ui: { custom: () => { customCalls += 1; } } }, f.options), /interactive Pi TUI/);
+    await assert.rejects(openClankersAgentOverlay({ mode, hasUI: true, ui: { custom: () => { customCalls += 1; } } }, f.options), /interactive Pi TUI/);
   }
-  await assert.rejects(openZergAgentOverlay({ mode: 'tui', hasUI: false, ui: { custom: () => { customCalls += 1; } } }, f.options), /interactive Pi TUI/);
+  await assert.rejects(openClankersAgentOverlay({ mode: 'tui', hasUI: false, ui: { custom: () => { customCalls += 1; } } }, f.options), /interactive Pi TUI/);
   assert.equal(customCalls, 0);
   f.component.dispose();
 });
@@ -445,22 +445,22 @@ test('truncation notices reserve space without hiding retained tail or full iden
 });
 function composerFixture() {
   const f = fixture([reference('a'), reference('b'), reference('a', 'team-b')]);
-  const calls: Parameters<ZergOverlayComposer['send']>[0][] = [];
+  const calls: Parameters<ClankersOverlayComposer['send']>[0][] = [];
   const watchers: Array<{ key: NativeTranscriptKey; listener(): void; unsubscribed: number }> = [];
-  let state: Omit<ZergComposerState, 'key'> = { canSend: true, allowedModes: ['steer', 'followUp'], persistence: 'memory', receipts: [] };
-  const receipt = (request: Parameters<ZergOverlayComposer['send']>[0], patch: Partial<ZergComposerReceipt> = {}): ZergComposerReceipt => ({
+  let state: Omit<ClankersComposerState, 'key'> = { canSend: true, allowedModes: ['steer', 'followUp'], persistence: 'memory', receipts: [] };
+  const receipt = (request: Parameters<ClankersOverlayComposer['send']>[0], patch: Partial<ClankersComposerReceipt> = {}): ClankersComposerReceipt => ({
     key: { ...request.key }, messageId: request.messageId, status: 'queued', detail: 'SDK queued; not consumed',
     createdAt: '2026-10-03T00:00:00Z', updatedAt: '2026-10-03T00:00:00Z', persistence: 'memory', ...patch,
   });
-  const composer: ZergOverlayComposer = {
+  const composer: ClankersOverlayComposer = {
     getState: (key) => ({ ...state, key, receipts: state.receipts.filter((item) => item.key.parentRunId === key.parentRunId && item.key.memberRunId === key.memberRunId && item.key.piSessionId === key.piSessionId) }),
     subscribe: (key, listener) => { const watcher = { key, listener, unsubscribed: 0 }; watchers.push(watcher); return () => { watcher.unsubscribed += 1; }; },
     send: async (request) => { calls.push(request); const value = receipt(request); state.receipts.push(value); return { ok: true, message: 'Queued, not delivered.', receipt: value }; },
   };
-  const component = new ZergAgentOverlayComponent({ terminal: { rows: 32 }, requestRender: () => undefined }, undefined, undefined, { ...f.options, composer });
+  const component = new ClankersAgentOverlayComponent({ terminal: { rows: 32 }, requestRender: () => undefined }, undefined, undefined, { ...f.options, composer });
   component.focused = true;
   component.render(180, 30);
-  return { ...f, component, composer, calls, watchers, receipt, get state() { return state; }, setState(patch: Partial<Omit<ZergComposerState, 'key'>>) { state = { ...state, ...patch }; watchers.at(-1)?.listener(); },
+  return { ...f, component, composer, calls, watchers, receipt, get state() { return state; }, setState(patch: Partial<Omit<ClankersComposerState, 'key'>>) { state = { ...state, ...patch }; watchers.at(-1)?.listener(); },
     close() { component.dispose(); f.component.dispose(); } };
 }
 async function compose(f: ReturnType<typeof composerFixture>): Promise<void> {
@@ -538,7 +538,7 @@ test('failed or unknown send preserves draft and attempt ID; changes to draft/mo
 
 test('in-flight sends are not duplicated and successful completion never clears later edits', async () => {
   const f = composerFixture();
-  let resolve!: (value: Awaited<ReturnType<ZergOverlayComposer['send']>>) => void;
+  let resolve!: (value: Awaited<ReturnType<ClankersOverlayComposer['send']>>) => void;
   f.composer.send = (request) => { f.calls.push(request); return new Promise((done) => { resolve = done; }); };
   await compose(f);
   f.component.handleInput('first');
@@ -610,7 +610,7 @@ test('composer contains state/subscribe/send throws and mismatched exact receipt
     if (fault === 'state') f.composer.getState = () => { throw new Error('state boom'); };
     if (fault === 'subscribe') f.composer.subscribe = () => { throw new Error('subscribe boom'); };
     if (fault === 'send') f.composer.send = async () => { throw new Error('send boom'); };
-    if (fault === 'key' || fault === 'id' || fault === 'status') f.composer.send = async (request) => ({ ok: true, message: 'MUST NOT ACCEPT', receipt: f.receipt(request, fault === 'key' ? { key: reference('wrong') } : fault === 'id' ? { messageId: 'wrong-id' } : { status: 'fake' as ZergComposerReceipt['status'] }) });
+    if (fault === 'key' || fault === 'id' || fault === 'status') f.composer.send = async (request) => ({ ok: true, message: 'MUST NOT ACCEPT', receipt: f.receipt(request, fault === 'key' ? { key: reference('wrong') } : fault === 'id' ? { messageId: 'wrong-id' } : { status: 'fake' as ClankersComposerReceipt['status'] }) });
     await compose(f);
     f.component.handleInput('keep');
     f.component.handleInput('\x13');
@@ -658,7 +658,7 @@ test('composer layout keeps trusted IME cursor, safe receipts, retained tail and
   h.value.blocks = [{ id: 'tail', kind: 'text', text: Array.from({ length: 70 }, (_, index) => `tail ${index}`).join('\n') }]; h.listener();
   f.component.handleInput('\x1b[200~' + '    界👩‍💻é\n'.repeat(20) + '\x1b[201~');
   const key = h.value.key;
-  f.setState({ receipts: Array.from({ length: 50 }, (_, index) => f.receipt({ key, messageId: `receipt-${index}`, body: '', mode: 'followUp' }, { status: index === 49 ? 'delivered' : 'queued', persistence: 'saved', detail: '\x1b]52;clipboard\x07detail\nforged row', body: 'HIDDEN BODY' } as Partial<ZergComposerReceipt>)), droppedReceipts: 2 });
+  f.setState({ receipts: Array.from({ length: 50 }, (_, index) => f.receipt({ key, messageId: `receipt-${index}`, body: '', mode: 'followUp' }, { status: index === 49 ? 'delivered' : 'queued', persistence: 'saved', detail: '\x1b]52;clipboard\x07detail\nforged row', body: 'HIDDEN BODY' } as Partial<ClankersComposerReceipt>)), droppedReceipts: 2 });
   for (const width of [1, 2, 3, 8, 12, 21, 80, 240]) {
     for (const height of [4, 8, 10, 14, 24, 60]) {
       const lines = f.component.render(width, height);
@@ -828,7 +828,7 @@ test('explicit initialKey resolves full exact tuple beyond bounded chooser, reva
   const wanted = refs[299]!;
   const key = { parentRunId: wanted.parentRunId, memberRunId: wanted.memberRunId, piSessionId: wanted.piSessionId };
   const opened: NativeTranscriptKey[] = [];
-  const component = new ZergAgentOverlayComponent(undefined, undefined, undefined, {
+  const component = new ClankersAgentOverlayComponent(undefined, undefined, undefined, {
     initialKey: key, getReferences: () => refs, subscribeReferences: () => () => undefined,
     open: async (exact) => { opened.push(exact); return { getSnapshot: () => snapshot(exact), subscribe: () => () => undefined, dispose: () => undefined }; },
   });
@@ -838,7 +838,7 @@ test('explicit initialKey resolves full exact tuple beyond bounded chooser, reva
   assert.match(component.render(140, 24).join('\n'), /member-299/);
   component.dispose();
   for (const initialKey of [{ ...key, piSessionId: 'other' }, { ...key, memberRunId: 'bad\x1b[31m' }, { ...key, parentRunId: 'a'.repeat(257) }]) {
-    const invalid = new ZergAgentOverlayComponent(undefined, undefined, undefined, {
+    const invalid = new ClankersAgentOverlayComponent(undefined, undefined, undefined, {
       initialKey, getReferences: () => refs, subscribeReferences: () => () => undefined,
       open: async () => { throw new Error('must not open'); },
     });
@@ -849,7 +849,7 @@ test('explicit initialKey resolves full exact tuple beyond bounded chooser, reva
     invalid.dispose();
   }
   let reads = 0;
-  const stale = new ZergAgentOverlayComponent(undefined, undefined, undefined, {
+  const stale = new ClankersAgentOverlayComponent(undefined, undefined, undefined, {
     initialKey: key, getReferences: () => ++reads === 1 ? refs : [], subscribeReferences: () => () => undefined,
     open: async () => { opened.push(key); throw new Error('must not open'); },
   });
@@ -859,13 +859,13 @@ test('explicit initialKey resolves full exact tuple beyond bounded chooser, reva
 test('explicit initialKey ambiguity and removal stay unavailable without chooser retargeting', async () => {
   const ref = reference(); let refs = [ref, { ...ref, agentDefinitionId: 'conflicting' }];
   let listener: () => void = () => undefined; let opens = 0;
-  const options: ZergAgentOverlayOptions = {
+  const options: ClankersAgentOverlayOptions = {
     initialKey: ref, getReferences: () => refs, subscribeReferences: (next) => { listener = next; return () => undefined; },
     open: async (key) => { opens++; return { getSnapshot: () => snapshot(key), subscribe: () => () => undefined, dispose: () => undefined }; },
   };
-  const ambiguous = new ZergAgentOverlayComponent(undefined, undefined, undefined, options);
+  const ambiguous = new ClankersAgentOverlayComponent(undefined, undefined, undefined, options);
   await tick(); assert.equal(opens, 0); assert.match(ambiguous.render(140, 24).join('\n'), /ambiguous/); ambiguous.dispose();
-  refs = [ref]; const removed = new ZergAgentOverlayComponent(undefined, undefined, undefined, options);
+  refs = [ref]; const removed = new ClankersAgentOverlayComponent(undefined, undefined, undefined, options);
   await tick(); refs = [reference('replacement')]; listener(); removed.handleInput('enter');
   assert.equal(opens, 1); assert.doesNotMatch(removed.render(140, 24).join('\n'), /Exact session chooser/); removed.dispose();
 });
@@ -1036,7 +1036,7 @@ test('continuation Escape retains original viewer; late prepares are discarded w
 test('service-present live viewer preserves b inspection and c send; typed n remains composer body', async () => {
   const f = composerFixture();
   let continuationCalls = 0;
-  const component = new ZergAgentOverlayComponent({ terminal: { rows: 40 }, requestRender: () => undefined }, undefined, undefined, {
+  const component = new ClankersAgentOverlayComponent({ terminal: { rows: 40 }, requestRender: () => undefined }, undefined, undefined, {
     ...f.options, composer: f.composer,
     nativeContinuationService: {
       prepare: async () => { continuationCalls++; throw new Error('must not prepare live source'); },
@@ -1121,7 +1121,7 @@ test('noncoercible reference/open/snapshot/composer failures are contained and r
   for (const error of faults) {
     for (const fault of ['references', 'referenceSubscribe', 'open', 'snapshot']) {
       let done = 0;
-      const c = new ZergAgentOverlayComponent(undefined, undefined, () => { done++; }, {
+      const c = new ClankersAgentOverlayComponent(undefined, undefined, () => { done++; }, {
         getReferences: () => { if (fault === 'references') throw error; return [reference()]; },
         subscribeReferences: () => { if (fault === 'referenceSubscribe') throw error; return () => undefined; },
         open: async (key) => { if (fault === 'open') throw error; return { getSnapshot: () => { throw error; }, subscribe: () => () => undefined, dispose: () => undefined }; },
@@ -1149,8 +1149,8 @@ test('coding custom host sync throw and async rejection release watchers and fin
     let watchers = 0; let done = 0; let unsubs = 0; let renders = 0;
     let listener: () => void = () => undefined;
     const error = Object.create(null);
-    const promise = openZergAgentOverlay({ ui: { custom(factory) {
-      (factory as (tui: { requestRender(): void }, theme: undefined, keys: undefined, done: () => void) => ZergAgentOverlayComponent)(
+    const promise = openClankersAgentOverlay({ ui: { custom(factory) {
+      (factory as (tui: { requestRender(): void }, theme: undefined, keys: undefined, done: () => void) => ClankersAgentOverlayComponent)(
         { requestRender: () => { renders++; } }, undefined, undefined, () => { done++; throw error; });
       if (sync) throw error;
       return Promise.reject(error);

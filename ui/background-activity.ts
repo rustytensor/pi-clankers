@@ -4,7 +4,7 @@ import type { Component, TUI } from '@earendil-works/pi-tui';
 import { ACTIVITY_LIMITS, EMPTY_NATIVE_ACTIVITY, UNAVAILABLE_WORKFLOW_ACTIVITY, projectActivity } from '../activity.js';
 import type { ActivityProjection, ActivitySource, NativeActivitySnapshot, WorkflowActivitySnapshot } from '../activity.js';
 
-export const BACKGROUND_ACTIVITY_WIDGET = 'pi-zerg-swarm.background-activity';
+export const BACKGROUND_ACTIVITY_WIDGET = 'pi-clankers.background-activity';
 export interface BackgroundActivityContext {
   mode?: string;
   hasUI: boolean;

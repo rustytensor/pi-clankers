@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { enqueuePermissionRequest, createZergState } from '../../state.js';
+import { enqueuePermissionRequest, createClankersState } from '../../state.js';
 import { applyPermissionFromSettings, createSettingsPaneState, cycleController, movePendingPermissionCursor } from '../../ui/settings-pane.js';
-import type { AutomationMode, ZergControlController } from '../../types.js';
+import type { AutomationMode, ClankersControlController } from '../../types.js';
 
 test('M9 settings pane routes mode/controller/read-only and permission actions through callbacks', () => {
-  const state = enqueuePermissionRequest(createZergState(), {
+  const state = enqueuePermissionRequest(createClankersState(), {
     kind: 'run',
     targetId: 'agent-1',
     requester: 'operator',
@@ -17,7 +17,7 @@ test('M9 settings pane routes mode/controller/read-only and permission actions t
   const actions = {
     toggleReadOnly: () => { calls.push('readonly'); return 'readonly toggled'; },
     setAutomation: (mode: AutomationMode) => { calls.push(`mode:${mode}`); return `mode ${mode}`; },
-    setController: (controller: ZergControlController) => { calls.push(`controller:${controller}`); return `controller ${controller}`; },
+    setController: (controller: ClankersControlController) => { calls.push(`controller:${controller}`); return `controller ${controller}`; },
     approvePermission: (requestId: string) => { calls.push(`approve:${requestId}`); return `approved ${requestId}`; },
     denyPermission: (requestId: string) => { calls.push(`deny:${requestId}`); return `denied ${requestId}`; },
   };

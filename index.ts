@@ -1,3 +1,4 @@
+import { LEGACY_PACKAGE_NAME, hasRunIdPrefix } from './legacy-names.js';
 import { spawn } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { closeSync, constants as fsConstants, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, opendirSync, readFileSync, readSync, realpathSync, writeFileSync } from 'node:fs';
@@ -11,7 +12,7 @@ import { createBackgroundActivityController, type BackgroundActivityController }
 import { createUiPreferences } from './ui/preferences.js';
 import { createManagementShortcutController, type ManagementUiPreferencesFacade } from './ui/management-shortcut.js';
 import { installInternalPatch } from './internal-patch.js';
-import { createZergPersistenceManager, type RecoveryWriterOwnerEvidence, type ZergPersistenceManager } from './persistence.js';
+import { createClankersPersistenceManager, type RecoveryWriterOwnerEvidence, type ClankersPersistenceManager } from './persistence.js';
 import { createWorkflowService } from './workflow-runtime.js';
 import { profileHash as codingCheckProfileHash } from './workflow-checks.js';
 import { WORKFLOW_EXTENSION_KEY, WORKFLOW_LIMITS, normalizeWorkflowAgent, workflowStepEntries, workflowHash, type TrustedWorkflowServiceOptions, type WorkflowAction, type WorkflowNativePort, type WorkflowNativeRequest, type WorkflowNativeOutcome, type WorkflowService, type WorkflowServiceOptions, type WorkflowTrustedApprovalApi, type WorkflowTrustedRecoveryApi, type WorkflowTrustedCodingConfig } from './workflow-model.js';
@@ -22,38 +23,38 @@ export type { WorkflowScriptAction, WorkflowScriptAuthoring, WorkflowScriptDiagn
 export { WORKFLOW_SCRIPT_FORMAT_VERSION, WORKFLOW_SCRIPT_LANGUAGE_VERSION, WORKFLOW_SCRIPT_COMPILER_VERSION, WORKFLOW_SCRIPT_PARSER_VERSION, WORKFLOW_SCRIPT_LIMITS } from './workflow-script-format.js';
 export { compileWorkflowScript, inspectWorkflowScriptDefinition } from './workflow-script.js';
 export { READ_ONLY_PARALLEL_SCRIPT, CONDITIONAL_REFINEMENT_SCRIPT, READ_ONLY_PARALLEL_DEFINITION, CONDITIONAL_REFINEMENT_DEFINITION } from './workflow-script-examples.js';
-import { ZERG_CONTROL_ACTION_NAMES, isZergControlActionName, validateControlHelpRequest, getZergControlHelpData, controlHelpEcho, unknownControlActionMessage } from './control-help.js';
-export { ZERG_CONTROL_ACTION_NAMES, ZERG_CONTROL_HELP_CATALOG } from './control-help.js';
+import { CLANKERS_CONTROL_ACTION_NAMES, isClankersControlActionName, validateControlHelpRequest, getClankersControlHelpData, controlHelpEcho, unknownControlActionMessage } from './control-help.js';
+export { CLANKERS_CONTROL_ACTION_NAMES, CLANKERS_CONTROL_HELP_CATALOG } from './control-help.js';
 import { deriveThinkingSteps } from './parse.js';
 import { createNativeTranscriptService, type NativeTranscriptService } from './native-transcript.js';
 import { createSessionMessageService, OPERATOR_CUSTOM_TYPE, validateSessionMessageKey, validateSessionMessageInput, type SessionMessageService } from './session-messages.js';
 import { createNativeContinuationService, captureNativeContinuationPolicy, captureNativeContinuationPolicySync, validateContinuationSourceImmediate, importNativeContinuation, appendNativeContinuationMarker, nativeSourceIdentity, strictContinuationFields, continuationDeclaredDefinition, continuationDigest, type NativeContinuationService, type NativeContinuationAdmission } from './native-continuation.js';
 import { createSealedWorkflowResourceLoader, createWorkflowNativeCodingTools, WORKFLOW_NATIVE_CODING_TOOL_NAMES } from './workflow-native-tools.js';
 export type { NativeContinuationPrepare, NativeContinuationReview, NativeContinuationPolicy, NativeContinuationService } from './native-continuation.js';
-import { openZergAgentOverlay } from './ui/agent-overlay.js';
-import { openZergWorkflowOverlay } from './ui/workflow-overlay.js';
-import { getZergTimeline, validateZergTimelineFilter } from './timeline.js';
-import { openZergTeamTimeline } from './ui/team-timeline.js';
-import { openZergManagementOverlay } from './ui/management-overlay.js';
-import { renderZergTimeline, renderNativeSessionReferences, renderAgentDefinitionSummary, renderAgentDefinitionsList, renderAgentTree, renderHelp, renderMonitor, renderPermissionQueueList, renderPermissionQueueStatus, renderStatusLine, renderZergLogList, renderZergLogStatus, renderZergLogSummary, renderZergManagementOverlay, renderZergSubagentRunList, renderZergSubagentRunSummary, type ZergManagementOverlayRow } from './render.js';
-import { appendZergLogRecord, applyInterventionRecord, applyModeTransition, applyRuntimeTransition, createZergState, createZergStateContainer, updateZergState, createZergSubagentRunSnapshot, enqueuePermissionRequest, getAgentDefinition, getAgentDefinitions, getPendingPermissionRequests, getPermissionQueueState, getSubagentRunSnapshot, getSubagentRunSnapshots, getZergLogs, getZergLogState, readSharedZergState, removeAgentDefinition, replaceSharedZergState, resolvePermissionRequest, seedBuiltinAgentDefinitions, snapshotZergState, upsertAgentDefinition, upsertTask, type ZergLogFilter } from './state.js';
+import { openClankersAgentOverlay } from './ui/agent-overlay.js';
+import { openClankersWorkflowOverlay } from './ui/workflow-overlay.js';
+import { getClankersTimeline, validateClankersTimelineFilter } from './timeline.js';
+import { openClankersTeamTimeline } from './ui/team-timeline.js';
+import { openClankersManagementOverlay } from './ui/management-overlay.js';
+import { renderClankersTimeline, renderNativeSessionReferences, renderAgentDefinitionSummary, renderAgentDefinitionsList, renderAgentTree, renderHelp, renderMonitor, renderPermissionQueueList, renderPermissionQueueStatus, renderStatusLine, renderClankersLogList, renderClankersLogStatus, renderClankersLogSummary, renderClankersManagementOverlay, renderClankersSubagentRunList, renderClankersSubagentRunSummary, type ClankersManagementOverlayRow } from './render.js';
+import { appendClankersLogRecord, applyInterventionRecord, applyModeTransition, applyRuntimeTransition, createClankersState, createClankersStateContainer, updateClankersState, createClankersSubagentRunSnapshot, enqueuePermissionRequest, getAgentDefinition, getAgentDefinitions, getPendingPermissionRequests, getPermissionQueueState, getSubagentRunSnapshot, getSubagentRunSnapshots, getClankersLogs, getClankersLogState, readSharedClankersState, removeAgentDefinition, replaceSharedClankersState, resolvePermissionRequest, seedBuiltinAgentDefinitions, snapshotClankersState, upsertAgentDefinition, upsertTask, type ClankersLogFilter } from './state.js';
 import { createTmuxControl, type TmuxControl, type TrustedTmuxOptions } from './tmux-control.js';
-import { ZERG_COMMANDS, type TrustedAutomationNativeContext, type AgentKind, type AgentStatus, type AutomationMode, type PermissionModeTransitionInput, type StructuralPiCommand, type StructuralPiCommandContext, type StructuralPiCommandOptions, type StructuralPiExtensionContext, type StructuralPiToolDefinition, type StructuralPiTuiHandle, type TeamKind, type ZergAgentDefinition, ZERG_EXTENSION_VERSION, type ZergCommandName, type ZergCommandResult, type ZergConfigOverlayTab, type ZergControl, type ZergControlAction, type ZergControlController, type ZergControlResult, type ZergControlState, type ZergInternalPatchController, type ZergLifecycleSubstate, type ZergManagementTargetKind, type ZergOperatorMessageDeliveryStatus, type ZergOperatorMessageMode, type ZergOperatorMessageResult, type ZergPersistenceOptions, type ZergPermissionDecision, type ZergPermissionRequestKind, type ZergPiCommandHandler, type ZergRuntimeEntity, type ZergRuntimeTransition, type ZergRuntimeTransitionAction, type ZergState, type ZergStateContainer, type ZergSubagentControlAdapter, type ZergSubagentLaunchMode, type ZergSubagentLaunchRequest, type ZergSubagentRunSnapshot, type ZergNativeSessionReference, type ZergTimelineFilter, type ZergSessionMessageKey } from './types.js';
+import { CLANKERS_COMMANDS, type TrustedAutomationNativeContext, type AgentKind, type AgentStatus, type AutomationMode, type PermissionModeTransitionInput, type StructuralPiCommand, type StructuralPiCommandContext, type StructuralPiCommandOptions, type StructuralPiExtensionContext, type StructuralPiToolDefinition, type StructuralPiTuiHandle, type TeamKind, type ClankersAgentDefinition, CLANKERS_EXTENSION_VERSION, type ClankersCommandName, type ClankersCommandResult, type ClankersConfigOverlayTab, type ClankersControl, type ClankersControlAction, type ClankersControlController, type ClankersControlResult, type ClankersControlState, type ClankersInternalPatchController, type ClankersLifecycleSubstate, type ClankersManagementTargetKind, type ClankersOperatorMessageDeliveryStatus, type ClankersOperatorMessageMode, type ClankersOperatorMessageResult, type ClankersPersistenceOptions, type ClankersPermissionDecision, type ClankersPermissionRequestKind, type ClankersPiCommandHandler, type ClankersRuntimeEntity, type ClankersRuntimeTransition, type ClankersRuntimeTransitionAction, type ClankersState, type ClankersStateContainer, type ClankersSubagentControlAdapter, type ClankersSubagentLaunchMode, type ClankersSubagentLaunchRequest, type ClankersSubagentRunSnapshot, type ClankersNativeSessionReference, type ClankersTimelineFilter, type ClankersSessionMessageKey } from './types.js';
 
-type ZergIdFactory = {
+type ClankersIdFactory = {
   runId?: () => string;
   taskId?: () => string;
 };
 
-export interface ZergCommandHandlerOptions {
+export interface ClankersCommandHandlerOptions {
   /** Trusted host-only tmux paths; never supplied in action JSON. */
   trustedTmux?: TrustedTmuxOptions;
   /** Trusted base cwd for explicit local script import; never supplied in action JSON. */
   cwd?: string;
   now?: () => Date;
-  subagentAdapter?: ZergSubagentControlAdapter;
-  idFactory?: ZergIdFactory;
-  persistence?: ZergPersistenceOptions;
+  subagentAdapter?: ClankersSubagentControlAdapter;
+  idFactory?: ClankersIdFactory;
+  persistence?: ClankersPersistenceOptions;
   /** Explicit owner-scoped observer sharing; closing a viewer never disposes a runner. */
   nativeTranscriptService?: NativeTranscriptService;
   /** Exact owner capability; independent of the strictly read-only observer. */
@@ -71,29 +72,29 @@ export interface ZergCommandHandlerOptions {
   };
 }
 
-const resultNoticeOwners = new WeakMap<ZergSubagentLaunchRequest, { notice?: (result: AgentResult) => AgentResult['notice'] }>();
-const tmuxControlOwners = new WeakMap<ZergControl, () => TmuxControl>();
-type RuntimeCommandOptions = ZergControlOptions & { getTmuxControl?: () => TmuxControl; syncSharedState?: boolean; persistenceManager?: ZergPersistenceManager; isOwnerDisposed?: () => boolean; workflowService?: WorkflowService; workflowScriptOwner?: WorkflowScriptControlOwner; startupRecoveryBlock?: StartupRecoveryBlock; nativeActivity?: NativeActivityRecorder; captureResultNotice?: () => ((result: AgentResult) => AgentResult['notice']) | undefined; resultNotice?: (result: AgentResult) => AgentResult['notice'] };
+const resultNoticeOwners = new WeakMap<ClankersSubagentLaunchRequest, { notice?: (result: AgentResult) => AgentResult['notice'] }>();
+const tmuxControlOwners = new WeakMap<ClankersControl, () => TmuxControl>();
+type RuntimeCommandOptions = ClankersControlOptions & { getTmuxControl?: () => TmuxControl; syncSharedState?: boolean; persistenceManager?: ClankersPersistenceManager; isOwnerDisposed?: () => boolean; workflowService?: WorkflowService; workflowScriptOwner?: WorkflowScriptControlOwner; startupRecoveryBlock?: StartupRecoveryBlock; nativeActivity?: NativeActivityRecorder; captureResultNotice?: () => ((result: AgentResult) => AgentResult['notice']) | undefined; resultNotice?: (result: AgentResult) => AgentResult['notice'] };
 
-export interface ZergExtensionRegistration {
-  commands: ZergCommandName[];
-  control: ZergControl;
+export interface ClankersExtensionRegistration {
+  commands: ClankersCommandName[];
+  control: ClankersControl;
   /**
    * Snapshot of extension state at access time.
    *
    * Treat this as a read-only view: mutating the returned object does not update
-   * live extension or shared state. Use state helpers or ZergStateContainer
+   * live extension or shared state. Use state helpers or ClankersStateContainer
    * read/update/replace APIs as the write channel.
    */
-  readonly state: ZergState;
+  readonly state: ClankersState;
   patchInstalled: boolean;
   dispose(): void;
 }
 
-type ZergCommandTopic = 'help' | 'status' | 'tree' | 'steps' | 'agent' | 'team' | 'mode' | 'intervene' | 'monitor' | 'control' | 'config' | 'run' | 'interrupt' | 'agents' | 'runs' | 'permission' | 'logs' | 'sessions' | 'timeline';
-type ZergCommandDispatcher = (payload: string) => ZergCommandResult;
-type RuntimeParseResult = { ok: false; output: string } | { ok: true; transition: ZergRuntimeTransition };
-type LogsParseResult = { ok: false; output: string } | { ok: true; filter: ZergLogFilter; json: boolean };
+type ClankersCommandTopic = 'help' | 'status' | 'tree' | 'steps' | 'agent' | 'team' | 'mode' | 'intervene' | 'monitor' | 'control' | 'config' | 'run' | 'interrupt' | 'agents' | 'runs' | 'permission' | 'logs' | 'sessions' | 'timeline';
+type ClankersCommandDispatcher = (payload: string) => ClankersCommandResult;
+type RuntimeParseResult = { ok: false; output: string } | { ok: true; transition: ClankersRuntimeTransition };
+type LogsParseResult = { ok: false; output: string } | { ok: true; filter: ClankersLogFilter; json: boolean };
 
 type ModeTransitionAction = 'status' | 'manual' | 'assisted' | 'automatic' | 'revert';
 type ModeParseResult =
@@ -111,19 +112,19 @@ type InterveneParseResult =
     leaderAgentId?: string;
     message: string;
   };
-type ZergStateSource = ZergState | (() => ZergState) | ZergStateContainer;
+type ClankersStateSource = ClankersState | (() => ClankersState) | ClankersStateContainer;
 
 const RUNTIME_WRITABLE_STATE_ERROR = 'Runtime lifecycle commands require writable Clankers state.';
 const MAX_INTERVENTION_MESSAGE_LENGTH = 240;
 const MAX_INTERVENTION_MESSAGE_LENGTH_FOR_REASONS = 140;
-const ZERG_CONTROL_EXTENSION_KEY = 'zergControl';
-const CONFIG_OVERLAY_TABS: ZergConfigOverlayTab[] = ['monitor', 'control', 'targets', 'permissions', 'lifecycle', 'logs', 'intervene', 'config'];
+const CLANKERS_CONTROL_EXTENSION_KEY = 'clankersControl';
+const CONFIG_OVERLAY_TABS: ClankersConfigOverlayTab[] = ['monitor', 'control', 'targets', 'permissions', 'lifecycle', 'logs', 'intervene', 'config'];
 const SLASH_SUBAGENT_REQUEST_EVENT = 'subagent:slash:request';
 const SLASH_SUBAGENT_STARTED_EVENT = 'subagent:slash:started';
 const SLASH_SUBAGENT_RESPONSE_EVENT = 'subagent:slash:response';
 const SLASH_SUBAGENT_UPDATE_EVENT = 'subagent:slash:update';
 const SLASH_SUBAGENT_CANCEL_EVENT = 'subagent:slash:cancel';
-const DEFAULT_RUN_ID_PREFIX = 'zerg-';
+const DEFAULT_RUN_ID_PREFIX = 'clankers-';
 const DEFAULT_TASK_ID_PREFIX = 'task-';
 const DEFAULT_NATIVE_WORKER_CONCURRENCY = 8;
 const NATIVE_BRIDGE_ACK_GRACE_MS = 100;
@@ -131,7 +132,7 @@ const OVERLAY_VISIBLE_ROWS = 14;
 const DEFAULT_OVERLAY_INTERVENTION_DRAFT = 'operator intervention requested from overlay';
 const OVERLAY_FILTER_DEFERRED_MESSAGE = 'text filter entry is deferred; use /clankers permission, /clankers logs, or /clankers runs command filters.';
 
-const defaultIdFactory: Required<ZergIdFactory> = {
+const defaultIdFactory: Required<ClankersIdFactory> = {
   runId: () => `${DEFAULT_RUN_ID_PREFIX}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
   taskId: () => `${DEFAULT_TASK_ID_PREFIX}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
 };
@@ -158,18 +159,18 @@ type PiNativeActiveRun = {
 };
 
 type PiNativeActiveRunRegistry = Map<string, PiNativeActiveRun>;
-const nativeContinuationAdmissions = new WeakMap<ZergSubagentLaunchRequest, NativeContinuationAdmission>();
-const ownedPersistenceManagers = new WeakMap<ZergStateContainer, ZergPersistenceManager>();
+const nativeContinuationAdmissions = new WeakMap<ClankersSubagentLaunchRequest, NativeContinuationAdmission>();
+const ownedPersistenceManagers = new WeakMap<ClankersStateContainer, ClankersPersistenceManager>();
 interface RecoveryPublicationGuard {
-  check(expectedCanonical?: ZergState, recordOnly?: boolean): void;
-  saved(expectedCanonical?: ZergState, recordOnly?: boolean): void;
+  check(expectedCanonical?: ClankersState, recordOnly?: boolean): void;
+  saved(expectedCanonical?: ClankersState, recordOnly?: boolean): void;
 }
 // Enter the EXISTING save-before-publication wrapper; never commit independently.
-const recoveryPublications = new WeakMap<ZergStateContainer, (state: ZergState, guard: RecoveryPublicationGuard) => ZergState>();
-const recoveryWriterIdleChecks = new WeakMap<ZergStateContainer, () => void>();
+const recoveryPublications = new WeakMap<ClankersStateContainer, (state: ClankersState, guard: RecoveryPublicationGuard) => ClankersState>();
+const recoveryWriterIdleChecks = new WeakMap<ClankersStateContainer, () => void>();
 // Private per-call authority survives the bridge acknowledgement delay without
 // changing the public launch contract or retaining completed requests globally.
-const launchAuthorities = new WeakMap<ZergSubagentLaunchRequest, { signal?: AbortSignal; isOwnerDisposed?: () => boolean }>();
+const launchAuthorities = new WeakMap<ClankersSubagentLaunchRequest, { signal?: AbortSignal; isOwnerDisposed?: () => boolean }>();
 
 type StartupRecoveryBlockReason = 'owner-lock-present' | 'claim-present' | 'inspection-blocked' | 'snapshot-load-error';
 
@@ -185,7 +186,7 @@ interface StartupRecoveryBlock {
   readonly lastLoadError?: string;
 }
 
-function inspectStartupRecoveryBlock(persistenceManager: ZergPersistenceManager | undefined, now?: () => Date): StartupRecoveryBlock | undefined {
+function inspectStartupRecoveryBlock(persistenceManager: ClankersPersistenceManager | undefined, now?: () => Date): StartupRecoveryBlock | undefined {
   if (!persistenceManager?.inspectRecoveryOwnership) return undefined;
   const inspection = persistenceManager.inspectRecoveryOwnership();
   const info = persistenceManager.info;
@@ -218,7 +219,7 @@ function inspectStartupRecoveryBlock(persistenceManager: ZergPersistenceManager 
   return undefined;
 }
 
-function createInertInternalPatchController(message: string): ZergInternalPatchController {
+function createInertInternalPatchController(message: string): ClankersInternalPatchController {
   return {
     installed: false,
     emit(event) {
@@ -243,7 +244,7 @@ function startupRecoveryStatus(block: StartupRecoveryBlock | undefined): { block
   return block ? { ...block } : undefined;
 }
 
-function publishedLaunchBlock(container: ZergStateContainer, request: ZergSubagentLaunchRequest, disposed = false): string | undefined {
+function publishedLaunchBlock(container: ClankersStateContainer, request: ClankersSubagentLaunchRequest, disposed = false): string | undefined {
   const authority = launchAuthorities.get(request);
   if (disposed || authority?.isOwnerDisposed?.()) return 'adapter launch blocked: owner disposed';
   if (authority?.signal?.aborted) return 'adapter launch cancelled: caller signal aborted';
@@ -255,7 +256,7 @@ function publishedLaunchBlock(container: ZergStateContainer, request: ZergSubage
   return undefined;
 }
 
-function rejectDelayedNativeLaunch(container: ZergStateContainer, options: RuntimeCommandOptions, request: ZergSubagentLaunchRequest, reason: string): void {
+function rejectDelayedNativeLaunch(container: ClankersStateContainer, options: RuntimeCommandOptions, request: ClankersSubagentLaunchRequest, reason: string): void {
   const state = container.read();
   const run = request.runId ? getSubagentRunSnapshot(state, request.runId) : undefined;
   if (!run || isTerminalRunSnapshot(run)) return;
@@ -266,7 +267,7 @@ function rejectDelayedNativeLaunch(container: ZergStateContainer, options: Runti
   container.replace(updateRunTaskLifecycle(rejected, request.taskId, status, status, reason, now));
   options.persistenceManager?.save(container.read(), options.now);
 }
-interface NormalizedZergCommandInput {
+interface NormalizedClankersCommandInput {
   topic: string;
   payload: string;
 }
@@ -279,12 +280,12 @@ interface OverlayConfirmationState {
 
 interface SelectedCommandRegistrar {
   target: object;
-  registerCommand(name: ZergCommandName, options: StructuralPiCommandOptions): unknown;
+  registerCommand(name: ClankersCommandName, options: StructuralPiCommandOptions): unknown;
 }
 
 interface RegisteredCommandDisposer {
   target: object;
-  name: ZergCommandName;
+  name: ClankersCommandName;
   dispose(): void;
 }
 
@@ -292,36 +293,36 @@ interface DisposableRegistration {
   dispose(): void;
 }
 
-const registeredCommandsByTarget = new WeakMap<object, Set<ZergCommandName>>();
+const registeredCommandsByTarget = new WeakMap<object, Set<ClankersCommandName>>();
 
-export function registerZergSwarmExtension(
+export function registerClankersExtension(
   context: StructuralPiExtensionContext = {},
-  options: ZergCommandHandlerOptions = {},
-): ZergExtensionRegistration {
-  const sharedSeedSource = readSharedZergState();
+  options: ClankersCommandHandlerOptions = {},
+): ClankersExtensionRegistration {
+  const sharedSeedSource = readSharedClankersState();
   const sharedSeed = seedBuiltinAgentDefinitions(sharedSeedSource);
-  const stateContainer = createZergStateContainer(sharedSeed);
-  const persistenceManager = createZergPersistenceManager(options.persistence);
+  const stateContainer = createClankersStateContainer(sharedSeed);
+  const persistenceManager = createClankersPersistenceManager(options.persistence);
   persistenceManager?.hydrate(stateContainer, options.now);
   let startupRecoveryBlock = inspectStartupRecoveryBlock(persistenceManager, options.now);
   if (sharedSeed !== sharedSeedSource && !startupRecoveryBlock) {
-    replaceSharedZergState(stateContainer.snapshot());
+    replaceSharedClankersState(stateContainer.snapshot());
   }
-  let patch: ZergInternalPatchController | undefined;
+  let patch: ClankersInternalPatchController | undefined;
   const commandDisposers: RegisteredCommandDisposer[] = [];
   const toolDisposers: DisposableRegistration[] = [];
   const sessionDisposers: DisposableRegistration[] = [];
 
   const permissionActivity = createActivityChannel(0);
-  const publishPermissionCount = (state: ZergState) => observeActivity(() => {
-    const queue = state.extensions.zergPermissions as { pendingCount?: unknown } | undefined;
+  const publishPermissionCount = (state: ClankersState) => observeActivity(() => {
+    const queue = state.extensions.clankersPermissions as { pendingCount?: unknown } | undefined;
     const count = typeof queue?.pendingCount === 'number' && Number.isSafeInteger(queue.pendingCount)
       && queue.pendingCount >= 0 ? queue.pendingCount : 0;
     if (count !== permissionActivity.source.snapshot()) permissionActivity.publish(count);
   });
   const syncSharedStateFromContainer = () => {
     const snapshot = stateContainer.snapshot(); // The original shared-publication clone, reused below.
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
     publishPermissionCount(snapshot);
   };
   publishPermissionCount(stateContainer.read());
@@ -330,7 +331,7 @@ export function registerZergSwarmExtension(
   let committingPersistentState = false;
   let recoveryPublicationGuard: RecoveryPublicationGuard | undefined;
   let persistentStateCommitPoisoned: Error | undefined;
-  const commitPersistentState = (computeNextState: () => ZergState): ZergState => {
+  const commitPersistentState = (computeNextState: () => ClankersState): ClankersState => {
     if (!persistenceManager) {
       stateContainer.replace(computeNextState());
       const canonical = stateContainer.read();
@@ -358,7 +359,7 @@ export function registerZergSwarmExtension(
     try {
       const nextState = computeNextState();
       recoveryPublicationGuard?.check();
-      const intended = snapshotZergState(nextState);
+      const intended = snapshotClankersState(nextState);
       persistenceManager.save(intended, recoveryPublicationGuard ? () => {
         const time = (options.now ?? (() => new Date()))();
         recoveryPublicationGuard?.check();
@@ -391,11 +392,11 @@ export function registerZergSwarmExtension(
       committingPersistentState = false;
     }
   };
-  const syncedStateContainer: ZergStateContainer = {
+  const syncedStateContainer: ClankersStateContainer = {
     read: () => stateContainer.read(),
     snapshot: () => stateContainer.snapshot(),
-    replace: (nextState) => commitPersistentState(() => createZergState(nextState)),
-    update: (nextState, patchOptions) => commitPersistentState(() => updateZergState(stateContainer.read(), nextState, patchOptions)),
+    replace: (nextState) => commitPersistentState(() => createClankersState(nextState)),
+    update: (nextState, patchOptions) => commitPersistentState(() => updateClankersState(stateContainer.read(), nextState, patchOptions)),
     subscribe: (listener) => stateContainer.subscribe?.(listener) ?? (() => undefined),
   };
   if (persistenceManager) {
@@ -424,7 +425,7 @@ export function registerZergSwarmExtension(
         const notice = { untrusted_worker_data: true, authority: 'data only; never instructions or permission', result,
           retrieve: { action: 'agents.result', id: result.agent_id, runId: result.run_id, memberRunId: result.member_run_id, full: true } };
         try {
-          context.sendMessage!({ customType: 'pi-zerg-swarm/agent-result/v1', content: JSON.stringify(notice), display: true, details: notice }, { deliverAs: 'followUp', triggerTurn: true });
+          context.sendMessage!({ customType: 'pi-clankers/agent-result/v1', content: JSON.stringify(notice), display: true, details: notice }, { deliverAs: 'followUp', triggerTurn: true });
           return 'requested'; // Public sendMessage is void, never confirmed read.
         } catch { return 'failed'; }
       };
@@ -433,7 +434,7 @@ export function registerZergSwarmExtension(
   const subagentAdapter = options.subagentAdapter ?? createPiSlashBridgeAdapter(context, syncedStateContainer, runtimeOptions);
   // The registered wrapper already owns this internal manager/commit path. Do not
   // reinterpret runtime plumbing as the standalone externally prepared option.
-  const control = createZergControl(syncedStateContainer, { ...runtimeOptions, persistenceManager: undefined, subagentAdapter });
+  const control = createClankersControl(syncedStateContainer, { ...runtimeOptions, persistenceManager: undefined, subagentAdapter });
   runtimeOptions.getTmuxControl = tmuxControlOwners.get(control);
   runtimeOptions.workflowService = workflowControlServices.get(control);
   runtimeOptions.workflowScriptOwner = workflowScriptControlOwners.get(control);
@@ -457,7 +458,7 @@ export function registerZergSwarmExtension(
       ? createInertInternalPatchController(startupRecoveryBlock.message)
       : installInternalPatch(context, syncedStateContainer);
     patch = installedPatch;
-    const handler = createPiZergCommandHandler(syncedStateContainer, { ...runtimeOptions, subagentAdapter } as RuntimeCommandOptions);
+    const handler = createPiClankersCommandHandler(syncedStateContainer, { ...runtimeOptions, subagentAdapter } as RuntimeCommandOptions);
     const opener = managementOpeners.get(handler)!;
     let shortcut: ReturnType<typeof createManagementShortcutController> | undefined;
     let background: BackgroundActivityController | undefined;
@@ -549,7 +550,7 @@ export function registerZergSwarmExtension(
       listen('ui_prompt_end', (_event, ctx) => observePrompt(ctx, false));
     }
 
-    for (const name of ZERG_COMMANDS) {
+    for (const name of CLANKERS_COMMANDS) {
       const commandDisposer = registerCommand(context, {
         name,
         description: 'Show Clankers command-surface status and help.',
@@ -561,14 +562,14 @@ export function registerZergSwarmExtension(
       }
     }
 
-    registerZergControlTool(context, control, toolDisposers);
+    registerClankersControlTool(context, control, toolDisposers);
 
     if (!startupRecoveryBlock) {
       patch.emit({
         type: 'hook',
         message: patch.installed
-          ? `Clankers v${ZERG_EXTENSION_VERSION} internal patch path active`
-          : `Clankers v${ZERG_EXTENSION_VERSION} internal patch unavailable; command surface registered`,
+          ? `Clankers v${CLANKERS_EXTENSION_VERSION} internal patch path active`
+          : `Clankers v${CLANKERS_EXTENSION_VERSION} internal patch unavailable; command surface registered`,
         status: patch.installed ? 'running' : 'done',
       });
     }
@@ -602,7 +603,7 @@ export function registerZergSwarmExtension(
   const installedPatch = patch;
 
   return {
-    commands: [...ZERG_COMMANDS],
+    commands: [...CLANKERS_COMMANDS],
     control,
     get state() {
       return stateContainer.snapshot();
@@ -673,7 +674,7 @@ export function registerZergSwarmExtension(
 
 function disposeStartupResources(
   commandDisposers: RegisteredCommandDisposer[],
-  patch: ZergInternalPatchController | undefined,
+  patch: ClankersInternalPatchController | undefined,
 ): void {
   for (const commandDisposer of commandDisposers.splice(0)) {
     try {
@@ -694,28 +695,28 @@ function disposeStartupResources(
 
 const PI_COMMAND_OUTPUT_WIDTH = 240;
 
-export interface ZergControlOptions extends ZergCommandHandlerOptions {
-  seedState?: Partial<ZergState>;
+export interface ClankersControlOptions extends ClankersCommandHandlerOptions {
+  seedState?: Partial<ClankersState>;
   syncSharedState?: boolean;
   /** Host-prepared SAME manager, acquired before construction. Runner owns final release. */
-  persistenceManager?: ZergPersistenceManager;
+  persistenceManager?: ClankersPersistenceManager;
   trustedWorkflow?: TrustedWorkflowServiceOptions;
   trustedAutomationNative?: TrustedAutomationNativeContext;
 }
 
-function createOwnedMessageService(container: ZergStateContainer, persistenceManager: ZergPersistenceManager | undefined, now?: () => Date): SessionMessageService {
+function createOwnedMessageService(container: ClankersStateContainer, persistenceManager: ClankersPersistenceManager | undefined, now?: () => Date): SessionMessageService {
   return createSessionMessageService({ container, now, readOnly: () => container.read().mode.readOnly === true,
-    ...(persistenceManager ? { save: (state: ZergState) => persistenceManager.save(state, now) } : {}) });
+    ...(persistenceManager ? { save: (state: ClankersState) => persistenceManager.save(state, now) } : {}) });
 }
 
 
 
 type WorkflowHostOwnerInspection = 'live' | 'dead' | 'unknown';
-const HOST_CHECK_ROOT_MARKER = 'zerg-managed-root.json';
+const HOST_CHECK_ROOT_MARKER = 'clankers-managed-root.json';
 const HOST_CHECK_GENERATION_MARKER = 'marker.json';
 const HOST_CHECK_MARKER_BYTES = 4096;
 const HOST_CHECK_MAX_RECEIPTS = 512;
-const HOST_CHECK_ROOT_SCOPE = 'zerg.workflow.checkReceiptRoot.v1';
+const HOST_CHECK_ROOT_SCOPE = 'clankers.workflow.checkReceiptRoot.v1';
 const HOST_CHECK_GENERATION_KEYS = Object.freeze(['candidateId', 'generation', 'nonce', 'profileId'] as const);
 
 function boundedReadJsonFileNoFollow(path: string, maxBytes: number, label: string): unknown {
@@ -792,7 +793,7 @@ function inspectPreviousWorkflowOwner(owner: RecoveryWriterOwnerEvidence): Workf
   } catch (error) { return (error as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'dead' : 'unknown'; }
 }
 
-function createDefaultWorkflowCheckAllocator(container: ZergStateContainer, persistenceManager: ZergPersistenceManager, coding: WorkflowTrustedCodingConfig & { enabled?: boolean }, currentOwner: () => RecoveryWriterOwnerEvidence | undefined) {
+function createDefaultWorkflowCheckAllocator(container: ClankersStateContainer, persistenceManager: ClankersPersistenceManager, coding: WorkflowTrustedCodingConfig & { enabled?: boolean }, currentOwner: () => RecoveryWriterOwnerEvidence | undefined) {
   const trustedProjectRootInput = coding.projectRoot;
   const trustedStagingParentInput = coding.stagingParent;
   if (typeof trustedProjectRootInput !== 'string' || typeof trustedStagingParentInput !== 'string' || !isAbsolute(trustedProjectRootInput) || !isAbsolute(trustedStagingParentInput)) throw new Error('Default durable check receipt allocator requires absolute projectRoot and stagingParent.');
@@ -878,7 +879,7 @@ function createDefaultWorkflowCheckAllocator(container: ZergStateContainer, pers
   };
 }
 
-function buildWorkflowRecoveryOptions(options: ZergControlOptions, persistenceManager: ZergPersistenceManager | undefined, container: ZergStateContainer, isDisposed: () => boolean, onWriter?: (owner: RecoveryWriterOwnerEvidence) => void, verifyPreparedOwner?: () => { owner: RecoveryWriterOwnerEvidence; expectedSnapshotHash: string }) {
+function buildWorkflowRecoveryOptions(options: ClankersControlOptions, persistenceManager: ClankersPersistenceManager | undefined, container: ClankersStateContainer, isDisposed: () => boolean, onWriter?: (owner: RecoveryWriterOwnerEvidence) => void, verifyPreparedOwner?: () => { owner: RecoveryWriterOwnerEvidence; expectedSnapshotHash: string }) {
   if (options.recovery?.enabled !== true) return undefined;
   if (!persistenceManager || typeof persistenceManager.acquireRecoveryOwnership !== 'function' || typeof persistenceManager.inspectRecoveryOwnership !== 'function') {
     throw new Error('Durable recovery requires configured persistenceManager/persistence with recovery ownership support when recovery.enabled is true.');
@@ -910,14 +911,14 @@ function buildWorkflowRecoveryOptions(options: ZergControlOptions, persistenceMa
         if (!publish) throw new Error('Authoritative recovery publication wrapper unavailable.');
         const base = container.snapshot();
         let expectedHead = request.expectedSnapshotHash;
-        const checkState = (expectedCanonical: ZergState, recordOnly: boolean) => {
+        const checkState = (expectedCanonical: ClankersState, recordOnly: boolean) => {
           const current = container.read();
           // Record-only authority persists revocations, never grants execution or
           // accepts a disposed owner. Compare to a captured version, not itself.
           if (isDisposed() || current.lifecycle === 'disposed' || (!recordOnly && current.mode.readOnly)) throw new Error('Recovery writer blocked by read-only/disposed authority.');
           if (!isDeepStrictEqual(current, expectedCanonical)) throw new Error('Recovery canonical state changed during publication.');
         };
-        const inspect = (expectedCanonical: ZergState, recordOnly: boolean) => {
+        const inspect = (expectedCanonical: ClankersState, recordOnly: boolean) => {
           checkState(expectedCanonical, recordOnly);
           const inspection = persistenceManager.inspectRecoveryOwnership!();
           checkState(expectedCanonical, recordOnly);
@@ -936,7 +937,7 @@ function buildWorkflowRecoveryOptions(options: ZergControlOptions, persistenceMa
           },
         };
         guard.check();
-        return publish(raw as ZergState, guard);
+        return publish(raw as ClankersState, guard);
       },
       ensureWriter() {
         if (verifyPreparedOwner) {
@@ -968,7 +969,7 @@ function buildWorkflowRecoveryOptions(options: ZergControlOptions, persistenceMa
     },
   };
 }
-function readAgentResults(state: ZergState, ids: string[], selector: { runId?: string; memberRunId?: string; full?: boolean }, single = false): AgentResultLookup[] {
+function readAgentResults(state: ClankersState, ids: string[], selector: { runId?: string; memberRunId?: string; full?: boolean }, single = false): AgentResultLookup[] {
   const ledger = state.extensions[AGENT_RESULTS_KEY] as AgentResultLedger | undefined;
   const results = single ? [lookupAgentResult(ledger, { ...selector, id: ids[0] })] : lookupAgentResults(ledger, ids, selector);
   if (selector.runId === undefined && selector.memberRunId === undefined) {
@@ -983,22 +984,22 @@ function readAgentResults(state: ZergState, ids: string[], selector: { runId?: s
   return results;
 }
 
-function storeAgentResult(container: ZergStateContainer, result: AgentResult): void {
+function storeAgentResult(container: ClankersStateContainer, result: AgentResult): void {
   const state = container.read();
   container.update({ extensions: { ...state.extensions, [AGENT_RESULTS_KEY]: retainAgentResult(state.extensions[AGENT_RESULTS_KEY] as AgentResultLedger | undefined, result) } });
 }
 
-export function createZergControl(
-  stateOrContainer: ZergStateContainer | Partial<ZergState> = createZergStateContainer(),
-  options: ZergControlOptions = {},
-): ZergControl {
+export function createClankersControl(
+  stateOrContainer: ClankersStateContainer | Partial<ClankersState> = createClankersStateContainer(),
+  options: ClankersControlOptions = {},
+): ClankersControl {
   const trustedWorkflow = options.trustedWorkflow ? Object.freeze({ ...options.trustedWorkflow }) : undefined;
-  const baseContainer = isZergStateContainer(stateOrContainer)
+  const baseContainer = isClankersStateContainer(stateOrContainer)
     ? stateOrContainer
-    : createZergStateContainer(seedBuiltinAgentDefinitions(createZergState({ ...options.seedState, ...stateOrContainer })));
-  const associatedPersistenceManager = isZergStateContainer(stateOrContainer) ? ownedPersistenceManagers.get(stateOrContainer) : undefined;
+    : createClankersStateContainer(seedBuiltinAgentDefinitions(createClankersState({ ...options.seedState, ...stateOrContainer })));
+  const associatedPersistenceManager = isClankersStateContainer(stateOrContainer) ? ownedPersistenceManagers.get(stateOrContainer) : undefined;
   if (options.persistenceManager && (options.persistence || associatedPersistenceManager)) throw new Error('Prepared persistence manager conflicts with another writer or associated wrapper.');
-  const persistenceManager = options.persistenceManager ?? associatedPersistenceManager ?? createZergPersistenceManager(options.persistence);
+  const persistenceManager = options.persistenceManager ?? associatedPersistenceManager ?? createClankersPersistenceManager(options.persistence);
   if (options.trustedAutomationNative && (!options.persistenceManager || !options.trustedWorkflow?.onStartReservation || !options.trustedWorkflow.assertAdmission)) throw new Error('Automation requires prepared persistence and trusted reservation/admission fences.');
   let preparedOwner: RecoveryWriterOwnerEvidence | undefined;
   if (options.persistenceManager) {
@@ -1020,13 +1021,13 @@ export function createZergControl(
   if (!associatedPersistenceManager && !options.persistenceManager && persistenceManager) {
     persistenceManager.hydrate(baseContainer, options.now);
   }
-  let startupRecoveryBlock = (options as ZergControlOptions & { startupRecoveryBlock?: StartupRecoveryBlock }).startupRecoveryBlock
+  let startupRecoveryBlock = (options as ClankersControlOptions & { startupRecoveryBlock?: StartupRecoveryBlock }).startupRecoveryBlock
     ?? inspectStartupRecoveryBlock(persistenceManager, options.now);
   assertPreparedOwner(); // The startup inspection invokes the host clock callback.
   let committingPersistentState = false;
   let recoveryPublicationGuard: RecoveryPublicationGuard | undefined;
   let persistentStateCommitPoisoned: Error | undefined;
-  const commitPersistentState = (computeNextState: () => ZergState): ZergState => {
+  const commitPersistentState = (computeNextState: () => ClankersState): ClankersState => {
     if (startupRecoveryBlock) {
       if (committingPersistentState) throw new Error('Clankers persistence commit already in progress; nested state writes are refused.');
       committingPersistentState = true;
@@ -1050,7 +1051,7 @@ export function createZergControl(
       const before = preparedOwner ? baseContainer.snapshot() : undefined;
       const nextState = computeNextState();
       recoveryPublicationGuard?.check();
-      const intended = snapshotZergState(nextState);
+      const intended = snapshotClankersState(nextState);
       persistenceManager!.save(intended, recoveryPublicationGuard || before ? () => {
         const time = (options.now ?? (() => new Date()))();
         recoveryPublicationGuard?.check();
@@ -1088,12 +1089,12 @@ export function createZergControl(
       committingPersistentState = false;
     }
   };
-  const container: ZergStateContainer = persistenceManager && !associatedPersistenceManager
+  const container: ClankersStateContainer = persistenceManager && !associatedPersistenceManager
     ? {
       read: () => baseContainer.read(),
       snapshot: () => baseContainer.snapshot(),
-      replace: (nextState) => commitPersistentState(() => createZergState(nextState)),
-      update: (nextState, patchOptions) => commitPersistentState(() => updateZergState(baseContainer.read(), nextState, patchOptions)),
+      replace: (nextState) => commitPersistentState(() => createClankersState(nextState)),
+      update: (nextState, patchOptions) => commitPersistentState(() => updateClankersState(baseContainer.read(), nextState, patchOptions)),
       subscribe: (listener) => baseContainer.subscribe?.(listener) ?? (() => undefined),
     }
     : baseContainer;
@@ -1209,9 +1210,9 @@ export function createZergControl(
   };
   runtimeOptions.workflowService = workflowService;
 
-  const control: ZergControl = {
-    async execute(action: ZergControlAction, signal?: AbortSignal): Promise<ZergControlResult> {
-      return executeZergControlAction(container, action, runtimeOptions, signal);
+  const control: ClankersControl = {
+    async execute(action: ClankersControlAction, signal?: AbortSignal): Promise<ClankersControlResult> {
+      return executeClankersControlAction(container, action, runtimeOptions, signal);
     },
     getState() {
       return container.snapshot();
@@ -1302,21 +1303,21 @@ function compactWorkflowApprovalInspections(records: ReturnType<WorkflowTrustedA
   };
 }
 
-async function executeZergControlAction(
-  container: ZergStateContainer,
-  action: ZergControlAction,
+async function executeClankersControlAction(
+  container: ClankersStateContainer,
+  action: ClankersControlAction,
   options: RuntimeCommandOptions,
   signal?: AbortSignal,
-): Promise<ZergControlResult> {
+): Promise<ClankersControlResult> {
   try {
     const actionName = action && typeof action === 'object' ? (action as { action?: unknown }).action : undefined;
-    if (!isZergControlActionName(actionName)) {
-      return controlError(controlHelpEcho(actionName) as ZergControlAction['action'], 'invalid_request', unknownControlActionMessage(actionName), container.read().revision);
+    if (!isClankersControlActionName(actionName)) {
+      return controlError(controlHelpEcho(actionName) as ClankersControlAction['action'], 'invalid_request', unknownControlActionMessage(actionName), container.read().revision);
     }
     if (actionName === 'help') {
       const failure = validateControlHelpRequest(action);
       if (failure) return controlError('help', 'invalid_request', failure, container.read().revision);
-      const data = getZergControlHelpData((action as Extract<ZergControlAction, { action: 'help' }>).topic);
+      const data = getClankersControlHelpData((action as Extract<ClankersControlAction, { action: 'help' }>).topic);
       return controlOk('help', data, JSON.stringify(data), container.read().revision);
     }
     if (Object.hasOwn(action, 'topic')) return controlError(actionName, 'invalid_request', 'topic is supported only for help. Use {"action":"help","topic":"<exact action name>"}.', container.read().revision);
@@ -1402,7 +1403,7 @@ async function executeZergControlAction(
       case 'status': {
         const snapshot = container.snapshot();
         return controlOk(action.action, {
-          version: ZERG_EXTENSION_VERSION,
+          version: CLANKERS_EXTENSION_VERSION,
           revision: snapshot.revision,
           lifecycle: snapshot.lifecycle,
           mode: snapshot.mode,
@@ -1411,7 +1412,7 @@ async function executeZergControlAction(
             teams: Object.keys(snapshot.teams).length,
             tasks: Object.keys(snapshot.tasks).length,
             agentDefinitions: Object.keys(snapshot.agentDefinitions).length,
-            logs: getZergLogState(snapshot).records.length,
+            logs: getClankersLogState(snapshot).records.length,
             runs: getSubagentRunSnapshots(snapshot).length,
           },
           persistence: { ...(options.persistenceManager?.info ?? { enabled: false }), startupRecovery: startupRecoveryStatus(inspectStartupRecoveryBlock(options.persistenceManager, options.now)) },
@@ -1436,7 +1437,7 @@ async function executeZergControlAction(
         if (action.action === 'agents.update' && !existing) return controlError(action.action, 'not_found', `Unknown agent definition: ${action.id}`, container.snapshot().revision);
         const prompt = action.prompt ?? existing?.prompt;
         if (!prompt?.trim()) return controlError(action.action, 'invalid_request', 'agent create/update requires prompt.', container.snapshot().revision);
-        const agent: ZergAgentDefinition = {
+        const agent: ClankersAgentDefinition = {
           id: action.id,
           label: action.label ?? existing?.label ?? action.id,
           description: action.description ?? existing?.description,
@@ -1553,12 +1554,12 @@ async function executeZergControlAction(
           const message = run.substateReason || `run ${run.status}`;
           return controlError(action.action, run.status === 'cancelled' ? 'run_cancelled' : 'run_failed', message, snapshot.revision, { runId: result.runId, taskId: result.taskId, agentId: action.agent });
         }
-        const output = !action.background && run ? renderZergSubagentRunSummary(run, { width: PI_COMMAND_OUTPUT_WIDTH }) : result.output;
+        const output = !action.background && run ? renderClankersSubagentRunSummary(run, { width: PI_COMMAND_OUTPUT_WIDTH }) : result.output;
         return controlOk(action.action, { run, request: { ...action, ...(parsedConcurrency?.ok ? { concurrency: parsedConcurrency.value } : {}) }, taskId: result.taskId, runId: result.runId }, output, snapshot.revision, { runId: result.runId, taskId: result.taskId, agentId: action.agent });
       }
       case 'runs.list': {
         const runs = resolveAvailableRuns(container, options.subagentAdapter);
-        return controlOk(action.action, { runs }, renderZergSubagentRunList(runs, { width: PI_COMMAND_OUTPUT_WIDTH }), container.snapshot().revision);
+        return controlOk(action.action, { runs }, renderClankersSubagentRunList(runs, { width: PI_COMMAND_OUTPUT_WIDTH }), container.snapshot().revision);
       }
       case 'runs.show': {
         const snapshot = container.snapshot();
@@ -1567,7 +1568,7 @@ async function executeZergControlAction(
         const adapterRun = options.subagentAdapter?.getRun?.(action.runId);
         const run = stateRun && isTerminalRunSnapshot(stateRun) ? stateRun : adapterRun ?? stateRun;
         if (!run) return controlError(action.action, 'not_found', `Unknown run: ${action.runId}`, snapshot.revision, { runId: action.runId });
-        return controlOk(action.action, { run }, renderZergSubagentRunSummary(run, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision, { runId: action.runId, taskId: run.taskId, agentId: run.agentId });
+        return controlOk(action.action, { run }, renderClankersSubagentRunSummary(run, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision, { runId: action.runId, taskId: run.taskId, agentId: run.agentId });
       }
       case 'timeline.list': {
         const snapshot = container.read();
@@ -1578,16 +1579,16 @@ async function executeZergControlAction(
             if (!Object.hasOwn(action, field)) continue;
             if (++fields > 16 || (!allowed.has(field) && (action as unknown as Record<string, unknown>)[field] !== undefined)) throw new Error('Unsupported timeline.list field. Use teamId, parentRunId, memberRunId, piSessionId and limit.');
           }
-          const timeline = getZergTimeline(snapshot, { teamId: action.teamId, parentRunId: action.parentRunId, memberRunId: action.memberRunId, piSessionId: action.piSessionId, limit: action.limit });
-          return controlOk(action.action, timeline, renderZergTimeline(timeline, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision);
+          const timeline = getClankersTimeline(snapshot, { teamId: action.teamId, parentRunId: action.parentRunId, memberRunId: action.memberRunId, piSessionId: action.piSessionId, limit: action.limit });
+          return controlOk(action.action, timeline, renderClankersTimeline(timeline, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision);
         } catch (error) {
           return controlError(action.action, 'invalid_request', error instanceof Error ? error.message : 'Invalid timeline filters.', snapshot.revision);
         }
       }
       case 'logs.list': {
         const snapshot = container.snapshot();
-        const records = getZergLogs(snapshot, { runId: action.runId, level: action.level, limit: action.limit });
-        return controlOk(action.action, { records }, renderZergLogList(records, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision, { runId: action.runId });
+        const records = getClankersLogs(snapshot, { runId: action.runId, level: action.level, limit: action.limit });
+        return controlOk(action.action, { records }, renderClankersLogList(records, { width: PI_COMMAND_OUTPUT_WIDTH }), snapshot.revision, { runId: action.runId });
       }
       case 'session.continuation.prepare': {
         strictContinuationFields(action, ['action', 'parentRunId', 'memberRunId', 'piSessionId', 'entryId', 'body', 'model', 'acknowledgeUnconfirmedSource']);
@@ -1634,7 +1635,7 @@ async function executeZergControlAction(
       case 'message': {
         const snapshot = container.snapshot();
         if (!action.targetId || !action.body?.trim()) return controlError(action.action, 'invalid_request', 'message requires targetId and body.', snapshot.revision, { runId: action.runId });
-        if (action.mode !== undefined && !isZergOperatorMessageMode(action.mode)) return controlError(action.action, 'invalid_request', `Invalid message mode: ${String(action.mode)}. Expected steer or followUp.`, snapshot.revision, { runId: action.runId, agentId: action.targetId });
+        if (action.mode !== undefined && !isClankersOperatorMessageMode(action.mode)) return controlError(action.action, 'invalid_request', `Invalid message mode: ${String(action.mode)}. Expected steer or followUp.`, snapshot.revision, { runId: action.runId, agentId: action.targetId });
         if (container.read().mode.readOnly) return controlError(action.action, 'read_only', 'Read-only control blocks messaging.', container.read().revision, { runId: action.runId, agentId: action.targetId });
         if (signal?.aborted) return controlError(action.action, 'request_cancelled', 'Message request cancelled before transport.', container.read().revision, { runId: action.runId, agentId: action.targetId });
         const result = await options.subagentAdapter?.sendMessage?.(action.targetId, action.body, action.runId, action.mode ?? 'steer');
@@ -1648,26 +1649,26 @@ async function executeZergControlAction(
         const result = dispatchInterruptCommand(container, action.runId ?? '', options);
         const snapshot = container.snapshot();
         if (!result.ok) return controlError(action.action, 'interrupt_failed', result.output, snapshot.revision, { runId: result.runId ?? action.runId });
-        const runId = result.runId ?? action.runId ?? getZergControlState(snapshot).activeRunId;
+        const runId = result.runId ?? action.runId ?? getClankersControlState(snapshot).activeRunId;
         const run = runId ? getSubagentRunSnapshot(snapshot, runId) ?? options.subagentAdapter?.getRun?.(runId) : undefined;
         return controlOk(action.action, { run }, result.output, snapshot.revision, { runId, taskId: run?.taskId, agentId: run?.agentId });
       }
     }
 
-    return controlError(controlHelpEcho(actionName) as ZergControlAction['action'], 'invalid_request', unknownControlActionMessage(actionName), container.read().revision);
+    return controlError(controlHelpEcho(actionName) as ClankersControlAction['action'], 'invalid_request', unknownControlActionMessage(actionName), container.read().revision);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const rawAction = action && typeof action === 'object' ? (action as { action?: unknown }).action : undefined;
-    const actionName = controlHelpEcho(rawAction) as ZergControlAction['action'];
+    const actionName = controlHelpEcho(rawAction) as ClankersControlAction['action'];
     return controlError(actionName, 'exception', rawAction === 'help' ? controlHelpEcho(message) : message, container.read().revision);
   }
 }
 
-function controlOk(action: ZergControlAction['action'], data: unknown, output: string | undefined, stateRevision: number, ids: Partial<Pick<ZergControlResult, 'runId' | 'taskId' | 'agentId' | 'teamId'>> = {}): ZergControlResult {
+function controlOk(action: ClankersControlAction['action'], data: unknown, output: string | undefined, stateRevision: number, ids: Partial<Pick<ClankersControlResult, 'runId' | 'taskId' | 'agentId' | 'teamId'>> = {}): ClankersControlResult {
   return { ok: true, action, data: cloneJsonCompatible(data), output, stateRevision, ...ids };
 }
 
-function controlError(action: ZergControlAction['action'], code: string, message: string, stateRevision: number, ids: Partial<Pick<ZergControlResult, 'runId' | 'taskId' | 'agentId' | 'teamId'>> = {}): ZergControlResult {
+function controlError(action: ClankersControlAction['action'], code: string, message: string, stateRevision: number, ids: Partial<Pick<ClankersControlResult, 'runId' | 'taskId' | 'agentId' | 'teamId'>> = {}): ClankersControlResult {
   return { ok: false, action, output: message, error: { code, message }, stateRevision, ...ids };
 }
 
@@ -1675,7 +1676,7 @@ function cloneJsonCompatible<T>(value: T): T {
   return value === undefined ? value : JSON.parse(JSON.stringify(value)) as T;
 }
 
-function registerZergControlTool(context: StructuralPiExtensionContext, control: ZergControl, disposers: DisposableRegistration[]): void {
+function registerClankersControlTool(context: StructuralPiExtensionContext, control: ClankersControl, disposers: DisposableRegistration[]): void {
   if (typeof context.registerTool !== 'function') {
     return undefined;
   }
@@ -1690,7 +1691,7 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
       type: 'object',
       additionalProperties: true,
       properties: {
-        action: { type: 'string', enum: [...ZERG_CONTROL_ACTION_NAMES], description: 'Exact public action; use help for discovery.' },
+        action: { type: 'string', enum: [...CLANKERS_CONTROL_ACTION_NAMES], description: 'Exact public action; use help for discovery.' },
         topic: { type: 'string', minLength: 1, maxLength: 96, description: 'Only for help: exact public action name for focused parameters, constraints and example; omit for directory.' },
         definition: { type: 'object', description: 'Bounded declarative workflow definition for workflows.define; no code or arbitrary tools.' },
         definitionId: { type: 'string', description: 'Workflow definition identity for workflows.show/start or non-executing scripts.inspect.' },
@@ -1730,7 +1731,7 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
       required: ['action'],
     },
     async execute(_toolCallId: string, params: unknown, signal?: AbortSignal) {
-      const parsedAction = parseZergControlToolParams(params);
+      const parsedAction = parseClankersControlToolParams(params);
       const result = parsedAction.ok
         ? await control.execute(parsedAction.action, signal)
         : controlError('status', 'invalid_request', parsedAction.message, control.getState().revision);
@@ -1742,34 +1743,25 @@ function registerZergControlTool(context: StructuralPiExtensionContext, control:
     },
   };
 
-  // Both names share the same controller, execute function and parameter schema.
-  // Retain each available cleanup handle before the next registration can throw.
+  // Retain the cleanup handle before any later registration can throw.
   // Public Pi hosts may return void; their registrations cannot be rolled back here.
-  for (const tool of [definition, {
-    ...definition,
-    name: 'zerg_control',
-    label: 'Clankers control (deprecated alias)',
-    description: 'Deprecated compatibility alias for clankers_control; remains functional and shares the same controller. Prefer clankers_control. ' + definition.description,
-    promptSnippet: 'Deprecated alias for clankers_control; prefer clankers_control for new calls.',
-  }]) {
-    const disposer = normalizeDisposableRegistration(context.registerTool(tool));
-    if (disposer) disposers.push(disposer);
-  }
+  const disposer = normalizeDisposableRegistration(context.registerTool(definition));
+  if (disposer) disposers.push(disposer);
 }
 
-function parseZergControlToolParams(params: unknown): { ok: true; action: ZergControlAction } | { ok: false; message: string } {
+function parseClankersControlToolParams(params: unknown): { ok: true; action: ClankersControlAction } | { ok: false; message: string } {
   if (!params || typeof params !== 'object' || Array.isArray(params) || typeof (params as { action?: unknown }).action !== 'string') {
     return { ok: false, message: 'clankers_control requires an object with action.' };
   }
 
   const actionName = (params as { action: string }).action;
-  if (!isZergControlActionName(actionName)) {
+  if (!isClankersControlActionName(actionName)) {
     return { ok: false, message: unknownControlActionMessage(actionName) };
   }
 
   if (actionName === 'help') {
     const failure = validateControlHelpRequest(params);
-    return failure ? { ok: false, message: failure } : { ok: true, action: params as ZergControlAction };
+    return failure ? { ok: false, message: failure } : { ok: true, action: params as ClankersControlAction };
   }
   if (Object.hasOwn(params, 'topic')) return { ok: false, message: 'topic is supported only for help. Use {"action":"help","topic":"<exact action name>"}.' };
 
@@ -1784,15 +1776,15 @@ function parseZergControlToolParams(params: unknown): { ok: true; action: ZergCo
 
   if (actionName === 'message') {
     const mode = (params as { mode?: unknown }).mode;
-    if (mode !== undefined && !isZergOperatorMessageMode(mode)) {
+    if (mode !== undefined && !isClankersOperatorMessageMode(mode)) {
       return { ok: false, message: `Invalid clankers_control message mode: ${String(mode)}. Expected steer or followUp.` };
     }
   }
 
-  return { ok: true, action: params as ZergControlAction };
+  return { ok: true, action: params as ClankersControlAction };
 }
 
-function parseRecoveryControlToolAction(params: Record<string, unknown>, actionName: 'workflows.recovery.inspect' | 'workflows.recovery.prepare'): { ok: true; action: ZergControlAction } | { ok: false; message: string } {
+function parseRecoveryControlToolAction(params: Record<string, unknown>, actionName: 'workflows.recovery.inspect' | 'workflows.recovery.prepare'): { ok: true; action: ClankersControlAction } | { ok: false; message: string } {
   const allowed = new Set(actionName === 'workflows.recovery.inspect' ? ['action', 'workflowRunId'] : ['action', 'workflowRunId', 'selections']);
   const extra = Object.keys(params).filter((key) => !allowed.has(key) && params[key] !== undefined);
   if (extra.length > 0) return { ok: false, message: `${actionName} accepts only ${[...allowed].join(', ')}; recovery prepare is not authorization.` };
@@ -1836,17 +1828,17 @@ function parseRecoverySelections(raw: unknown): { ok: true; selections?: { reuse
   return Object.keys(selections).length ? { ok: true, selections } : { ok: true, selections: {} };
 }
 
-export { createZergPersistenceManager, recoverZergStateAfterRestart } from './persistence.js';
-export type { TrustedAutomationNativeContext, ZergControl, ZergControlAction, ZergControlHelpData, ZergControlHelpParameter, ZergControlResult, ZergOperatorMessageResult, ZergPersistenceInfo, ZergPersistenceOptions, ZergRunRecoveryInfo, ZergSubagentRunSnapshot, ZergSessionMessageKey, ZergSessionMessageInput, ZergSessionMessageReceipt, ZergSessionMessageResult } from './types.js';
+export { createClankersPersistenceManager, recoverClankersStateAfterRestart } from './persistence.js';
+export type { TrustedAutomationNativeContext, ClankersControl, ClankersControlAction, ClankersControlHelpData, ClankersControlHelpParameter, ClankersControlResult, ClankersOperatorMessageResult, ClankersPersistenceInfo, ClankersPersistenceOptions, ClankersRunRecoveryInfo, ClankersSubagentRunSnapshot, ClankersSessionMessageKey, ClankersSessionMessageInput, ClankersSessionMessageReceipt, ClankersSessionMessageResult } from './types.js';
 
-export function createZergCommandHandler(
-  stateOrReader: ZergStateSource,
-  options: ZergCommandHandlerOptions = {},
-): (input?: string) => ZergCommandResult {
-  const dispatchers: Record<ZergCommandTopic, ZergCommandDispatcher> = {
-    help: () => ({ ok: true, output: renderHelp(resolveZergStateSnapshot(stateOrReader)) + '\n\nTmux (opt-in, standalone workers or configured teams; eight persistent slots):\n/clankers run <agent> --backend tmux [--model provider/model] [--bg] -- <literal task>\n/clankers tmux workers list | show <workerId> [jobId] | close <workerId>\n/clankers tmux workers prompt <workerId> [--bg] -- <literal task>\n/clankers tmux workers steer <workerId> <runId> -- <literal body>\n/clankers interrupt <runId> requests cancellation, not completion.\nTasks keep the worker open; close is explicit. Native transcript/history/continuation UI is unavailable for tmux. Structured help documents exact limits.' }),
-    status: () => ({ ok: true, output: renderStatusLine(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
-    tree: () => ({ ok: true, output: renderAgentTree(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
+export function createClankersCommandHandler(
+  stateOrReader: ClankersStateSource,
+  options: ClankersCommandHandlerOptions = {},
+): (input?: string) => ClankersCommandResult {
+  const dispatchers: Record<ClankersCommandTopic, ClankersCommandDispatcher> = {
+    help: () => ({ ok: true, output: renderHelp(resolveClankersStateSnapshot(stateOrReader)) + '\n\nTmux (opt-in, standalone workers or configured teams; eight persistent slots):\n/clankers run <agent> --backend tmux [--model provider/model] [--bg] -- <literal task>\n/clankers tmux workers list | show <workerId> [jobId] | close <workerId>\n/clankers tmux workers prompt <workerId> [--bg] -- <literal task>\n/clankers tmux workers steer <workerId> <runId> -- <literal body>\n/clankers interrupt <runId> requests cancellation, not completion.\nTasks keep the worker open; close is explicit. Native transcript/history/continuation UI is unavailable for tmux. Structured help documents exact limits.' }),
+    status: () => ({ ok: true, output: renderStatusLine(resolveClankersStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
+    tree: () => ({ ok: true, output: renderAgentTree(resolveClankersStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }) }),
     steps: (payload: string) => {
       const steps = deriveThinkingSteps(payload);
       const output = steps.length
@@ -1863,7 +1855,7 @@ export function createZergCommandHandler(
     control: (payload: string) => dispatchControlCommand(stateOrReader, payload, options),
     permission: (payload: string) => dispatchPermissionCommand(stateOrReader, payload, options),
     logs: (payload: string) => dispatchLogsCommand(stateOrReader, payload),
-    config: () => ({ ok: true, output: renderZergConfigOverlay(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH, activeTab: 'config', selectedIndex: 0 }) }),
+    config: () => ({ ok: true, output: renderClankersConfigOverlay(resolveClankersStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH, activeTab: 'config', selectedIndex: 0 }) }),
     run: (payload: string) => dispatchRunCommand(stateOrReader, payload, options),
     runs: (payload: string) => dispatchRunsCommand(stateOrReader, payload, options),
     sessions: (payload: string) => dispatchSessionsCommand(stateOrReader, payload),
@@ -1871,28 +1863,28 @@ export function createZergCommandHandler(
     interrupt: (payload: string) => dispatchInterruptCommand(stateOrReader, payload, options),
   };
 
-  return (input?: string): ZergCommandResult => {
-    const normalized = normalizeZergCommandInput(input);
+  return (input?: string): ClankersCommandResult => {
+    const normalized = normalizeClankersCommandInput(input);
 
-    if (isZergCommandTopic(normalized.topic)) {
+    if (isClankersCommandTopic(normalized.topic)) {
       return dispatchers[normalized.topic](normalized.payload);
     }
 
     return {
       ok: false,
-      output: `Unknown Clankers command: ${normalized.topic}\n\n${renderHelp(resolveZergStateSnapshot(stateOrReader))}`,
+      output: `Unknown Clankers command: ${normalized.topic}\n\n${renderHelp(resolveClankersStateSnapshot(stateOrReader))}`,
     };
   };
 }
 
-function normalizeZergCommandInput(input?: string): NormalizedZergCommandInput {
+function normalizeClankersCommandInput(input?: string): NormalizedClankersCommandInput {
   const commandText = (input ?? '').trim();
 
   if (!commandText) {
     return { topic: 'help', payload: '' };
   }
 
-  const routedText = stripOptionalZergInvocation(commandText);
+  const routedText = stripOptionalClankersInvocation(commandText);
   const topicMatch = routedText.match(/^(\S+)/);
 
   if (!topicMatch) {
@@ -1905,7 +1897,7 @@ function normalizeZergCommandInput(input?: string): NormalizedZergCommandInput {
   };
 }
 
-function stripOptionalZergInvocation(input: string): string {
+function stripOptionalClankersInvocation(input: string): string {
   const tokenMatch = input.match(/^(\S+)/);
 
   if (!tokenMatch) {
@@ -1915,24 +1907,24 @@ function stripOptionalZergInvocation(input: string): string {
   const token = tokenMatch[1];
   const slashlessToken = token.startsWith('/') ? token.slice(1) : token;
 
-  if (!isZergInvocationToken(slashlessToken.toLowerCase())) {
+  if (!isClankersInvocationToken(slashlessToken.toLowerCase())) {
     return input;
   }
 
   return input.slice(token.length).trimStart();
 }
 
-function isZergInvocationToken(value: string): value is ZergCommandName {
-  return (ZERG_COMMANDS as readonly string[]).includes(value);
+function isClankersInvocationToken(value: string): value is ClankersCommandName {
+  return (CLANKERS_COMMANDS as readonly string[]).includes(value);
 }
 
 const TIMELINE_USAGE = 'Usage: /clankers timeline [list] [--team ID] [--run PARENT] [--member MEMBER] [--session PI] [--limit 1..256]';
-function parseTimelinePayload(payload: string): { filter: ZergTimelineFilter; list: boolean } {
+function parseTimelinePayload(payload: string): { filter: ClankersTimelineFilter; list: boolean } {
   if (payload.length > 8192) throw new Error(TIMELINE_USAGE);
   const words = payload.trim() ? payload.trim().split(/\s+/) : [];
   const list = words[0] === 'list';
   if (list) words.shift();
-  const fields: Record<string, keyof ZergTimelineFilter> = { '--team': 'teamId', '--run': 'parentRunId', '--member': 'memberRunId', '--session': 'piSessionId', '--limit': 'limit' };
+  const fields: Record<string, keyof ClankersTimelineFilter> = { '--team': 'teamId', '--run': 'parentRunId', '--member': 'memberRunId', '--session': 'piSessionId', '--limit': 'limit' };
   const values: Record<string, unknown> = {};
   for (let index = 0; index < words.length; index++) {
     const word = words[index]!;
@@ -1947,26 +1939,26 @@ function parseTimelinePayload(payload: string): { filter: ZergTimelineFilter; li
       values[field] = Number(value);
     } else values[field] = value;
   }
-  return { filter: validateZergTimelineFilter(values), list };
+  return { filter: validateClankersTimelineFilter(values), list };
 }
-function readTimelineState(source: ZergStateSource): ZergState {
-  return isZergStateContainer(source) ? source.read() : typeof source === 'function' ? source() : source;
+function readTimelineState(source: ClankersStateSource): ClankersState {
+  return isClankersStateContainer(source) ? source.read() : typeof source === 'function' ? source() : source;
 }
-function dispatchTimelineCommand(source: ZergStateSource, payload: string): ZergCommandResult {
-  try { return { ok: true, output: renderZergTimeline(getZergTimeline(readTimelineState(source), parseTimelinePayload(payload).filter), { width: PI_COMMAND_OUTPUT_WIDTH }) }; }
+function dispatchTimelineCommand(source: ClankersStateSource, payload: string): ClankersCommandResult {
+  try { return { ok: true, output: renderClankersTimeline(getClankersTimeline(readTimelineState(source), parseTimelinePayload(payload).filter), { width: PI_COMMAND_OUTPUT_WIDTH }) }; }
   catch (error) { return { ok: false, output: error instanceof Error ? error.message : TIMELINE_USAGE }; }
 }
 
-function isZergCommandTopic(value: string): value is ZergCommandTopic {
+function isClankersCommandTopic(value: string): value is ClankersCommandTopic {
   return value === 'help' || value === 'status' || value === 'tree' || value === 'steps' || value === 'agents' || value === 'agent' || value === 'team' || value === 'mode' || value === 'intervene' || value === 'monitor' || value === 'control' || value === 'permission' || value === 'logs' || value === 'config' || value === 'run' || value === 'runs' || value === 'interrupt' || value === 'sessions' || value === 'timeline';
 }
 
 function dispatchAgentDefinitionsCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
-  const snapshot = resolveZergStateSnapshot(stateOrReader);
+): ClankersCommandResult {
+  const snapshot = resolveClankersStateSnapshot(stateOrReader);
   const definitions = getAgentDefinitions(snapshot);
   const tokens = tokenizeRuntimePayload(payload);
   const action = tokens[0]?.toLowerCase();
@@ -2030,7 +2022,7 @@ function dispatchAgentDefinitionsCommand(
     });
     const updated = container.replace(nextState);
     if (options.syncSharedState) {
-      replaceSharedZergState(updated);
+      replaceSharedClankersState(updated);
     }
     return { ok: true, output: `agent definition ${parsed.definition.id} saved (not launched). After run use /clankers agents result ${parsed.definition.id} --run-id <run> --member-run-id <member> --full; batch: agents results id1,id2.\n${renderAgentDefinitionSummary(parsed.definition, { width: PI_COMMAND_OUTPUT_WIDTH })}` };
   }
@@ -2050,7 +2042,7 @@ function dispatchAgentDefinitionsCommand(
     }
     const updated = container.replace(removeAgentDefinition(container.read(), id));
     if (options.syncSharedState) {
-      replaceSharedZergState(updated);
+      replaceSharedClankersState(updated);
     }
     return { ok: true, output: `agent definition ${existing.id} deleted.` };
   }
@@ -2064,8 +2056,8 @@ function dispatchAgentDefinitionsCommand(
 function parseAgentDefinitionMutation(
   action: string,
   tokens: string[],
-  existing?: ZergAgentDefinition,
-): { ok: false; output: string } | { ok: true; definition: ZergAgentDefinition } {
+  existing?: ClankersAgentDefinition,
+): { ok: false; output: string } | { ok: true; definition: ClankersAgentDefinition } {
   const id = tokens[0];
   if (!id) {
     return { ok: false, output: 'Usage: /clankers agents create <id> --prompt <text> [--label <label>] [--model <model>] [--tools a,b]' };
@@ -2141,11 +2133,11 @@ function isAgentDefinitionPermissionMode(value: string): value is AutomationMode
 }
 
 function dispatchRuntimeCommand(
-  stateOrReader: ZergStateSource,
-  entity: ZergRuntimeEntity,
+  stateOrReader: ClankersStateSource,
+  entity: ClankersRuntimeEntity,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const container = getWritableStateContainer(stateOrReader);
 
   if (!container) {
@@ -2173,7 +2165,7 @@ function dispatchRuntimeCommand(
   const snapshot = container.replace(withLog);
 
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
 
   return {
@@ -2184,10 +2176,10 @@ function dispatchRuntimeCommand(
 
 
 function dispatchModeCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const parsed = parseModeCommand(payload);
 
   if (!parsed.ok) {
@@ -2197,7 +2189,7 @@ function dispatchModeCommand(
   if (parsed.action === 'status') {
     return {
       ok: true,
-      output: renderStatusLine(resolveZergStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }),
+      output: renderStatusLine(resolveClankersStateSnapshot(stateOrReader), { width: PI_COMMAND_OUTPUT_WIDTH }),
     };
   }
 
@@ -2231,7 +2223,7 @@ function dispatchModeCommand(
     );
     const snapshot = container.replace(nextState);
     if (options.syncSharedState) {
-      replaceSharedZergState(snapshot);
+      replaceSharedClankersState(snapshot);
     }
 
     return { ok: true, output: renderModeTransitionStatus(snapshot, 'mode reverted') };
@@ -2250,17 +2242,17 @@ function dispatchModeCommand(
   const snapshot = container.replace(nextState);
 
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
 
   return { ok: true, output: renderModeTransitionStatus(snapshot, `mode set to ${parsed.action}`) };
 }
 
 function dispatchInterventionCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const container = getWritableStateContainer(stateOrReader);
 
   if (!container) {
@@ -2291,7 +2283,7 @@ function dispatchInterventionCommand(
   const snapshot = container.replace(nextState);
 
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
 
   return {
@@ -2303,14 +2295,14 @@ function dispatchInterventionCommand(
 }
 
 function dispatchMonitorCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const normalizedPayload = tokenizeRuntimePayload(payload);
   const normalizedTopic = normalizedPayload[0]?.toLowerCase();
   const argument = normalizedPayload[1]?.toLowerCase();
-  const snapshot = resolveZergStateSnapshot(stateOrReader);
+  const snapshot = resolveClankersStateSnapshot(stateOrReader);
 
   if (!normalizedTopic || normalizedTopic === 'status') {
     return {
@@ -2350,13 +2342,13 @@ function dispatchMonitorCommand(
 }
 
 function dispatchPermissionCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const tokens = tokenizeRuntimePayload(payload);
   const action = tokens[0]?.toLowerCase() ?? 'status';
-  const snapshot = resolveZergStateSnapshot(stateOrReader);
+  const snapshot = resolveClankersStateSnapshot(stateOrReader);
 
   if (action === 'status') {
     return { ok: true, output: renderPermissionQueueStatus(getPermissionQueueState(snapshot), { width: PI_COMMAND_OUTPUT_WIDTH }) };
@@ -2405,7 +2397,7 @@ function dispatchPermissionCommand(
     });
     const next = container.replace(logged);
     if (options.syncSharedState) {
-      replaceSharedZergState(next);
+      replaceSharedClankersState(next);
     }
     const requestId = getPermissionQueueState(next).lastRequestId;
     return { ok: true, output: `permission request queued: ${requestId}` };
@@ -2447,7 +2439,7 @@ function dispatchPermissionCommand(
     });
     const next = container.replace(logged);
     if (options.syncSharedState) {
-      replaceSharedZergState(next);
+      replaceSharedClankersState(next);
     }
     return { ok: true, output: `permission request ${requestId} ${permissionPastTense(decision)}` };
   }
@@ -2456,15 +2448,15 @@ function dispatchPermissionCommand(
 }
 
 function dispatchLogsCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
-): ZergCommandResult {
+): ClankersCommandResult {
   const tokens = tokenizeRuntimePayload(payload);
   const action = tokens[0]?.toLowerCase() ?? 'status';
-  const snapshot = resolveZergStateSnapshot(stateOrReader);
+  const snapshot = resolveClankersStateSnapshot(stateOrReader);
 
   if (action === 'status') {
-    return { ok: true, output: renderZergLogStatus(getZergLogState(snapshot), { width: PI_COMMAND_OUTPUT_WIDTH }) };
+    return { ok: true, output: renderClankersLogStatus(getClankersLogState(snapshot), { width: PI_COMMAND_OUTPUT_WIDTH }) };
   }
 
   if (action === 'list' || action === 'ls') {
@@ -2473,7 +2465,7 @@ function dispatchLogsCommand(
       return parsed;
     }
 
-    return { ok: true, output: renderZergLogList(getZergLogs(snapshot, parsed.filter), { width: PI_COMMAND_OUTPUT_WIDTH }) };
+    return { ok: true, output: renderClankersLogList(getClankersLogs(snapshot, parsed.filter), { width: PI_COMMAND_OUTPUT_WIDTH }) };
   }
 
   if (action === 'json') {
@@ -2482,7 +2474,7 @@ function dispatchLogsCommand(
       return parsed;
     }
 
-    const records = getZergLogs(snapshot, parsed.filter);
+    const records = getClankersLogs(snapshot, parsed.filter);
     return { ok: true, output: JSON.stringify({ count: records.length, records }, null, 2) };
   }
 
@@ -2497,7 +2489,7 @@ function dispatchLogsCommand(
       return parsed;
     }
 
-    const records = getZergLogState(snapshot).records;
+    const records = getClankersLogState(snapshot).records;
     const exact = records.find((record) => record.id === id);
     const matches = exact ? [exact] : records.filter((record) => record.runId === id);
     if (matches.length === 0) {
@@ -2509,18 +2501,18 @@ function dispatchLogsCommand(
     }
 
     return exact
-      ? { ok: true, output: renderZergLogSummary(exact, { width: PI_COMMAND_OUTPUT_WIDTH }) }
-      : { ok: true, output: renderZergLogList(matches.slice(-(parsed.filter.limit ?? 20)), { width: PI_COMMAND_OUTPUT_WIDTH }) };
+      ? { ok: true, output: renderClankersLogSummary(exact, { width: PI_COMMAND_OUTPUT_WIDTH }) }
+      : { ok: true, output: renderClankersLogList(matches.slice(-(parsed.filter.limit ?? 20)), { width: PI_COMMAND_OUTPUT_WIDTH }) };
   }
 
   return { ok: false, output: `Unknown logs action: ${tokens[0] ?? ''}` };
 }
 
 function dispatchRunCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const parsed = parseRunCommand(payload);
   if (!parsed.ok) {
     return parsed;
@@ -2530,11 +2522,11 @@ function dispatchRunCommand(
 }
 
 function dispatchRunRequest(
-  stateOrReader: ZergStateSource,
-  requestInput: ZergSubagentLaunchRequest,
+  stateOrReader: ClankersStateSource,
+  requestInput: ClankersSubagentLaunchRequest,
   options: RuntimeCommandOptions,
   signal?: AbortSignal,
-): ZergCommandResult {
+): ClankersCommandResult {
   const container = getWritableStateContainer(stateOrReader);
   if (!container) {
     return { ok: false, output: RUNTIME_WRITABLE_STATE_ERROR };
@@ -2543,7 +2535,7 @@ function dispatchRunRequest(
   if (requestInput.backend !== undefined && requestInput.backend !== 'native' && requestInput.backend !== 'tmux') return { ok: false, output: 'Unknown run backend; expected native or tmux.' };
   if (requestInput.backend === 'tmux') {
     try {
-      if (!options.getTmuxControl) throw new Error('Tmux requires an owned createZergControl/registered controller.');
+      if (!options.getTmuxControl) throw new Error('Tmux requires an owned createClankersControl/registered controller.');
       return options.getTmuxControl().start(requestInput, signal);
     } catch (error) { return { ok: false, output: error instanceof Error ? error.message : 'Tmux admission refused.' }; }
   }
@@ -2611,7 +2603,7 @@ function dispatchRunRequest(
     });
     const snapshot = container.replace(logged);
     if (options.syncSharedState) {
-      replaceSharedZergState(snapshot);
+      replaceSharedClankersState(snapshot);
     }
     const requestId = getPermissionQueueState(snapshot).lastRequestId;
     return {
@@ -2622,7 +2614,7 @@ function dispatchRunRequest(
 
   const adapter = options.subagentAdapter;
   if (!adapter || adapter.kind === 'unavailable') {
-    return { ok: false, output: 'No Clankers native adapter is available. Register the extension in Pi or provide a ZergSubagentControlAdapter.' };
+    return { ok: false, output: 'No Clankers native adapter is available. Register the extension in Pi or provide a ClankersSubagentControlAdapter.' };
   }
 
   const now = options.now ?? (() => new Date());
@@ -2633,7 +2625,7 @@ function dispatchRunRequest(
   const requestedModel = requestInput.model ?? resolvedDefinition?.model ?? teamModel;
   const requestedFallbackModels = requestInput.fallbackModels ?? resolvedDefinition?.fallbackModels ?? teamFallbackModels;
   const requestedMaxTurns = requestInput.maxTurns ?? resolvedDefinition?.maxTurns ?? teamMaxTurns;
-  const request: ZergSubagentLaunchRequest = {
+  const request: ClankersSubagentLaunchRequest = {
     ...requestInput,
     agent: resolvedAgentId,
     fork: launchMode === 'fork',
@@ -2717,12 +2709,12 @@ function dispatchRunRequest(
   launchAuthorities.set(request, { signal, isOwnerDisposed: options.isOwnerDisposed });
   container.replace(withLaunchLog);
   if (options.syncSharedState) {
-    replaceSharedZergState(container.snapshot());
+    replaceSharedClankersState(container.snapshot());
   }
 
   const launchBlocked = publishedLaunchBlock(container, request);
   let launchThrew = false;
-  let result: ReturnType<ZergSubagentControlAdapter['launch']>;
+  let result: ReturnType<ClankersSubagentControlAdapter['launch']>;
   try {
     result = launchBlocked ? { ok: false, message: launchBlocked } : adapter.launch(request);
   } catch (error) {
@@ -2744,7 +2736,7 @@ function dispatchRunRequest(
       data: { launchMode, concurrency: resolvedConcurrency, model: request.model, fallbackModels: request.fallbackModels, maxTurns: request.maxTurns },
     });
     if (options.syncSharedState) {
-      replaceSharedZergState(logged);
+      replaceSharedClankersState(logged);
     }
     return {
       ok: true,
@@ -2798,7 +2790,7 @@ function dispatchRunRequest(
     data: { launchMode, concurrency: resolvedConcurrency, model: request.model, fallbackModels: request.fallbackModels, maxTurns: request.maxTurns },
   }));
   if (options.syncSharedState) {
-    replaceSharedZergState(container.snapshot());
+    replaceSharedClankersState(container.snapshot());
   }
 
   return {
@@ -2810,10 +2802,10 @@ function dispatchRunRequest(
 }
 
 function dispatchRunsCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const adapter = options.subagentAdapter;
   const tokens = tokenizeRuntimePayload(payload);
   const action = tokens[0]?.toLowerCase();
@@ -2823,7 +2815,7 @@ function dispatchRunsCommand(
   if (!action || action === 'list' || action === 'ls') {
     return {
       ok: true,
-      output: renderZergSubagentRunList(runs, { width: PI_COMMAND_OUTPUT_WIDTH }),
+      output: renderClankersSubagentRunList(runs, { width: PI_COMMAND_OUTPUT_WIDTH }),
     };
   }
 
@@ -2832,7 +2824,7 @@ function dispatchRunsCommand(
       return { ok: false, output: 'Usage: /clankers runs show <run-id>' };
     }
 
-    const stateMatch = getSubagentRunSnapshot(resolveZergStateSnapshot(stateOrReader), runId);
+    const stateMatch = getSubagentRunSnapshot(resolveClankersStateSnapshot(stateOrReader), runId);
     const adapterMatch = adapter?.getRun?.(runId);
     const match = stateMatch && isTerminalRunSnapshot(stateMatch) ? stateMatch : adapterMatch ?? stateMatch;
     if (!match) {
@@ -2841,7 +2833,7 @@ function dispatchRunsCommand(
 
     return {
       ok: true,
-      output: renderZergSubagentRunSummary(match, { width: PI_COMMAND_OUTPUT_WIDTH }),
+      output: renderClankersSubagentRunSummary(match, { width: PI_COMMAND_OUTPUT_WIDTH }),
     };
   }
 
@@ -2852,15 +2844,15 @@ function dispatchRunsCommand(
 }
 
 function dispatchInterruptCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const [runId] = tokenizeRuntimePayload(payload);
   const container = getWritableStateContainer(stateOrReader);
-  const currentSnapshot = container?.read() ?? resolveZergStateSnapshot(stateOrReader);
+  const currentSnapshot = container?.read() ?? resolveClankersStateSnapshot(stateOrReader);
 
-  const exactRunId = runId || getZergControlState(currentSnapshot).activeRunId;
+  const exactRunId = runId || getClankersControlState(currentSnapshot).activeRunId;
   if (exactRunId && currentSnapshot.agents[exactRunId]?.metadata?.backend === 'tmux') {
     try {
       if (!options.getTmuxControl) throw new Error('Owned tmux registry unavailable; no native fallback.');
@@ -2874,7 +2866,7 @@ function dispatchInterruptCommand(
     }
 
     const current = currentSnapshot;
-    const targetRunId = runId || getZergControlState(current).activeRunId;
+    const targetRunId = runId || getClankersControlState(current).activeRunId;
     const queued = enqueuePermissionRequest(current, {
       kind: 'interrupt',
       targetId: targetRunId,
@@ -2895,7 +2887,7 @@ function dispatchInterruptCommand(
       runId: targetRunId,
     }));
     if (options.syncSharedState) {
-      replaceSharedZergState(snapshot);
+      replaceSharedClankersState(snapshot);
     }
     return {
       ok: false,
@@ -2910,7 +2902,7 @@ function dispatchInterruptCommand(
 
   const result = adapter.interrupt(runId);
   if (result.ok && container) {
-    const targetRunId = result.runId || runId || getZergControlState(container.read()).activeRunId;
+    const targetRunId = result.runId || runId || getClankersControlState(container.read()).activeRunId;
     if (targetRunId) {
       const currentRun = getSubagentRunSnapshot(container.read(), targetRunId);
       const interrupted = currentRun && isTerminalRunSnapshot(currentRun) ? container.read() : applyRuntimeTransition(container.read(), {
@@ -2931,7 +2923,7 @@ function dispatchInterruptCommand(
         runId: targetRunId,
       }));
       if (options.syncSharedState) {
-        replaceSharedZergState(snapshot);
+        replaceSharedClankersState(snapshot);
       }
     }
   }
@@ -2939,16 +2931,16 @@ function dispatchInterruptCommand(
 }
 
 function dispatchControlCommand(
-  stateOrReader: ZergStateSource,
+  stateOrReader: ClankersStateSource,
   payload: string,
   options: RuntimeCommandOptions,
-): ZergCommandResult {
+): ClankersCommandResult {
   const tokens = tokenizeRuntimePayload(payload);
   const topic = tokens[0]?.toLowerCase() ?? 'status';
   const argument = tokens[1]?.toLowerCase();
 
   if (topic === 'status') {
-    return { ok: true, output: renderZergControlStatus(resolveZergStateSnapshot(stateOrReader), PI_COMMAND_OUTPUT_WIDTH) };
+    return { ok: true, output: renderClankersControlStatus(resolveClankersStateSnapshot(stateOrReader), PI_COMMAND_OUTPUT_WIDTH) };
   }
 
   const container = getWritableStateContainer(stateOrReader);
@@ -2966,20 +2958,20 @@ function dispatchControlCommand(
     if (typeof snapshot === 'string') {
       return { ok: false, output: snapshot };
     }
-    return { ok: true, output: renderZergControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
+    return { ok: true, output: renderClankersControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
   }
 
   if (topic === 'controller') {
     if (!argument || argument === 'status') {
-      return { ok: true, output: `Clankers controller is ${getZergControlState(container.read()).controller}` };
+      return { ok: true, output: `Clankers controller is ${getClankersControlState(container.read()).controller}` };
     }
 
-    if (!isZergControlController(argument)) {
+    if (!isClankersControlController(argument)) {
       return { ok: false, output: `Unknown control controller: ${argument}` };
     }
 
-    const snapshot = updateZergControlState(container, { controller: argument }, `controller set to ${argument}`, options);
-    return { ok: true, output: renderZergControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
+    const snapshot = updateClankersControlState(container, { controller: argument }, `controller set to ${argument}`, options);
+    return { ok: true, output: renderClankersControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
   }
 
   if (topic === 'mode') {
@@ -2988,21 +2980,21 @@ function dispatchControlCommand(
     }
 
     const snapshot = setAutomationMode(container, argument, options);
-    return { ok: true, output: renderZergControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
+    return { ok: true, output: renderClankersControlStatus(snapshot, PI_COMMAND_OUTPUT_WIDTH) };
   }
 
   return { ok: false, output: `Unknown control action: ${tokens[0] ?? ''}` };
 }
 
 
-function parseRunCommand(payload: string): { ok: false; output: string } | { ok: true; request: ZergSubagentLaunchRequest } {
+function parseRunCommand(payload: string): { ok: false; output: string } | { ok: true; request: ClankersSubagentLaunchRequest } {
   const literal = /^([\s\S]*?)\s+--\s([\s\S]*)$/.exec(payload);
   const header = tokenizeRuntimePayload(literal?.[1] ?? payload);
   const tmuxLiteral = header.some((token, index) => token === '--backend=tmux' || (token === '--backend' && header[index + 1] === 'tmux'));
   if (tmuxLiteral && !literal) return { ok: false, output: 'Tmux run requires -- before the literal task: /clankers run <agent> --backend tmux -- <task>' };
   const tokens = tmuxLiteral ? header : tokenizeRuntimePayload(payload);
   let background = false;
-  let launchMode: ZergSubagentLaunchMode = 'fresh';
+  let launchMode: ClankersSubagentLaunchMode = 'fresh';
   let sawFresh = false;
   let sawFork = false;
   let backend: 'native' | 'tmux' | undefined;
@@ -3119,7 +3111,7 @@ function parsePositiveSafeIntegerToken(value: string, name: string): { ok: true;
 }
 
 function parseLogFilters(tokens: string[]): LogsParseResult {
-  const filter: ZergLogFilter = {};
+  const filter: ClankersLogFilter = {};
   let json = false;
 
   for (let index = 0; index < tokens.length; index += 1) {
@@ -3143,14 +3135,14 @@ function parseLogFilters(tokens: string[]): LogsParseResult {
       filter.runId = normalizeLogFilterText(value);
     } else if (lower === '--level') {
       const value = tokens[index + 1]?.toLowerCase();
-      if (!isZergLogLevel(value)) {
+      if (!isClankersLogLevel(value)) {
         return { ok: false, output: `Unknown log level: ${tokens[index + 1] ?? ''}` };
       }
       filter.level = value;
       index += 1;
     } else if (lower.startsWith('--level=')) {
       const value = token.slice('--level='.length).toLowerCase();
-      if (!isZergLogLevel(value)) {
+      if (!isClankersLogLevel(value)) {
         return { ok: false, output: `Unknown log level: ${token.slice('--level='.length)}` };
       }
       filter.level = value;
@@ -3198,7 +3190,7 @@ function parseModeCommand(payload: string): ModeParseResult {
   return { ok: true, action: normalizedAction, reason: reason || undefined };
 }
 
-function parseInterventionCommand(state: ZergState, payload: string): InterveneParseResult {
+function parseInterventionCommand(state: ClankersState, payload: string): InterveneParseResult {
   const [targetKindToken, id, ...messageTokens] = tokenizeRuntimePayload(payload);
   const normalizedKind = targetKindToken?.toLowerCase();
 
@@ -3272,7 +3264,7 @@ function isInterventionKind(value: string | undefined): value is InterveneKind {
   return value === 'agent' || value === 'subagent' || value === 'leader';
 }
 
-function renderModeTransitionStatus(state: ZergState, message: string): string {
+function renderModeTransitionStatus(state: ClankersState, message: string): string {
   return `${message}
 ${renderStatusLine(state, { width: PI_COMMAND_OUTPUT_WIDTH })}`;
 }
@@ -3295,19 +3287,19 @@ function normalizeInterventionText(input: string, maxLength = MAX_INTERVENTION_M
 }
 
 
-function resolveRunId(idFactory?: ZergIdFactory): string {
+function resolveRunId(idFactory?: ClankersIdFactory): string {
   const generator = idFactory?.runId ?? defaultIdFactory.runId;
   const candidate = generator();
   return sanitizeSpawnId(candidate, DEFAULT_RUN_ID_PREFIX);
 }
 
-function resolveTaskId(idFactory?: ZergIdFactory): string {
+function resolveTaskId(idFactory?: ClankersIdFactory): string {
   const generator = idFactory?.taskId ?? defaultIdFactory.taskId;
   const candidate = generator();
   return sanitizeSpawnId(candidate, DEFAULT_TASK_ID_PREFIX);
 }
 
-function resolveLaunchMode(request: Pick<ZergSubagentLaunchRequest, 'fork' | 'launchMode'>): ZergSubagentLaunchMode {
+function resolveLaunchMode(request: Pick<ClankersSubagentLaunchRequest, 'fork' | 'launchMode'>): ClankersSubagentLaunchMode {
   if (request.launchMode === 'fork' || request.fork === true) {
     return 'fork';
   }
@@ -3336,12 +3328,12 @@ function appendSpawnIdentifiers(message: string, runId: string, taskId: string):
   return `${message}${suffix ? ` ${suffix}` : ''}`;
 }
 
-function appendSpawnLaunchMode(message: string, launchMode: ZergSubagentLaunchMode): string {
+function appendSpawnLaunchMode(message: string, launchMode: ClankersSubagentLaunchMode): string {
   const suffix = `(${launchMode})`;
   return message.includes(suffix) ? message : `${message} ${suffix}`;
 }
 
-function parseRuntimeTransition(entity: ZergRuntimeEntity, payload: string): RuntimeParseResult {
+function parseRuntimeTransition(entity: ClankersRuntimeEntity, payload: string): RuntimeParseResult {
   const [actionToken, id, ...rest] = tokenizeRuntimePayload(payload);
   const action = actionToken?.toLowerCase();
 
@@ -3422,7 +3414,7 @@ interface RuntimeEntityOptions {
 
 type RuntimeEntityOptionsParseResult = RuntimeEntityOptions | { ok: false; output: string };
 
-function parseRuntimeEntityOptions(entity: ZergRuntimeEntity, tokens: string[]): RuntimeEntityOptionsParseResult {
+function parseRuntimeEntityOptions(entity: ClankersRuntimeEntity, tokens: string[]): RuntimeEntityOptionsParseResult {
   const remaining: string[] = [];
   const options: RuntimeEntityOptions = { ok: true, tokens: remaining };
 
@@ -3510,9 +3502,9 @@ function isRuntimeTeamKind(value: string): value is TeamKind {
   return value === 'team' || value === 'squad' || value === 'worktree';
 }
 
-function parseLifecycleSubstateOptions(tokens: string[]): { ok: true; tokens: string[]; substate?: ZergLifecycleSubstate; substateReason?: string } | { ok: false; output: string } {
+function parseLifecycleSubstateOptions(tokens: string[]): { ok: true; tokens: string[]; substate?: ClankersLifecycleSubstate; substateReason?: string } | { ok: false; output: string } {
   const remaining: string[] = [];
-  let substate: ZergLifecycleSubstate | undefined;
+  let substate: ClankersLifecycleSubstate | undefined;
   let substateReason: string | undefined;
 
   for (let index = 0; index < tokens.length; index += 1) {
@@ -3636,15 +3628,15 @@ function parseLogLimit(value: string | undefined): number | undefined {
   return Number.isSafeInteger(limit) && limit > 0 ? limit : undefined;
 }
 
-function isZergLogLevel(value: string | undefined): value is NonNullable<ZergLogFilter['level']> {
+function isClankersLogLevel(value: string | undefined): value is NonNullable<ClankersLogFilter['level']> {
   return value === 'debug' || value === 'info' || value === 'warn' || value === 'error';
 }
 
-function isRuntimeAction(value: string | undefined): value is ZergRuntimeTransitionAction {
+function isRuntimeAction(value: string | undefined): value is ClankersRuntimeTransitionAction {
   return value === 'create' || value === 'start' || value === 'progress' || value === 'stop' || value === 'fail' || value === 'reset';
 }
 
-function isLifecycleSubstate(value: string | undefined): value is ZergLifecycleSubstate {
+function isLifecycleSubstate(value: string | undefined): value is ClankersLifecycleSubstate {
   return value === 'queued'
     || value === 'spawning'
     || value === 'starting'
@@ -3664,7 +3656,7 @@ function isLifecycleSubstate(value: string | undefined): value is ZergLifecycleS
     || value === 'reset';
 }
 
-function isPermissionRequestKind(value: string | undefined): value is ZergPermissionRequestKind {
+function isPermissionRequestKind(value: string | undefined): value is ClankersPermissionRequestKind {
   return value === 'run' || value === 'interrupt' || value === 'tool' || value === 'mode' || value === 'intervention' || value === 'adapter';
 }
 
@@ -3672,11 +3664,11 @@ function isPermissionListFilter(value: string): value is 'all' | 'pending' | 're
   return value === 'all' || value === 'pending' || value === 'resolved';
 }
 
-function permissionDecisionForAction(action: 'approve' | 'deny' | 'cancel'): ZergPermissionDecision {
+function permissionDecisionForAction(action: 'approve' | 'deny' | 'cancel'): ClankersPermissionDecision {
   return action === 'approve' ? 'approve' : action === 'deny' ? 'deny' : 'cancel';
 }
 
-function permissionPastTense(decision: ZergPermissionDecision): string {
+function permissionPastTense(decision: ClankersPermissionDecision): string {
   return decision === 'approve'
     ? 'approved'
     : decision === 'deny'
@@ -3687,31 +3679,31 @@ function permissionPastTense(decision: ZergPermissionDecision): string {
 }
 
 function appendLogToState(
-  state: ZergState,
+  state: ClankersState,
   _options: RuntimeCommandOptions,
-  input: Parameters<typeof appendZergLogRecord>[1],
-): ZergState {
-  return appendZergLogRecord(state, input);
+  input: Parameters<typeof appendClankersLogRecord>[1],
+): ClankersState {
+  return appendClankersLogRecord(state, input);
 }
 
 function appendLogToContainer(
-  container: ZergStateContainer,
+  container: ClankersStateContainer,
   options: RuntimeCommandOptions,
-  input: Parameters<typeof appendZergLogRecord>[1],
-): ZergState {
+  input: Parameters<typeof appendClankersLogRecord>[1],
+): ClankersState {
   const updated = container.replace(appendLogToState(container.read(), options, input));
   options.persistenceManager?.save(updated, options.now);
   return updated;
 }
 
 function updateRunTaskLifecycle(
-  state: ZergState,
+  state: ClankersState,
   taskId: string | undefined,
   status: AgentStatus,
-  substate: ZergLifecycleSubstate,
+  substate: ClankersLifecycleSubstate,
   substateReason: string | undefined,
   updatedAt: string,
-): ZergState {
+): ClankersState {
   if (!taskId || !state.tasks[taskId]) {
     return state;
   }
@@ -3728,11 +3720,11 @@ function updateRunTaskLifecycle(
 }
 
 function markPermissionRequestTerminalLifecycle(
-  state: ZergState,
+  state: ClankersState,
   runId: string | undefined,
-  decision: ZergPermissionDecision,
+  decision: ClankersPermissionDecision,
   options: RuntimeCommandOptions,
-): ZergState {
+): ClankersState {
   if (!runId || !state.agents[runId]) {
     return state;
   }
@@ -3750,11 +3742,11 @@ function markPermissionRequestTerminalLifecycle(
 }
 
 function markRunWaitingForPermission(
-  state: ZergState,
+  state: ClankersState,
   runId: string,
   permissionRequestId: string | undefined,
   options: RuntimeCommandOptions,
-): ZergState {
+): ClankersState {
   const waiting = applyRuntimeTransition(state, {
     entity: 'agent',
     action: 'progress',
@@ -3786,19 +3778,19 @@ function markRunWaitingForPermission(
 }
 
 function resolveAvailableRuns(
-  stateOrReader: ZergStateSource,
-  adapter: ZergSubagentControlAdapter | undefined,
-): ZergSubagentRunSnapshot[] {
-  const stateRuns = getSubagentRunSnapshots(resolveZergStateSnapshot(stateOrReader));
+  stateOrReader: ClankersStateSource,
+  adapter: ClankersSubagentControlAdapter | undefined,
+): ClankersSubagentRunSnapshot[] {
+  const stateRuns = getSubagentRunSnapshots(resolveClankersStateSnapshot(stateOrReader));
   const runsById = new Map(stateRuns.map((run) => [run.runId, run]));
   const adapterRuns = typeof adapter?.listRuns === 'function' ? adapter.listRuns() : undefined;
 
   if (adapterRuns) {
     for (const run of adapterRuns) {
-      const snapshot = createZergSubagentRunSnapshot(run);
+      const snapshot = createClankersSubagentRunSnapshot(run);
       const existing = runsById.get(snapshot.runId);
       if (existing && isTerminalRunSnapshot(existing)) {
-        runsById.set(snapshot.runId, createZergSubagentRunSnapshot({
+        runsById.set(snapshot.runId, createClankersSubagentRunSnapshot({
           ...snapshot,
           ...existing,
           task: existing.task ?? snapshot.task,
@@ -3810,13 +3802,13 @@ function resolveAvailableRuns(
           },
         }));
       } else {
-        runsById.set(snapshot.runId, existing ? createZergSubagentRunSnapshot({ ...existing, ...snapshot }) : snapshot);
+        runsById.set(snapshot.runId, existing ? createClankersSubagentRunSnapshot({ ...existing, ...snapshot }) : snapshot);
       }
     }
   }
 
   return [...runsById.values()]
-    .map((run) => createZergSubagentRunSnapshot(run))
+    .map((run) => createClankersSubagentRunSnapshot(run))
     .sort((left, right) => {
       const leftTimestamp = left.startedAt ?? left.updatedAt ?? '';
       const rightTimestamp = right.startedAt ?? right.updatedAt ?? '';
@@ -3824,21 +3816,21 @@ function resolveAvailableRuns(
     });
 }
 
-function getWritableStateContainer(stateOrReader: ZergStateSource): ZergStateContainer | undefined {
-  return isZergStateContainer(stateOrReader) ? stateOrReader : undefined;
+function getWritableStateContainer(stateOrReader: ClankersStateSource): ClankersStateContainer | undefined {
+  return isClankersStateContainer(stateOrReader) ? stateOrReader : undefined;
 }
 
-function isZergStateContainer(value: unknown): value is ZergStateContainer {
+function isClankersStateContainer(value: unknown): value is ClankersStateContainer {
   return typeof value === 'object'
     && value !== null
-    && typeof (value as Partial<ZergStateContainer>).read === 'function'
-    && typeof (value as Partial<ZergStateContainer>).snapshot === 'function'
-    && typeof (value as Partial<ZergStateContainer>).replace === 'function'
-    && typeof (value as Partial<ZergStateContainer>).update === 'function';
+    && typeof (value as Partial<ClankersStateContainer>).read === 'function'
+    && typeof (value as Partial<ClankersStateContainer>).snapshot === 'function'
+    && typeof (value as Partial<ClankersStateContainer>).replace === 'function'
+    && typeof (value as Partial<ClankersStateContainer>).update === 'function';
 }
 
-function subscribeToZergState(stateOrReader: ZergStateSource, listener: () => void): () => void {
-  if (isZergStateContainer(stateOrReader) && typeof stateOrReader.subscribe === 'function') {
+function subscribeToClankersState(stateOrReader: ClankersStateSource, listener: () => void): () => void {
+  if (isClankersStateContainer(stateOrReader) && typeof stateOrReader.subscribe === 'function') {
     return stateOrReader.subscribe(listener);
   }
 
@@ -3868,11 +3860,11 @@ function parseReadOnlyValue(value: string, currentValue: boolean): boolean | und
 }
 
 function setReadOnlyMode(
-  container: ZergStateContainer,
+  container: ClankersStateContainer,
   value: string,
   options: RuntimeCommandOptions,
   source: string,
-): ZergState | string {
+): ClankersState | string {
   const current = container.read();
   const targetValue = parseReadOnlyValue(value, Boolean(current.mode.readOnly));
 
@@ -3897,12 +3889,12 @@ function setReadOnlyMode(
 
   const snapshot = container.replace(nextState);
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
   return snapshot;
 }
 
-function setAutomationMode(container: ZergStateContainer, automation: AutomationMode, options: RuntimeCommandOptions): ZergState {
+function setAutomationMode(container: ClankersStateContainer, automation: AutomationMode, options: RuntimeCommandOptions): ClankersState {
   const current = container.read();
   const nextState = applyModeTransition(
     current,
@@ -3920,14 +3912,14 @@ function setAutomationMode(container: ZergStateContainer, automation: Automation
   );
   const snapshot = container.replace(nextState);
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
   return snapshot;
 }
 
-function getZergControlState(state: ZergState): ZergControlState {
-  const candidate = state.extensions[ZERG_CONTROL_EXTENSION_KEY] as Partial<ZergControlState> | undefined;
-  const controller = isZergControlController(candidate?.controller) ? candidate.controller : 'operator';
+function getClankersControlState(state: ClankersState): ClankersControlState {
+  const candidate = state.extensions[CLANKERS_CONTROL_EXTENSION_KEY] as Partial<ClankersControlState> | undefined;
+  const controller = isClankersControlController(candidate?.controller) ? candidate.controller : 'operator';
   return {
     controller,
     selectedTargetId: typeof candidate?.selectedTargetId === 'string' ? candidate.selectedTargetId : undefined,
@@ -3938,16 +3930,16 @@ function getZergControlState(state: ZergState): ZergControlState {
   };
 }
 
-function updateZergControlState(
-  container: ZergStateContainer,
-  patch: Partial<ZergControlState>,
+function updateClankersControlState(
+  container: ClankersStateContainer,
+  patch: Partial<ClankersControlState>,
   message: string,
   options: RuntimeCommandOptions,
-): ZergState {
+): ClankersState {
   const now = (options.now ?? (() => new Date()))().toISOString();
   const current = container.read();
-  const control = getZergControlState(current);
-  const nextControl: ZergControlState = {
+  const control = getClankersControlState(current);
+  const nextControl: ClankersControlState = {
     ...control,
     ...patch,
     auditLog: [
@@ -3958,25 +3950,25 @@ function updateZergControlState(
   const snapshot = container.update((state) => ({
     extensions: {
       ...state.extensions,
-      [ZERG_CONTROL_EXTENSION_KEY]: nextControl,
+      [CLANKERS_CONTROL_EXTENSION_KEY]: nextControl,
     },
   }), { updatedAt: now });
   if (options.syncSharedState) {
-    replaceSharedZergState(snapshot);
+    replaceSharedClankersState(snapshot);
   }
   options.persistenceManager?.save(snapshot, options.now);
   return snapshot;
 }
 
-function isZergControlController(value: unknown): value is ZergControlController {
-  return value === 'operator' || value === 'pi' || value === 'zerg';
+function isClankersControlController(value: unknown): value is ClankersControlController {
+  return value === 'operator' || value === 'pi' || value === 'clankers';
 }
 
 function isAutomationMode(value: string): value is AutomationMode {
   return value === 'manual' || value === 'assisted' || value === 'automatic';
 }
 
-function getConfigTargets(state: ZergState): Array<{ id: string; label: string; kind: string; status: string }> {
+function getConfigTargets(state: ClankersState): Array<{ id: string; label: string; kind: string; status: string }> {
   return [
     ...Object.values(state.agents).map((agent) => ({ id: agent.id, label: agent.label, kind: agent.kind, status: formatConfigStatus(agent.status, agent.runtime?.substate) })),
     ...Object.values(state.teams).map((team) => ({ id: team.id, label: team.label, kind: team.kind, status: formatConfigStatus(team.status, team.runtime?.substate) })),
@@ -3988,13 +3980,13 @@ function formatConfigStatus(status: string, substate?: string): string {
   return substate ? `${status}/${substate}` : status;
 }
 
-function renderZergControlStatus(state: ZergState, width: number): string {
-  const control = getZergControlState(state);
+function renderClankersControlStatus(state: ClankersState, width: number): string {
+  const control = getClankersControlState(state);
   const readOnly = state.mode.readOnly ? 'enabled' : 'disabled';
   const latestAudit = control.auditLog?.at(-1)?.message ?? 'none';
   const permissionQueue = getPermissionQueueState(state);
   const latestPermission = getPendingPermissionRequests(state).at(-1);
-  const logState = getZergLogState(state);
+  const logState = getClankersLogState(state);
   const latestLogWarning = logState.records.filter((record) => record.level === 'warn' || record.level === 'error').at(-1);
   const activeRun = control.activeRunId ? state.agents[control.activeRunId] : undefined;
   const activeRunSubstate = activeRun?.runtime?.substate ? ` [${activeRun.status}/${activeRun.runtime.substate}]` : '';
@@ -4013,7 +4005,7 @@ function renderZergControlStatus(state: ZergState, width: number): string {
   ].map((line) => line.length > width ? `${line.slice(0, Math.max(0, width - 1))}…` : line).join('\n');
 }
 
-function isTerminalRunSnapshot(run: ZergSubagentRunSnapshot): boolean {
+function isTerminalRunSnapshot(run: ClankersSubagentRunSnapshot): boolean {
   return run.status === 'done' || run.status === 'failed' || run.status === 'cancelled' || run.substate === 'completed' || run.substate === 'failed' || run.substate === 'cancelled';
 }
 
@@ -4063,7 +4055,7 @@ function requestPiNativeAbort(runId: string, activeRuns: PiNativeActiveRunRegist
   };
 }
 
-function setRunMetadata(container: ZergStateContainer, runId: string, metadata: Record<string, unknown>, options?: RuntimeCommandOptions): ZergState {
+function setRunMetadata(container: ClankersStateContainer, runId: string, metadata: Record<string, unknown>, options?: RuntimeCommandOptions): ClankersState {
   const state = container.read();
   const agent = state.agents[runId];
   if (!agent) return state;
@@ -4084,7 +4076,7 @@ function setRunMetadata(container: ZergStateContainer, runId: string, metadata: 
   return updated;
 }
 
-function isZergOperatorMessageMode(value: unknown): value is ZergOperatorMessageMode {
+function isClankersOperatorMessageMode(value: unknown): value is ClankersOperatorMessageMode {
   return value === 'steer' || value === 'followUp';
 }
 
@@ -4107,16 +4099,16 @@ function resolvePiNativeMessageTarget(activeRuns: PiNativeActiveRunRegistry, tar
 
 function createPiSlashBridgeAdapter(
   context: StructuralPiExtensionContext,
-  container: ZergStateContainer,
+  container: ClankersStateContainer,
   options: RuntimeCommandOptions,
-): ZergSubagentControlAdapter {
+): ClankersSubagentControlAdapter {
   const events = context.events;
   if (!events || typeof events.emit !== 'function' || typeof events.on !== 'function') {
     return createPiNativeAdapter(context, container, options);
   }
 
   options = { ...options, nativeActivity: createNativeActivityRecorder() };
-  type PendingRun = ZergSubagentRunSnapshot & { launched: boolean; started: boolean; completed: boolean };
+  type PendingRun = ClankersSubagentRunSnapshot & { launched: boolean; started: boolean; completed: boolean };
   type FallbackLaunch = { promise: Promise<void>; timer: ReturnType<typeof setTimeout>; settle(): void };
   const runsById = new Map<string, PendingRun>();
   const activeRuns: PiNativeActiveRunRegistry = new Map();
@@ -4127,11 +4119,11 @@ function createPiSlashBridgeAdapter(
   const resolveTimestamp = () => (options.now ?? (() => new Date()))().toISOString();
   installNativeContinuationService(context, container, options, activeRuns, () => disposed, (id) => nativeOwnedRequestIds.add(id));
 
-  const resolveTaskIdFromRun = (request: ZergSubagentLaunchRequest): string | undefined => {
+  const resolveTaskIdFromRun = (request: ClankersSubagentLaunchRequest): string | undefined => {
     return typeof request.taskId === 'string' && request.taskId.length > 0 ? request.taskId : undefined;
   };
 
-  const resolveLaunchMetadata = (request: ZergSubagentLaunchRequest, taskId: string | undefined, launchMode: ZergSubagentLaunchMode) => {
+  const resolveLaunchMetadata = (request: ClankersSubagentLaunchRequest, taskId: string | undefined, launchMode: ClankersSubagentLaunchMode) => {
     const metadata = {
       ...(taskId ? { taskId } : {}),
       launchMode,
@@ -4145,16 +4137,16 @@ function createPiSlashBridgeAdapter(
     return Object.keys(metadata).length > 0 ? metadata : undefined;
   };
 
-  const refreshRun = (runId: string): ZergSubagentRunSnapshot | undefined => {
+  const refreshRun = (runId: string): ClankersSubagentRunSnapshot | undefined => {
     const stateRun = getSubagentRunSnapshot(container.read(), runId);
     const pending = runsById.get(runId);
 
     if (!stateRun) {
-      return pending ? createZergSubagentRunSnapshot(pending) : undefined;
+      return pending ? createClankersSubagentRunSnapshot(pending) : undefined;
     }
 
     if (isTerminalRunSnapshot(stateRun)) {
-      return createZergSubagentRunSnapshot({
+      return createClankersSubagentRunSnapshot({
         ...pending,
         ...stateRun,
         task: stateRun.task ?? pending?.task,
@@ -4167,7 +4159,7 @@ function createPiSlashBridgeAdapter(
       });
     }
 
-    return createZergSubagentRunSnapshot({
+    return createClankersSubagentRunSnapshot({
       ...stateRun,
       ...pending,
       task: pending?.task ?? stateRun.task,
@@ -4176,19 +4168,19 @@ function createPiSlashBridgeAdapter(
     });
   };
 
-  const resolveRuns = (): ZergSubagentRunSnapshot[] => {
+  const resolveRuns = (): ClankersSubagentRunSnapshot[] => {
     const stateRuns = getSubagentRunSnapshots(container.read());
-    const merged = new Map<string, ZergSubagentRunSnapshot>();
+    const merged = new Map<string, ClankersSubagentRunSnapshot>();
 
     for (const stateRun of stateRuns) {
-      merged.set(stateRun.runId, createZergSubagentRunSnapshot(stateRun));
+      merged.set(stateRun.runId, createClankersSubagentRunSnapshot(stateRun));
     }
 
     for (const [runId, pending] of runsById) {
       const existing = merged.get(runId);
       if (existing) {
         const terminal = isTerminalRunSnapshot(existing);
-        merged.set(runId, createZergSubagentRunSnapshot(terminal ? {
+        merged.set(runId, createClankersSubagentRunSnapshot(terminal ? {
           ...pending,
           ...existing,
           task: existing.task ?? pending.task,
@@ -4215,7 +4207,7 @@ function createPiSlashBridgeAdapter(
           startedAt: existing.startedAt ?? pending.startedAt,
         }));
       } else {
-        merged.set(runId, createZergSubagentRunSnapshot(pending));
+        merged.set(runId, createClankersSubagentRunSnapshot(pending));
       }
     }
 
@@ -4226,7 +4218,7 @@ function createPiSlashBridgeAdapter(
     });
   };
 
-  const updatePendingRun = (runId: string, status?: AgentStatus, eventTimestamp = resolveTimestamp(), activity?: string, substate?: ZergLifecycleSubstate, substateReason?: string): void => {
+  const updatePendingRun = (runId: string, status?: AgentStatus, eventTimestamp = resolveTimestamp(), activity?: string, substate?: ClankersLifecycleSubstate, substateReason?: string): void => {
     const pending = runsById.get(runId);
     if (!pending) {
       return;
@@ -4314,7 +4306,7 @@ function createPiSlashBridgeAdapter(
       }
 
       updatePendingRun(requestId, 'running', resolveTimestamp(), getSubagentRunSnapshot(container.read(), requestId)?.task, 'starting', 'bridge started');
-      const snapshot = updateZergControlState(container, { activeRunId: requestId }, `subagent ${requestId} started`, options);
+      const snapshot = updateClankersControlState(container, { activeRunId: requestId }, `subagent ${requestId} started`, options);
       const started = applyRuntimeTransition(snapshot, {
         entity: 'agent',
         action: 'start',
@@ -4344,7 +4336,7 @@ function createPiSlashBridgeAdapter(
       const currentTool = hasCurrentTool
         ? (data as { currentTool: string }).currentTool
         : 'progress';
-      const substate: ZergLifecycleSubstate = hasCurrentTool ? 'tool-running' : 'executing';
+      const substate: ClankersLifecycleSubstate = hasCurrentTool ? 'tool-running' : 'executing';
       const bridgeLog = parseBridgeUpdateLog(data, hasCurrentTool ? currentTool : undefined);
       const pending = runsById.get(requestId);
       updatePendingRun(requestId, 'running', resolveTimestamp(), currentTool, substate, hasCurrentTool ? currentTool : undefined);
@@ -4411,7 +4403,7 @@ function createPiSlashBridgeAdapter(
   ];
 
   const workflowOwner = createOwnedWorkflowNative(context, container, options, activeRuns, () => disposed);
-  const adapter: ZergSubagentControlAdapter = {
+  const adapter: ClankersSubagentControlAdapter = {
     kind: 'pi-native',
     activity: options.nativeActivity!.source,
     listAgentDefinitions() {
@@ -4421,7 +4413,7 @@ function createPiSlashBridgeAdapter(
       return getAgentDefinition(container.read(), id);
     },
     listRuns() {
-      return resolveRuns().map((run) => createZergSubagentRunSnapshot(run));
+      return resolveRuns().map((run) => createClankersSubagentRunSnapshot(run));
     },
     getRun(runId) {
       return refreshRun(runId);
@@ -4432,7 +4424,7 @@ function createPiSlashBridgeAdapter(
         return { ok: false, message: 'Clankers native adapter is disposed; cannot launch new run.' };
       }
       const requestId = request.runId
-        ?? `zerg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        ?? `clankers-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       const now = resolveTimestamp();
       const selectedDefinition = getAgentDefinition(container.read(), request.agent);
       const agentLabel = selectedDefinition?.label;
@@ -4590,7 +4582,7 @@ function createPiSlashBridgeAdapter(
           if (rejectIfBlocked()) return;
           const activeRun = createPiNativeActiveRun(requestId, options.nativeActivity);
           activeRuns.set(requestId, activeRun);
-          activeRun.promise = runPiNativeZergRequest(context, container, options, request, requestId, taskId, launchMode, activeRun)
+          activeRun.promise = runPiNativeClankersRequest(context, container, options, request, requestId, taskId, launchMode, activeRun)
             .finally(() => { activeRuns.delete(requestId); settle(); });
           void activeRun.promise;
         }, NATIVE_BRIDGE_ACK_GRACE_MS);
@@ -4598,7 +4590,7 @@ function createPiSlashBridgeAdapter(
       }
 
       run.launched = true;
-      updateZergControlState(container, { activeRunId: requestId }, `launched ${request.agent}`, options);
+      updateClankersControlState(container, { activeRunId: requestId }, `launched ${request.agent}`, options);
       appendLogToContainer(container, options, {
         source: 'adapter',
         level: 'info',
@@ -4611,7 +4603,7 @@ function createPiSlashBridgeAdapter(
       });
       return { ok: true, runId: requestId, taskId, message: `Clankers launched ${request.agent} as ${requestId} (${launchMode})` };
     },
-    async sendMessage(targetId, body, runId, mode = 'steer'): Promise<ZergOperatorMessageResult> {
+    async sendMessage(targetId, body, runId, mode = 'steer'): Promise<ClankersOperatorMessageResult> {
       const resolved = resolvePiNativeMessageTarget(activeRuns, targetId, runId);
       if (!resolved.ok) {
         return { ok: false, runId: resolved.runId, targetId, routedTargetId: targetId, status: resolved.status, message: resolved.message };
@@ -4619,7 +4611,7 @@ function createPiSlashBridgeAdapter(
       try {
         if (workflowActiveAdmissions.has(resolved.activeRun)) throw new Error(WORKFLOW_FROZEN_INPUT_MESSAGE);
         const disposition = await sendPiNativeOperatorMessage(resolved.session, targetId, body, mode);
-        const status: ZergOperatorMessageDeliveryStatus = disposition === 'queued' ? 'queued' : 'handled';
+        const status: ClankersOperatorMessageDeliveryStatus = disposition === 'queued' ? 'queued' : 'handled';
         return { ok: true, runId: resolved.runId, targetId, routedTargetId: targetId, status, message: `operator message ${status} for ${targetId}` };
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
@@ -4635,7 +4627,7 @@ function createPiSlashBridgeAdapter(
       return activeRun?.promise?.then(() => getSubagentRunSnapshot(container.read(), runId)) ?? Promise.resolve(getSubagentRunSnapshot(container.read(), runId));
     },
     interrupt(runId) {
-      const target = runId || getZergControlState(container.read()).activeRunId;
+      const target = runId || getClankersControlState(container.read()).activeRunId;
       if (!target) {
         return { ok: false, message: 'No active Clankers subagent run to interrupt.' };
       }
@@ -4657,7 +4649,7 @@ function createPiSlashBridgeAdapter(
         settleFallbackLaunch(target);
         markRunTerminal(target, 'cancelled', 'bridge interrupt requested before native start');
       } else {
-        const snapshot = updateZergControlState(container, { activeRunId: target }, `interrupt requested for ${target}`, options);
+        const snapshot = updateClankersControlState(container, { activeRunId: target }, `interrupt requested for ${target}`, options);
         container.replace(updateRunTaskLifecycle(applyRuntimeTransition(snapshot, {
           entity: 'agent',
           action: 'progress',
@@ -4713,7 +4705,7 @@ function createPiSlashBridgeAdapter(
 }
 
 function installNativeContinuationService(
-  context: StructuralPiExtensionContext, container: ZergStateContainer, options: RuntimeCommandOptions,
+  context: StructuralPiExtensionContext, container: ClankersStateContainer, options: RuntimeCommandOptions,
   activeRuns: PiNativeActiveRunRegistry, disposed: () => boolean, own?: (runId: string) => void,
 ): void {
   if (options.nativeContinuationService) return;
@@ -4733,7 +4725,7 @@ function installNativeContinuationService(
       const taskId = resolveTaskId(options.idFactory);
       if (container.read().agents[runId] || container.read().tasks[taskId] || activeRuns.has(runId) || runId === admission.source.parentRunId || runId === admission.source.memberRunId) throw new Error('New continuation identity collision.');
       const policy = admission.review.policy;
-      const request: ZergSubagentLaunchRequest = { agent: policy.definition.id, agentDefinitionId: policy.definition.id,
+      const request: ClankersSubagentLaunchRequest = { agent: policy.definition.id, agentDefinitionId: policy.definition.id,
         task: admission.review.body, model: policy.model, runId, taskId, launchMode: 'fresh', background: true };
       resultNoticeOwners.set(request, { notice: resultNotice });
       nativeContinuationAdmissions.set(request, admission);
@@ -4749,9 +4741,9 @@ function installNativeContinuationService(
         // Reentrant subscribers now see the task-owned cancellation handle before publication.
         container.replace(applyRuntimeTransition(state, { entity: 'agent', action: 'start', id: runId,
           label: policy.definition.label ?? request.agent, kind: 'subagent', activity: request.task, substate: 'starting', metadata }, { now }));
-        updateZergControlState(container, { activeRunId: runId }, 'new continuation task admitted', options);
+        updateClankersControlState(container, { activeRunId: runId }, 'new continuation task admitted', options);
         if (disposed()) { activeRun.disposed = true; activeRun.cancelRequested = true; }
-        activeRun.promise = runPiNativeZergRequest(context, container, options, request, runId, taskId, 'fresh', activeRun)
+        activeRun.promise = runPiNativeClankersRequest(context, container, options, request, runId, taskId, 'fresh', activeRun)
           .finally(() => { activeRuns.delete(runId); nativeContinuationAdmissions.delete(request); admission.release(); });
         void activeRun.promise;
         return { runId, taskId };
@@ -4765,13 +4757,13 @@ function installNativeContinuationService(
 
 function createPiNativeAdapter(
   context: StructuralPiExtensionContext,
-  container: ZergStateContainer,
+  container: ClankersStateContainer,
   options: RuntimeCommandOptions,
-): ZergSubagentControlAdapter {
+): ClankersSubagentControlAdapter {
   const activeRuns: PiNativeActiveRunRegistry = new Map();
   let disposed = false;
   const associatedManager = ownedPersistenceManagers.get(container);
-  const persistenceManager = associatedManager ?? options.persistenceManager ?? createZergPersistenceManager(options.persistence);
+  const persistenceManager = associatedManager ?? options.persistenceManager ?? createClankersPersistenceManager(options.persistence);
   const runtimeOptions = { ...options, persistenceManager, nativeActivity: createNativeActivityRecorder() } as RuntimeCommandOptions;
   // An authoritative host wrapper already hydrated this exact manager/container.
   // Rehydrating would publish through its writer before fresh recovery ownership;
@@ -4787,7 +4779,7 @@ function createPiNativeAdapter(
   installNativeContinuationService(context, container, runtimeOptions, activeRuns, () => disposed);
   options.nativeContinuationService ??= runtimeOptions.nativeContinuationService;
   const workflowOwner = createOwnedWorkflowNative(context, container, runtimeOptions, activeRuns, () => disposed);
-  const adapter: ZergSubagentControlAdapter = {
+  const adapter: ClankersSubagentControlAdapter = {
     kind: 'pi-native',
     activity: runtimeOptions.nativeActivity!.source,
     listAgentDefinitions() {
@@ -4807,7 +4799,7 @@ function createPiNativeAdapter(
       if (disposed) {
         return { ok: false, message: 'Clankers native adapter is disposed; cannot launch new run.' };
       }
-      const requestId = request.runId ?? `zerg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const requestId = request.runId ?? `clankers-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       const taskId = typeof request.taskId === 'string' && request.taskId.length > 0 ? request.taskId : undefined;
       const launchMode = resolveLaunchMode(request);
       const now = (runtimeOptions.now ?? (() => new Date()))().toISOString();
@@ -4820,7 +4812,7 @@ function createPiNativeAdapter(
         ? 'adapter launch cancelled: interrupt requested'
         : publishedLaunchBlock(container, request, disposed || activeRun.disposed);
       try {
-        updateZergControlState(container, { activeRunId: requestId }, `launched ${request.agent}`, runtimeOptions);
+        updateClankersControlState(container, { activeRunId: requestId }, `launched ${request.agent}`, runtimeOptions);
         let blocked = blockedAfterPublication();
         if (blocked) return { ok: false, runId: requestId, taskId, message: blocked };
         const started = applyRuntimeTransition(container.read(), {
@@ -4857,7 +4849,7 @@ function createPiNativeAdapter(
         });
         blocked = blockedAfterPublication();
         if (blocked) return { ok: false, runId: requestId, taskId, message: blocked };
-        activeRun.promise = runPiNativeZergRequest(context, container, runtimeOptions, request, requestId, taskId, launchMode, activeRun)
+        activeRun.promise = runPiNativeClankersRequest(context, container, runtimeOptions, request, requestId, taskId, launchMode, activeRun)
           .finally(() => activeRuns.delete(requestId));
         void activeRun.promise;
         return { ok: true, runId: requestId, taskId, message: `Clankers launched ${request.agent} as ${requestId} (${launchMode})` };
@@ -4865,7 +4857,7 @@ function createPiNativeAdapter(
         if (!activeRun.promise) activeRuns.delete(requestId);
       }
     },
-    async sendMessage(targetId, body, runId, mode = 'steer'): Promise<ZergOperatorMessageResult> {
+    async sendMessage(targetId, body, runId, mode = 'steer'): Promise<ClankersOperatorMessageResult> {
       const resolved = resolvePiNativeMessageTarget(activeRuns, targetId, runId);
       if (!resolved.ok) {
         return { ok: false, runId: resolved.runId, targetId, routedTargetId: targetId, status: resolved.status, message: resolved.message };
@@ -4873,7 +4865,7 @@ function createPiNativeAdapter(
       try {
         if (workflowActiveAdmissions.has(resolved.activeRun)) throw new Error(WORKFLOW_FROZEN_INPUT_MESSAGE);
         const disposition = await sendPiNativeOperatorMessage(resolved.session, targetId, body, mode);
-        const status: ZergOperatorMessageDeliveryStatus = disposition === 'queued' ? 'queued' : 'handled';
+        const status: ClankersOperatorMessageDeliveryStatus = disposition === 'queued' ? 'queued' : 'handled';
         appendLogToContainer(container, runtimeOptions, { source: 'overlay', level: 'info', kind: 'text', message: `operator message ${status} for ${targetId}`, runId: resolved.runId, agentId: targetId, data: { targetId, body, disposition, mode } });
         return { ok: true, runId: resolved.runId, targetId, routedTargetId: targetId, status, message: `operator message ${status} for ${targetId}` };
       } catch (error) {
@@ -4888,7 +4880,7 @@ function createPiNativeAdapter(
       return activeRun?.promise?.then(() => getSubagentRunSnapshot(container.read(), runId)) ?? Promise.resolve(getSubagentRunSnapshot(container.read(), runId));
     },
     interrupt(runId) {
-      const target = runId || getZergControlState(container.read()).activeRunId;
+      const target = runId || getClankersControlState(container.read()).activeRunId;
       if (!target) {
         return { ok: false, message: 'No active Clankers run to interrupt.' };
       }
@@ -4964,12 +4956,12 @@ function createPiNativeAdapter(
 }
 
 function validatePiNativeUnsupportedCapabilities(
-  request: ZergSubagentLaunchRequest,
-  leaderDefinition: ZergAgentDefinition | undefined,
-  memberDefinitions: Array<ZergAgentDefinition | undefined>,
-  launchMode: ZergSubagentLaunchMode,
+  request: ClankersSubagentLaunchRequest,
+  leaderDefinition: ClankersAgentDefinition | undefined,
+  memberDefinitions: Array<ClankersAgentDefinition | undefined>,
+  launchMode: ClankersSubagentLaunchMode,
 ): string | undefined {
-  const definitionOption = (role: string, definition: ZergAgentDefinition | undefined) => {
+  const definitionOption = (role: string, definition: ClankersAgentDefinition | undefined) => {
     if (!definition) return undefined;
     const option = definition.maxTurns !== undefined ? 'maxTurns'
       : definition.fallbackModels?.length ? 'fallbackModels' : undefined;
@@ -4991,14 +4983,14 @@ function validatePiNativeUnsupportedCapabilities(
   return `Clankers native runner rejected unsupported capability request before SDK startup: ${unsupported}. Use fresh without maxTurns/fallbackModels, or an external adapter/acknowledged slash bridge that implements these options.`;
 }
 
-async function runPiNativeZergRequest(
+async function runPiNativeClankersRequest(
   context: StructuralPiExtensionContext,
-  container: ZergStateContainer,
+  container: ClankersStateContainer,
   options: RuntimeCommandOptions,
-  request: ZergSubagentLaunchRequest,
+  request: ClankersSubagentLaunchRequest,
   runId: string,
   taskId: string | undefined,
-  launchMode: ZergSubagentLaunchMode,
+  launchMode: ClankersSubagentLaunchMode,
   activeRun?: PiNativeActiveRun,
 ): Promise<void> {
   options = { ...options, resultNotice: resultNoticeOwners.get(request)?.notice };
@@ -5010,7 +5002,7 @@ async function runPiNativeZergRequest(
   const memberDefinitions = requestedMemberIds.map((memberId) => getAgentDefinition(state, memberId));
   const missingMemberIds = requestedMemberIds.filter((_, index) => memberDefinitions[index] === undefined);
   const cwd = nativeContinuationAdmissions.get(request)?.review.policy.cwd ?? resolvePiNativeCwd(context);
-  const coordDir = `coord/zerg-${runId.replace(/^zerg-/, '')}`;
+  const coordDir = `coord/clankers-${runId.replace(/^clankers-/, '')}`;
   const coordPath = resolvePath(cwd, coordDir);
   const workerConcurrency = request.concurrency ?? DEFAULT_NATIVE_WORKER_CONCURRENCY;
   let failedMemberSummaries: Array<{ agentId: string; status: 'failed' | 'cancelled'; message?: string }> = [];
@@ -5049,7 +5041,7 @@ async function runPiNativeZergRequest(
     ].join('\n');
 
     let workerSummaries = '';
-    const runnableMemberDefinitions = memberDefinitions.filter((definition): definition is ZergAgentDefinition => definition !== undefined);
+    const runnableMemberDefinitions = memberDefinitions.filter((definition): definition is ClankersAgentDefinition => definition !== undefined);
     if (runnableMemberDefinitions.length > 0) {
       const startedAt = timestamp();
       setRunMetadata(container, runId, { memberProgress: runnableMemberDefinitions.map((definition) => ({ agentId: definition.id, runId: `${runId}-${definition.id}`, status: 'queued', handoffPath: `${coordDir}/${definition.id}.md` })) }, options);
@@ -5209,9 +5201,9 @@ type PiNativeRunContext = {
   runId: string;
   parentRunId: string;
   taskId: string | undefined;
-  request: ZergSubagentLaunchRequest;
+  request: ClankersSubagentLaunchRequest;
   options: RuntimeCommandOptions;
-  container: ZergStateContainer;
+  container: ClankersStateContainer;
   activeRun?: PiNativeActiveRun;
   handoffPath?: string;
   teamStartedAt?: string;
@@ -5226,7 +5218,7 @@ function nativeMemberLineages(run: PiNativeRunContext) {
   return { lineage: activityLineage(state.agents[run.parentRunId]?.metadata?.workflow),
     taskLineage: activityLineage(state.tasks[run.taskId ?? '']?.metadata?.workflow) };
 }
-async function runSinglePiNativeAgent(context: StructuralPiExtensionContext, definition: ZergAgentDefinition, run: PiNativeRunContext) {
+async function runSinglePiNativeAgent(context: StructuralPiExtensionContext, definition: ClankersAgentDefinition, run: PiNativeRunContext) {
   const started = Date.now();
   if (!workflowAdmissions.has(run.request)) {
     definition = { ...definition, result_schema: normalizeResultSchema(definition.result_schema), may_write: normalizeMayWrite(definition.may_write) };
@@ -5281,7 +5273,7 @@ async function runSinglePiNativeAgent(context: StructuralPiExtensionContext, def
 }
 async function executeSinglePiNativeAgent(
   context: StructuralPiExtensionContext,
-  definition: ZergAgentDefinition,
+  definition: ClankersAgentDefinition,
   run: PiNativeRunContext,
 ): Promise<{ agentId: string; status: 'done' | 'failed' | 'cancelled'; message?: string }> {
   if (run.activeRun?.cancelRequested) {
@@ -5312,7 +5304,7 @@ async function executeSinglePiNativeAgent(
   const writeEvidence = createWriteEvidence(cwd, definition.may_write);
   const updateAt = () => (run.options.now ?? (() => new Date()))().toISOString();
   const reviewedEffectiveThinking = admission ? session.thinkingLevel : undefined;
-  let reference: ZergNativeSessionReference | undefined;
+  let reference: ClankersNativeSessionReference | undefined;
   const timelineData = (kind: 'native-output' | 'recorded-event') => reference ? { nativeTimeline: {
     schemaVersion: 1, kind, parentRunId: reference.parentRunId, memberRunId: reference.memberRunId,
     piSessionId: reference.piSessionId, agentDefinitionId: reference.agentDefinitionId,
@@ -5359,7 +5351,7 @@ async function executeSinglePiNativeAgent(
     };
     // A custom entry is Pi tree metadata, never a model-context message. Neither
     // this marker nor session_info forces the SDK's lazy JSONL file to exist.
-    sessionManager.appendCustomEntry('pi-zerg-swarm/native-session/v1', {
+    sessionManager.appendCustomEntry('pi-clankers/native-session/v1', {
       schemaVersion: reference.schemaVersion, parentRunId: reference.parentRunId,
       memberRunId: reference.memberRunId, agentDefinitionId: reference.agentDefinitionId,
       piSessionId: reference.piSessionId, sessionFile: reference.sessionFile,
@@ -5598,7 +5590,7 @@ async function executeSinglePiNativeAgent(
   }
 }
 
-function setNativeSessionReference(run: PiNativeRunContext, reference: ZergNativeSessionReference): void {
+function setNativeSessionReference(run: PiNativeRunContext, reference: ClankersNativeSessionReference): void {
   const references = getSubagentRunSnapshot(run.container.read(), run.parentRunId)?.nativeSessions ?? [];
   const index = references.findIndex((entry) => entry.memberRunId === reference.memberRunId);
   if (index < 0) references.push(reference);
@@ -5676,7 +5668,7 @@ function unregisterPiNativeSessionTarget(activeRun: PiNativeActiveRun | undefine
   if (activeRun.sessionTargetKeys.get(leaderKey) === session) activeRun.sessionTargetKeys.delete(leaderKey);
 }
 
-async function sendPiNativeOperatorMessage(session: PiNativeSessionHandle, targetId: string, body: string, delivery: ZergOperatorMessageMode = 'steer'): Promise<'handled' | 'queued'> {
+async function sendPiNativeOperatorMessage(session: PiNativeSessionHandle, targetId: string, body: string, delivery: ClankersOperatorMessageMode = 'steer'): Promise<'handled' | 'queued'> {
   const message = `Operator message for ${targetId}: ${body}`;
   const validateDisposition = (value: unknown): 'handled' | 'queued' => {
     if (value === 'handled' || value === 'queued') return value;
@@ -5956,7 +5948,7 @@ async function callLarraMcpTool(toolName: string, args: Record<string, unknown>,
   };
 
   try {
-    await call('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'pi-zerg-swarm', version: ZERG_EXTENSION_VERSION } });
+    await call('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'pi-clankers', version: CLANKERS_EXTENSION_VERSION } });
     child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} })}\n`);
     const response = await call('tools/call', { name: normalizeLarraMcpToolName(toolName), arguments: args as LarraMcpJson });
     return response.result as LarraMcpToolResult;
@@ -6037,7 +6029,7 @@ function resolvePiNativeTools(tools: readonly string[] | undefined, disallowedTo
 
 async function createPiNativeSession(
   sdk: typeof import('@earendil-works/pi-coding-agent'),
-  definition: ZergAgentDefinition,
+  definition: ClankersAgentDefinition,
   task: string,
   cwd: string,
   modelSpec: string | undefined,
@@ -6102,11 +6094,11 @@ async function createPiNativeSession(
         ...settings,
         packages: settings.packages?.map((entry) => {
           const source = typeof entry === 'string' ? entry : entry.source;
-          return /^npm:(?:pi-zerg-swarm|pi-clankers)(?:@|$)/.test(source)
+          return new RegExp(`^npm:(?:pi-clankers|${LEGACY_PACKAGE_NAME})(?:@|$)`).test(source)
             ? { ...(typeof entry === 'string' ? { source } : entry), extensions: [] }
             : entry;
         }),
-        extensions: [...(settings.extensions ?? []), `-${extensionPath}`, `-${dirname(extensionPath)}`, '!**/node_modules/pi-zerg-swarm/**', '!**/node_modules/pi-clankers/**'],
+        extensions: [...(settings.extensions ?? []), `-${extensionPath}`, `-${dirname(extensionPath)}`, '!**/node_modules/pi-clankers/**', `!**/node_modules/${LEGACY_PACKAGE_NAME}/**`],
       };
     };
   }
@@ -6194,11 +6186,11 @@ async function createPiNativeSession(
   return { session, sessionManager, tools };
 }
 
-function resolvePiNativeRunModel(definition: Pick<ZergAgentDefinition, 'id' | 'model'>, request: Pick<ZergSubagentLaunchRequest, 'agent' | 'model'>): string | undefined {
+function resolvePiNativeRunModel(definition: Pick<ClankersAgentDefinition, 'id' | 'model'>, request: Pick<ClankersSubagentLaunchRequest, 'agent' | 'model'>): string | undefined {
   return definition.id === request.agent ? request.model ?? definition.model : definition.model ?? request.model;
 }
 
-function createPiNativeSystemPrompt(definition: ZergAgentDefinition, task: string): string {
+function createPiNativeSystemPrompt(definition: ClankersAgentDefinition, task: string): string {
   return [
     definition.prompt || `You are ${definition.label ?? definition.id}, a Clankers coding agent.`,
     '',
@@ -6215,7 +6207,7 @@ async function createPiNativeResourceLoader(
     DefaultResourceLoader?: new (options: any) => { reload(): Promise<void> };
     getAgentDir?: () => string;
   },
-  definition: ZergAgentDefinition,
+  definition: ClankersAgentDefinition,
   task: string,
   cwd: string,
   settingsManager: unknown,
@@ -6316,7 +6308,7 @@ function firstString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
-function toOverlayTextRows(text: string, kind: ZergManagementOverlayRow['kind'] = 'text'): ZergManagementOverlayRow[] {
+function toOverlayTextRows(text: string, kind: ClankersManagementOverlayRow['kind'] = 'text'): ClankersManagementOverlayRow[] {
   return text.split('\n').map((line, index) => ({
     id: `${kind}-${index}`,
     kind,
@@ -6326,7 +6318,7 @@ function toOverlayTextRows(text: string, kind: ZergManagementOverlayRow['kind'] 
 }
 
 function buildTargetDetailLines(
-  state: ZergState,
+  state: ClankersState,
   target: ReturnType<typeof getConfigTargets>[number],
 ): string[] {
   const agent = state.agents[target.id];
@@ -6384,9 +6376,9 @@ function buildPermissionDetailLines(request: ReturnType<typeof getPermissionQueu
 }
 
 function buildLifecycleRows(
-  state: ZergState,
-  adapter: ZergSubagentControlAdapter | undefined,
-): ZergManagementOverlayRow[] {
+  state: ClankersState,
+  adapter: ClankersSubagentControlAdapter | undefined,
+): ClankersManagementOverlayRow[] {
   const runs = resolveAvailableRuns(state, adapter);
   const runRows = runs.map((run) => ({
     id: `run-${run.runId}`,
@@ -6423,12 +6415,12 @@ function buildLifecycleRows(
   return [...runRows, ...eventRows];
 }
 
-function buildLogRows(state: ZergState): ZergManagementOverlayRow[] {
-  const control = getZergControlState(state);
-  const focusId = [control.selectedTargetId, control.activeRunId].find((candidate) => candidate && getZergLogState(state).records.some((record) => record.runId === candidate || record.agentId === candidate || record.taskId === candidate || record.teamId === candidate));
+function buildLogRows(state: ClankersState): ClankersManagementOverlayRow[] {
+  const control = getClankersControlState(state);
+  const focusId = [control.selectedTargetId, control.activeRunId].find((candidate) => candidate && getClankersLogState(state).records.some((record) => record.runId === candidate || record.agentId === candidate || record.taskId === candidate || record.teamId === candidate));
   const records = (focusId
-    ? getZergLogState(state).records.filter((record) => record.runId === focusId || record.agentId === focusId || record.taskId === focusId || record.teamId === focusId)
-    : getZergLogState(state).records)
+    ? getClankersLogState(state).records.filter((record) => record.runId === focusId || record.agentId === focusId || record.taskId === focusId || record.teamId === focusId)
+    : getClankersLogState(state).records)
     .slice(-20)
     .reverse();
 
@@ -6450,8 +6442,8 @@ function buildLogRows(state: ZergState): ZergManagementOverlayRow[] {
   }));
 }
 
-function buildInterventionRows(state: ZergState, draft: string): ZergManagementOverlayRow[] {
-  const rows: ZergManagementOverlayRow[] = [];
+function buildInterventionRows(state: ClankersState, draft: string): ClankersManagementOverlayRow[] {
+  const rows: ClankersManagementOverlayRow[] = [];
   const activeIntervention = state.mode.activeIntervention;
 
   if (activeIntervention) {
@@ -6500,13 +6492,13 @@ function buildInterventionRows(state: ZergState, draft: string): ZergManagementO
 }
 
 function buildConfigRows(
-  state: ZergState,
-  adapter: ZergSubagentControlAdapter | undefined,
-): ZergManagementOverlayRow[] {
-  const control = getZergControlState(state);
+  state: ClankersState,
+  adapter: ClankersSubagentControlAdapter | undefined,
+): ClankersManagementOverlayRow[] {
+  const control = getClankersControlState(state);
   const permissionQueue = getPermissionQueueState(state);
   const latestPermission = getPendingPermissionRequests(state).at(-1);
-  const logState = getZergLogState(state);
+  const logState = getClankersLogState(state);
   const latestLogWarning = logState.records.filter((record) => record.level === 'warn' || record.level === 'error').at(-1);
   const activeRun = control.activeRunId ? state.agents[control.activeRunId] : undefined;
   return [
@@ -6515,7 +6507,7 @@ function buildConfigRows(
       kind: 'config',
       label: `controller: ${control.controller}`,
       selectable: false,
-      detailLines: ['command fallback: /clankers control controller pi|zerg|operator'],
+      detailLines: ['command fallback: /clankers control controller pi|clankers|operator'],
     },
     {
       id: 'config-mode',
@@ -6562,17 +6554,17 @@ function buildConfigRows(
   ];
 }
 
-function buildZergConfigOverlayRows(
-  state: ZergState,
-  activeTab: ZergConfigOverlayTab,
-  adapter: ZergSubagentControlAdapter | undefined,
+function buildClankersConfigOverlayRows(
+  state: ClankersState,
+  activeTab: ClankersConfigOverlayTab,
+  adapter: ClankersSubagentControlAdapter | undefined,
   interventionDraft: string,
-): ZergManagementOverlayRow[] {
+): ClankersManagementOverlayRow[] {
   if (activeTab === 'monitor') {
     return toOverlayTextRows(renderMonitor(state, { width: PI_COMMAND_OUTPUT_WIDTH }), 'text');
   }
   if (activeTab === 'control') {
-    return toOverlayTextRows(renderZergControlStatus(state, PI_COMMAND_OUTPUT_WIDTH), 'config');
+    return toOverlayTextRows(renderClankersControlStatus(state, PI_COMMAND_OUTPUT_WIDTH), 'config');
   }
   if (activeTab === 'targets') {
     return getConfigTargets(state).map((target) => ({
@@ -6609,23 +6601,23 @@ function buildZergConfigOverlayRows(
   return buildConfigRows(state, adapter);
 }
 
-function renderZergConfigOverlay(
-  state: ZergState,
+function renderClankersConfigOverlay(
+  state: ClankersState,
   options: {
     width: number;
     height?: number;
-    activeTab: ZergConfigOverlayTab;
+    activeTab: ClankersConfigOverlayTab;
     selectedIndex: number;
     scrollOffset?: number;
     detailRowId?: string;
     statusMessage?: string;
     confirmMessage?: string;
     interventionDraft?: string;
-    adapter?: ZergSubagentControlAdapter;
+    adapter?: ClankersSubagentControlAdapter;
   },
 ): string {
-  const rows = buildZergConfigOverlayRows(state, options.activeTab, options.adapter, options.interventionDraft ?? DEFAULT_OVERLAY_INTERVENTION_DRAFT);
-  return renderZergManagementOverlay(state, {
+  const rows = buildClankersConfigOverlayRows(state, options.activeTab, options.adapter, options.interventionDraft ?? DEFAULT_OVERLAY_INTERVENTION_DRAFT);
+  return renderClankersManagementOverlay(state, {
     width: options.width,
     height: options.height,
     activeTab: options.activeTab,
@@ -6640,7 +6632,7 @@ function renderZergConfigOverlay(
   });
 }
 
-function createManagementOverlayActions(stateOrReader: ZergStateSource, runtimeOptions: RuntimeCommandOptions) {
+function createManagementOverlayActions(stateOrReader: ClankersStateSource, runtimeOptions: RuntimeCommandOptions) {
   const mutateControl = (payload: string) => dispatchControlCommand(stateOrReader, payload, runtimeOptions).output;
   const mutatePermission = (payload: string) => dispatchPermissionCommand(stateOrReader, payload, runtimeOptions).output;
 
@@ -6648,21 +6640,21 @@ function createManagementOverlayActions(stateOrReader: ZergStateSource, runtimeO
     now: () => (runtimeOptions.now ?? (() => new Date()))(),
     toggleReadOnly: () => mutateControl('readonly toggle'),
     setAutomation: (mode: AutomationMode) => mutateControl(`mode ${mode}`),
-    setController: (controller: ZergControlController) => mutateControl(`controller ${controller}`),
+    setController: (controller: ClankersControlController) => mutateControl(`controller ${controller}`),
     approvePermission: (requestId: string) => mutatePermission(`approve ${requestId}`),
     denyPermission: (requestId: string) => mutatePermission(`deny ${requestId}`),
-    selectTarget: (target: { id: string; kind: ZergManagementTargetKind }) => {
+    selectTarget: (target: { id: string; kind: ClankersManagementTargetKind }) => {
       const container = getWritableStateContainer(stateOrReader);
       if (!container) {
         return RUNTIME_WRITABLE_STATE_ERROR;
       }
-      updateZergControlState(container, { selectedTargetId: target.id, selectedTargetKind: target.kind }, `selected target ${target.kind} ${target.id}`, runtimeOptions);
+      updateClankersControlState(container, { selectedTargetId: target.id, selectedTargetKind: target.kind }, `selected target ${target.kind} ${target.id}`, runtimeOptions);
       return `selected ${target.kind} ${target.id}`;
     },
-    interruptSelected: (target: { id: string; kind: ZergManagementTargetKind } | undefined) => {
-      const snapshot = resolveZergStateSnapshot(stateOrReader);
-      const control = getZergControlState(snapshot);
-      const runId = control.selectedRunId ?? (target?.kind === 'agent' && target.id.startsWith(DEFAULT_RUN_ID_PREFIX)
+    interruptSelected: (target: { id: string; kind: ClankersManagementTargetKind } | undefined) => {
+      const snapshot = resolveClankersStateSnapshot(stateOrReader);
+      const control = getClankersControlState(snapshot);
+      const runId = control.selectedRunId ?? (target?.kind === 'agent' && hasRunIdPrefix(target.id, DEFAULT_RUN_ID_PREFIX)
         ? target.id
         : control.activeRunId);
       if (!runId) {
@@ -6670,8 +6662,8 @@ function createManagementOverlayActions(stateOrReader: ZergStateSource, runtimeO
       }
       return dispatchInterruptCommand(stateOrReader, runId, runtimeOptions).output;
     },
-    sendOperatorMessage: (target: { id: string; kind: ZergManagementTargetKind }, body: string): { status: ZergOperatorMessageDeliveryStatus; statusDetail: string; routedTargetId?: string } => {
-      const snapshot = resolveZergStateSnapshot(stateOrReader);
+    sendOperatorMessage: (target: { id: string; kind: ClankersManagementTargetKind }, body: string): { status: ClankersOperatorMessageDeliveryStatus; statusDetail: string; routedTargetId?: string } => {
+      const snapshot = resolveClankersStateSnapshot(stateOrReader);
       if (target.kind === 'task') {
         return { status: 'transport-unavailable', statusDetail: 'Tasks have no verified live message transport; operator message retained locally.' };
       }
@@ -6679,7 +6671,7 @@ function createManagementOverlayActions(stateOrReader: ZergStateSource, runtimeO
       if (!routedTargetId) {
         return { status: 'transport-unavailable', statusDetail: `${target.kind} ${target.id} is unavailable; operator message retained locally.` };
       }
-      const control = getZergControlState(snapshot);
+      const control = getClankersControlState(snapshot);
       const activeRunId = control.selectedRunId ?? control.activeRunId;
       if (runtimeOptions.subagentAdapter?.sendMessage && activeRunId) {
         void Promise.resolve(runtimeOptions.subagentAdapter.sendMessage(routedTargetId, body, activeRunId)).catch(() => undefined);
@@ -6701,34 +6693,34 @@ function createManagementOverlayActions(stateOrReader: ZergStateSource, runtimeO
   };
 }
 
-const managementOpeners = new WeakMap<ZergPiCommandHandler, {
+const managementOpeners = new WeakMap<ClankersPiCommandHandler, {
   openManagement(context: StructuralPiCommandContext): Promise<void>;
   isOpening(): boolean;
   setPreferences(facade: ManagementUiPreferencesFacade | undefined): void;
 }>();
-export function createPiZergCommandHandler(
-  stateOrReader: ZergStateSource,
-  options: ZergCommandHandlerOptions = {},
-): ZergPiCommandHandler {
-  const scaffoldHandler = createZergCommandHandler(stateOrReader, options);
+export function createPiClankersCommandHandler(
+  stateOrReader: ClankersStateSource,
+  options: ClankersCommandHandlerOptions = {},
+): ClankersPiCommandHandler {
+  const scaffoldHandler = createClankersCommandHandler(stateOrReader, options);
   const runtimeOptions = options as RuntimeCommandOptions;
   const transcript = options.nativeTranscriptService ?? createNativeTranscriptService({ getReferences: () => nativeReferences(stateOrReader) });
-  const viewCoding = (context: StructuralPiCommandContext, select?: (refs: ZergNativeSessionReference[]) => ZergNativeSessionReference[], initialKey?: ZergSessionMessageKey) => openZergAgentOverlay(context, {
+  const viewCoding = (context: StructuralPiCommandContext, select?: (refs: ClankersNativeSessionReference[]) => ClankersNativeSessionReference[], initialKey?: ClankersSessionMessageKey) => openClankersAgentOverlay(context, {
     getReferences: () => { const refs = transcript.list(); return select ? select(refs) : refs; },
-    subscribeReferences: (listener) => subscribeToZergState(stateOrReader, listener),
+    subscribeReferences: (listener) => subscribeToClankersState(stateOrReader, listener),
     open: (key, openOptions) => transcript.open(key, openOptions),
     composer: options.sessionMessageService,
     nativeContinuationService: options.nativeContinuationService,
     ...(initialKey ? { initialKey: { ...initialKey } } : {}),
   });
 
-  const viewTimeline = (context: StructuralPiCommandContext, initialFilter: ZergTimelineFilter = {}) => openZergTeamTimeline(context, {
-    getSnapshot: (filter) => getZergTimeline(readTimelineState(stateOrReader), filter),
-    subscribe: (listener) => subscribeToZergState(stateOrReader, listener),
+  const viewTimeline = (context: StructuralPiCommandContext, initialFilter: ClankersTimelineFilter = {}) => openClankersTeamTimeline(context, {
+    getSnapshot: (filter) => getClankersTimeline(readTimelineState(stateOrReader), filter),
+    subscribe: (listener) => subscribeToClankersState(stateOrReader, listener),
     initialFilter,
-    viewCoding: (exactKey: ZergSessionMessageKey) => openZergAgentOverlay(context, {
+    viewCoding: (exactKey: ClankersSessionMessageKey) => openClankersAgentOverlay(context, {
       getReferences: () => transcript.list(),
-      subscribeReferences: (listener) => subscribeToZergState(stateOrReader, listener),
+      subscribeReferences: (listener) => subscribeToClankersState(stateOrReader, listener),
       open: (key, openOptions) => transcript.open(key, openOptions),
       composer: options.sessionMessageService,
       nativeContinuationService: options.nativeContinuationService,
@@ -6739,7 +6731,7 @@ export function createPiZergCommandHandler(
   let opening = false;
   let uiPreferences: ManagementUiPreferencesFacade | undefined;
   const dispatch = async (input: string, context: StructuralPiCommandContext): Promise<void> => {
-    const routed = stripOptionalZergInvocation(input.trimStart());
+    const routed = stripOptionalClankersInvocation(input.trimStart());
     const runCommand = /^run\s+([\s\S]+)$/i.exec(routed);
     if (runCommand) {
       const parsed = parseRunCommand(runCommand[1]!);
@@ -6747,7 +6739,7 @@ export function createPiZergCommandHandler(
         const container = getWritableStateContainer(stateOrReader);
         if (!container) { context.ui?.notify?.(RUNTIME_WRITABLE_STATE_ERROR, 'error'); return; }
         const { fork: _fork, ...request } = parsed.request;
-        const reply = await executeZergControlAction(container, { ...request, action: 'run' }, runtimeOptions);
+        const reply = await executeClankersControlAction(container, { ...request, action: 'run' }, runtimeOptions);
         context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
         return;
       }
@@ -6761,17 +6753,17 @@ export function createPiZergCommandHandler(
           const prepare = /^tmux\s+continuation\s+prepare\s+(\S+)\s+(\S+)\s+--\s([\s\S]+)$/i.exec(routed);
           const start = /^tmux\s+continuation\s+start\s+(\S+)\s+--confirm$/i.exec(routed);
           const discard = /^tmux\s+continuation\s+discard\s+(\S+)$/i.exec(routed);
-          const action: ZergControlAction | undefined = prepare ? { action: 'tmux.continuation.prepare', workerId: prepare[1]!, jobId: prepare[2]!, task: prepare[3]! }
+          const action: ClankersControlAction | undefined = prepare ? { action: 'tmux.continuation.prepare', workerId: prepare[1]!, jobId: prepare[2]!, task: prepare[3]! }
             : start ? { action: 'tmux.continuation.start', reviewId: start[1]!, confirm: true }
             : discard ? { action: 'tmux.continuation.discard', reviewId: discard[1]! } : undefined;
           if (!action) throw new Error('Usage: tmux continuation prepare <workerId> <jobId> -- <new task> | start <reviewId> --confirm | discard <reviewId>');
-          const reply = await executeZergControlAction(container, action, runtimeOptions);
+          const reply = await executeClankersControlAction(container, action, runtimeOptions);
           context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
           return;
         }
         if (!match || !container) throw new Error('Usage: /clankers tmux workers list | show <workerId> [jobId] | close <workerId> | prompt <workerId> [--bg] -- <task> | steer <workerId> <runId> -- <body>');
         const verb = match[1]!.toLowerCase(), payload = match[2] ?? '';
-        let action: ZergControlAction;
+        let action: ClankersControlAction;
         if (verb === 'list' && !payload) action = { action: 'tmux.workers.list' };
         else if (verb === 'show' && /^\S+(?:\s+\S+)?$/.test(payload)) {
           const [workerId, jobId] = payload.split(/\s+/);
@@ -6785,7 +6777,7 @@ export function createPiZergCommandHandler(
           else if (verb === 'steer' && parts[2]) action = { action: 'tmux.workers.steer', workerId: parts[1]!, runId: parts[2], body: parts[3]! };
           else throw new Error('Invalid tmux worker action arguments.');
         }
-        const reply = await executeZergControlAction(container, action, runtimeOptions);
+        const reply = await executeClankersControlAction(container, action, runtimeOptions);
         context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Tmux response unavailable.', reply.ok ? 'info' : 'error');
       } catch (error) { context.ui?.notify?.(error instanceof Error ? error.message : 'Tmux request refused.', 'error'); }
       return;
@@ -6798,7 +6790,7 @@ export function createPiZergCommandHandler(
         if (/^workflows\s+scripts(?:\s|$)/i.test(routed)) {
           const parsed = parseWorkflowCommand(routed);
           if (!parsed) throw new Error('Usage: /clankers workflows scripts validate|compile|inspect|save|import <JSON>');
-          const reply = await executeZergControlAction(container, parsed, { ...runtimeOptions, cwd: context.cwd ?? runtimeOptions.cwd });
+          const reply = await executeClankersControlAction(container, parsed, { ...runtimeOptions, cwd: context.cwd ?? runtimeOptions.cwd });
           context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Workflow script outcome unavailable.', reply.ok ? 'info' : 'error');
           return;
         }
@@ -6814,11 +6806,11 @@ export function createPiZergCommandHandler(
             const reply = await service.execute(monitor[1] ? { action: 'workflows.show', workflowRunId: monitor[1] } : { action: 'workflows.list' });
             context.ui?.notify?.(JSON.stringify(reply), reply.ok ? 'info' : 'error'); return;
           }
-          await openZergWorkflowOverlay(context, { service, recoveryAuthority: service.recovery, workflowRunId: monitor[1], onOpenNative: async (identity) => {
+          await openClankersWorkflowOverlay(context, { service, recoveryAuthority: service.recovery, workflowRunId: monitor[1], onOpenNative: async (identity) => {
             const correlations = service.list().flatMap((view) => view.correlations);
             const run = getSubagentRunSnapshot(container.read(), identity.runId);
             if (!correlations.some((unit) => unit.native?.runId === identity.runId && unit.native.taskId === identity.taskId) || run?.taskId !== identity.taskId) throw new Error('Exact workflow/native correlation is no longer current.');
-            const selected = (ref: ZergNativeSessionReference) => ref.parentRunId === identity.runId && ref.memberRunId === identity.runId;
+            const selected = (ref: ClankersNativeSessionReference) => ref.parentRunId === identity.runId && ref.memberRunId === identity.runId;
             const current = run.nativeSessions?.filter(selected) ?? [];
             const references = transcript.list().filter(selected);
             if (current.length !== 1 || references.length !== 1 || current[0]!.piSessionId !== references[0]!.piSessionId) throw new Error('Exact workflow native reference is missing, ambiguous, or stale; no fallback.');
@@ -6829,7 +6821,7 @@ export function createPiZergCommandHandler(
         }
         const parsed = parseWorkflowCommand(routed);
         if (!parsed) throw new Error('Usage: /clankers workflows list|define <JSON>|start <JSON>|show <JSON>|pause|resume|cancel|retry|report|forget <workflowRunId>|recovery inspect <workflowRunId>|recovery prepare <workflowRunId>|monitor [workflowRunId]|approve <workflowRunId> <approvalId>');
-        const reply = await executeZergControlAction(container, parsed, runtimeOptions);
+        const reply = await executeClankersControlAction(container, parsed, runtimeOptions);
         context.ui?.notify?.(reply.output ?? reply.error?.message ?? 'Workflow outcome unavailable.', reply.ok ? 'info' : 'error');
       } catch (error) { context.ui?.notify?.(workflowFailure(error), 'error'); }
       return;
@@ -6838,17 +6830,17 @@ export function createPiZergCommandHandler(
       const container = getWritableStateContainer(stateOrReader);
       const parsed = parseNativeContinuationCommand(routed);
       if (!container || !parsed) { context.ui?.notify?.('Usage: /clankers sessions continue prepare <parent> <member> <pi> <entry> [--model provider/model[:thinking]] [--ack-unconfirmed] -- <literal body>; start <reviewId> --confirm; discard <reviewId>', 'error'); return; }
-      const response = await executeZergControlAction(container, parsed, runtimeOptions);
+      const response = await executeClankersControlAction(container, parsed, runtimeOptions);
       context.ui?.notify?.(response.output ?? response.error?.message ?? 'Continuation outcome unavailable.', response.ok ? 'info' : 'error'); return;
     }
     if (/^sessions\s+(send|messages)(?:\s|$)/i.test(routed)) {
       const container = getWritableStateContainer(stateOrReader);
       const parsed = parseSessionMessagingCommand(routed);
       if (!container || !parsed) { context.ui?.notify?.('Usage: /clankers sessions send <parent> <member> <pi-id> <message-id> <steer|followUp> -- <literal body>; sessions messages <parent> <member> <pi-id> [limit]', 'error'); return; }
-      const response = await executeZergControlAction(container, parsed, runtimeOptions);
+      const response = await executeClankersControlAction(container, parsed, runtimeOptions);
       context.ui?.notify?.(response.output ?? response.error?.message ?? 'Message outcome unavailable.', response.ok ? 'info' : 'error'); return;
     }
-    const normalized = normalizeZergCommandInput(input);
+    const normalized = normalizeClankersCommandInput(input);
     const result = await scaffoldHandler(input);
     const output = typeof result === 'string' ? result : result.output;
 
@@ -6875,16 +6867,16 @@ export function createPiZergCommandHandler(
     if ((normalized.topic === 'monitor' || normalized.topic === 'config') && canUseTerminalUI && context.ui?.custom) {
       if (normalized.topic === 'config') {
         try {
-          await openZergManagementOverlay(context, {
+          await openClankersManagementOverlay(context, {
             uiPreferences,
-            getSnapshot: () => resolveZergStateSnapshot(stateOrReader),
-            subscribe: (listener) => subscribeToZergState(stateOrReader, listener),
+            getSnapshot: () => resolveClankersStateSnapshot(stateOrReader),
+            subscribe: (listener) => subscribeToClankersState(stateOrReader, listener),
             adapterKind: runtimeOptions.subagentAdapter?.kind ?? 'unavailable',
             actions: createManagementOverlayActions(stateOrReader, runtimeOptions),
             viewTimeline: async (target) => {
               if (target?.kind === 'team') { await viewTimeline(context, { teamId: target.id }); return; }
               const state = readTimelineState(stateOrReader);
-              if (target?.kind === 'agent' && target.id.startsWith(DEFAULT_RUN_ID_PREFIX) && state.agents[target.id]?.id === target.id) {
+              if (target?.kind === 'agent' && hasRunIdPrefix(target.id, DEFAULT_RUN_ID_PREFIX) && state.agents[target.id]?.id === target.id) {
                 await viewTimeline(context, { parentRunId: target.id }); return;
               }
               context.ui?.notify?.('Timeline scope requires an explicit recorded team or parent run. Definition/task selections cannot safely infer historical membership.', 'warning');
@@ -6893,10 +6885,10 @@ export function createPiZergCommandHandler(
               if (!target) return refs;
               // Refresh semantic selection once per list, never clone the whole
               // state once per reference. Queued members remain discoverable.
-              if (target.kind === 'agent' && target.id.startsWith(DEFAULT_RUN_ID_PREFIX)) {
+              if (target.kind === 'agent' && hasRunIdPrefix(target.id, DEFAULT_RUN_ID_PREFIX)) {
                 return refs.filter((ref) => ref.memberRunId === target.id || ref.parentRunId === target.id);
               }
-              const snapshot = resolveZergStateSnapshot(stateOrReader);
+              const snapshot = resolveClankersStateSnapshot(stateOrReader);
               const runs = getSubagentRunSnapshots(snapshot).filter((run) => target.kind === 'team'
                 ? run.metadata?.teamId === target.id : target.kind === 'task' && run.taskId === target.id);
               if (runs.length) {
@@ -6918,8 +6910,8 @@ export function createPiZergCommandHandler(
       }
 
       const overlayTopic = normalized.topic as 'monitor' | 'config';
-      let activeTab: ZergConfigOverlayTab = overlayTopic === 'monitor' ? 'monitor' : 'config';
-      const selectedIndexByTab: Record<ZergConfigOverlayTab, number> = {
+      let activeTab: ClankersConfigOverlayTab = overlayTopic === 'monitor' ? 'monitor' : 'config';
+      const selectedIndexByTab: Record<ClankersConfigOverlayTab, number> = {
         monitor: 0,
         control: 0,
         targets: 0,
@@ -6929,7 +6921,7 @@ export function createPiZergCommandHandler(
         intervene: 0,
         config: 0,
       };
-      const scrollOffsetByTab: Record<ZergConfigOverlayTab, number> = {
+      const scrollOffsetByTab: Record<ClankersConfigOverlayTab, number> = {
         monitor: 0,
         control: 0,
         targets: 0,
@@ -6939,16 +6931,16 @@ export function createPiZergCommandHandler(
         intervene: 0,
         config: 0,
       };
-      const detailRowIdByTab: Partial<Record<ZergConfigOverlayTab, string | undefined>> = {};
+      const detailRowIdByTab: Partial<Record<ClankersConfigOverlayTab, string | undefined>> = {};
       let confirmation: OverlayConfirmationState | undefined;
       let statusMessage: string | undefined;
       let interventionDraft = DEFAULT_OVERLAY_INTERVENTION_DRAFT;
       const clearConfirmation = () => {
         confirmation = undefined;
       };
-      const getSnapshot = () => resolveZergStateSnapshot(stateOrReader);
-      const getRows = (tab: ZergConfigOverlayTab = activeTab) => buildZergConfigOverlayRows(getSnapshot(), tab, runtimeOptions.subagentAdapter, interventionDraft);
-      const clampOverlayState = (tab: ZergConfigOverlayTab = activeTab) => {
+      const getSnapshot = () => resolveClankersStateSnapshot(stateOrReader);
+      const getRows = (tab: ClankersConfigOverlayTab = activeTab) => buildClankersConfigOverlayRows(getSnapshot(), tab, runtimeOptions.subagentAdapter, interventionDraft);
+      const clampOverlayState = (tab: ClankersConfigOverlayTab = activeTab) => {
         const rows = getRows(tab);
         const currentIndex = selectedIndexByTab[tab] ?? 0;
         const nextIndex = rows.length === 0 ? 0 : Math.max(0, Math.min(currentIndex, rows.length - 1));
@@ -6972,7 +6964,7 @@ export function createPiZergCommandHandler(
         }
         return rows;
       };
-      const getSelectedRow = (tab: ZergConfigOverlayTab = activeTab) => {
+      const getSelectedRow = (tab: ClankersConfigOverlayTab = activeTab) => {
         const rows = clampOverlayState(tab);
         return rows[selectedIndexByTab[tab]];
       };
@@ -6988,7 +6980,7 @@ export function createPiZergCommandHandler(
         }
 
         clampOverlayState(activeTab);
-        return renderZergConfigOverlay(snapshot, {
+        return renderClankersConfigOverlay(snapshot, {
           width: outputWidth,
           height,
           activeTab,
@@ -7014,7 +7006,7 @@ export function createPiZergCommandHandler(
               invalidated = true;
               tui?.requestRender?.();
             };
-            const unsubscribe = subscribeToZergState(stateOrReader, requestRender);
+            const unsubscribe = subscribeToClankersState(stateOrReader, requestRender);
             const close = () => {
               if (closed) {
                 return;
@@ -7042,7 +7034,7 @@ export function createPiZergCommandHandler(
               clampOverlayState(activeTab);
               requestRender();
             };
-            const recordIntervention = (row: ZergManagementOverlayRow | undefined) => {
+            const recordIntervention = (row: ClankersManagementOverlayRow | undefined) => {
               if (!row?.targetId) {
                 statusMessage = 'select an intervention target first';
                 requestRender();
@@ -7070,7 +7062,7 @@ export function createPiZergCommandHandler(
                 if (!container) {
                   statusMessage = RUNTIME_WRITABLE_STATE_ERROR;
                 } else {
-                  updateZergControlState(container, { selectedTargetId: row.targetId }, `selected target ${row.targetId}`, runtimeOptions);
+                  updateClankersControlState(container, { selectedTargetId: row.targetId }, `selected target ${row.targetId}`, runtimeOptions);
                   statusMessage = `selected target ${row.targetId}`;
                 }
               } else if (activeTab === 'intervene') {
@@ -7120,7 +7112,7 @@ export function createPiZergCommandHandler(
               const snapshot = getSnapshot();
               const runId = row?.runId
                 ?? (row?.targetId && snapshot.agents[row.targetId] ? row.targetId : undefined)
-                ?? getZergControlState(snapshot).activeRunId;
+                ?? getClankersControlState(snapshot).activeRunId;
               if (!runId) {
                 statusMessage = 'no active run selected for interrupt';
                 requestRender();
@@ -7221,20 +7213,20 @@ export function createPiZergCommandHandler(
     opening = true; // Shared singleton latch BEFORE scaffold/custom UI can await or reenter.
     return dispatch('config', context).finally(() => { opening = false; });
   };
-  const handler: ZergPiCommandHandler = (input, context) => normalizeZergCommandInput(input).topic === 'config'
+  const handler: ClankersPiCommandHandler = (input, context) => normalizeClankersCommandInput(input).topic === 'config'
     ? openManagement(context) : dispatch(input, context);
   managementOpeners.set(handler, { openManagement, isOpening: () => opening,
     setPreferences: (facade) => { uiPreferences = facade; } });
   return handler;
 }
 
-function resolveZergStateSnapshot(stateOrReader: ZergStateSource): ZergState {
-  if (isZergStateContainer(stateOrReader)) {
+function resolveClankersStateSnapshot(stateOrReader: ClankersStateSource): ClankersState {
+  if (isClankersStateContainer(stateOrReader)) {
     return stateOrReader.snapshot();
   }
 
   const state = typeof stateOrReader === 'function' ? stateOrReader() : stateOrReader;
-  return snapshotZergState(state);
+  return snapshotClankersState(state);
 }
 
 function registerCommand(context: StructuralPiExtensionContext, command: StructuralPiCommand): RegisteredCommandDisposer | undefined {
@@ -7244,7 +7236,7 @@ function registerCommand(context: StructuralPiExtensionContext, command: Structu
     return undefined;
   }
 
-  const registeredNames = registeredCommandsByTarget.get(registrar.target) ?? new Set<ZergCommandName>();
+  const registeredNames = registeredCommandsByTarget.get(registrar.target) ?? new Set<ClankersCommandName>();
 
   if (registeredNames.has(command.name)) {
     return undefined;
@@ -7270,7 +7262,7 @@ function registerCommand(context: StructuralPiExtensionContext, command: Structu
   };
 }
 
-function clearRegisteredCommand(target: object, name: ZergCommandName): void {
+function clearRegisteredCommand(target: object, name: ClankersCommandName): void {
   const registeredNames = registeredCommandsByTarget.get(target);
 
   if (!registeredNames) {
@@ -7321,7 +7313,7 @@ function selectCommandRegistrar(context: StructuralPiExtensionContext): Selected
   return undefined;
 }
 
-export const __zergNativeTestInternals = {
+export const __clankersNativeTestInternals = {
   callLarraMcpTool,
   createPiNativeCustomTools,
   createLarraMcpGatewayTool,
@@ -7335,10 +7327,10 @@ export const __zergNativeTestInternals = {
   splitModelAndThinking,
 };
 
-export default registerZergSwarmExtension;
+export default registerClankersExtension;
 
-function nativeReferences(state: ZergStateSource): ZergNativeSessionReference[] {
-  return getSubagentRunSnapshots(resolveZergStateSnapshot(state)).flatMap((run) => run.nativeSessions ?? []);
+function nativeReferences(state: ClankersStateSource): ClankersNativeSessionReference[] {
+  return getSubagentRunSnapshots(resolveClankersStateSnapshot(state)).flatMap((run) => run.nativeSessions ?? []);
 }
 
 function parseSessionsPayload(payload: string): { list: boolean; parentRunId?: string } | undefined {
@@ -7349,7 +7341,7 @@ function parseSessionsPayload(payload: string): { list: boolean; parentRunId?: s
   return { list, parentRunId: tokens[0] };
 }
 
-function dispatchSessionsCommand(state: ZergStateSource, payload: string): ZergCommandResult {
+function dispatchSessionsCommand(state: ClankersStateSource, payload: string): ClankersCommandResult {
   const parsed = parseSessionsPayload(payload);
   if (!parsed) return { ok: false, output: 'Usage: /clankers sessions [list] [parent-run-id]' };
   return { ok: true, output: renderNativeSessionReferences(nativeReferences(state).filter((ref) => !parsed.parentRunId || ref.parentRunId === parsed.parentRunId), { width: PI_COMMAND_OUTPUT_WIDTH }) };
@@ -7359,7 +7351,7 @@ function shutdownNativeTranscript(service: NativeTranscriptService | undefined):
   try { service?.shutdown(); } catch { /* An observer cannot prevent runner cancellation/disposal. */ }
 }
 
-function parseSessionMessagingCommand(input: string): ZergControlAction | undefined {
+function parseSessionMessagingCommand(input: string): ClankersControlAction | undefined {
   const send = input.match(/^sessions\s+send\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(steer|followUp)\s+-- ([\s\S]*)$/i);
   if (send) {
     const [, parentRunId, memberRunId, piSessionId, messageId, mode, body] = send;
@@ -7377,7 +7369,7 @@ function closeSessionMessagesParent(service: SessionMessageService | undefined, 
   try { service?.closeParent(parentRunId); } catch { /* Receipt faults cannot block cancellation. */ }
 }
 
-export function parseNativeContinuationCommand(input: string): ZergControlAction | undefined {
+export function parseNativeContinuationCommand(input: string): ClankersControlAction | undefined {
   const prepare = input.match(/^sessions\s+continue\s+prepare\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)([\s\S]*?) -- ([\s\S]*)$/i);
   if (prepare) {
     const [, parentRunId, memberRunId, piSessionId, entryId, flags, body] = prepare;
@@ -7415,10 +7407,10 @@ interface WorkflowAdmission {
   cleanupSettled: boolean;
   result?: WorkflowNativeOutcome;
 }
-const workflowNativeOwners = new WeakMap<ZergSubagentControlAdapter, OwnedWorkflowNative>();
-const workflowControlServices = new WeakMap<ZergControl, WorkflowService>();
-const workflowScriptControlOwners = new WeakMap<ZergControl, WorkflowScriptControlOwner>();
-const workflowAdmissions = new WeakMap<ZergSubagentLaunchRequest, WorkflowAdmission>();
+const workflowNativeOwners = new WeakMap<ClankersSubagentControlAdapter, OwnedWorkflowNative>();
+const workflowControlServices = new WeakMap<ClankersControl, WorkflowService>();
+const workflowScriptControlOwners = new WeakMap<ClankersControl, WorkflowScriptControlOwner>();
+const workflowAdmissions = new WeakMap<ClankersSubagentLaunchRequest, WorkflowAdmission>();
 const workflowActiveAdmissions = new WeakMap<PiNativeActiveRun, WorkflowAdmission>();
 const workflowFrozenMessageKeys = new WeakMap<SessionMessageService, Set<string>>();
 const WORKFLOW_FROZEN_INPUT_MESSAGE = 'Workflow unit inputs are frozen; messaging unavailable. Use an explicit retry or new workflow run.';
@@ -7431,7 +7423,7 @@ const WORKFLOW_ACTION_NAMES = new Set(['workflows.list', 'workflows.define', 'wo
 function workflowFailure(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 1024);
 }
-function workflowAgentTools(agent: ZergAgentDefinition): readonly string[] {
+function workflowAgentTools(agent: ClankersAgentDefinition): readonly string[] {
   if (!agent.model?.trim() || !splitModelAndThinking(agent.model).modelId?.includes('/')) throw new Error('Workflow agent requires an explicit provider/model.');
   if (agent.maxTurns !== undefined || agent.fallbackModels?.length || (agent.permissionMode !== undefined && agent.permissionMode !== 'inherit')) throw new Error('Workflow agents reject turn limits, fallback models, and permission overrides.');
   const tools = resolvePiNativeToolPolicy(agent.tools, agent.disallowedTools).activeTools.filter((name) => WORKFLOW_READ_TOOLS.has(name));
@@ -7448,14 +7440,14 @@ function signalWorkflowAbort(active: PiNativeActiveRun, admission: WorkflowAdmis
   }
 }
 function createOwnedWorkflowNative(
-  context: StructuralPiExtensionContext, container: ZergStateContainer, options: RuntimeCommandOptions,
+  context: StructuralPiExtensionContext, container: ClankersStateContainer, options: RuntimeCommandOptions,
   activeRuns: PiNativeActiveRunRegistry, isDisposed: () => boolean,
 ): OwnedWorkflowNative {
   const jobs = new Set<Promise<WorkflowNativeOutcome>>();
   const handles = new Map<PiNativeActiveRun, WorkflowAdmission>();
   let disposed = false;
   let uncertain = false;
-  const purePolicy = (agent: ZergAgentDefinition) => {
+  const purePolicy = (agent: ClankersAgentDefinition) => {
     if (disposed || isDisposed() || options.isOwnerDisposed?.() || uncertain) throw new Error('Workflow native owner unavailable or previous cleanup uncertain.');
     const state = container.read();
     if (state.mode.readOnly || (state.lifecycle === 'disposed' || state.lifecycle === 'resetting')) throw new Error('Workflow admission blocked by current read-only/disposed authority.');
@@ -7464,7 +7456,7 @@ function createOwnedWorkflowNative(
     workflowAgentTools(agent);
   };
   const automation = options.trustedAutomationNative ? Object.freeze({ ...options.trustedAutomationNative }) : undefined;
-  const assertPolicy = (agent: ZergAgentDefinition) => {
+  const assertPolicy = (agent: ClankersAgentDefinition) => {
     purePolicy(agent);
     if (automation) {
       if (automation.assertPolicy() !== undefined) throw new Error('Automation policy guard must be synchronous.');
@@ -7489,7 +7481,7 @@ function createOwnedWorkflowNative(
             if (request.signal.aborted || active.cancelRequested || active.disposed) throw new Error('Workflow unit cancelled before native admission.');
           },
         };
-        const nativeRequest: ZergSubagentLaunchRequest = { agent: request.agent.id, agentDefinitionId: request.agent.id, task: request.prompt, runId, taskId, model: request.agent.model, launchMode: 'fresh' };
+        const nativeRequest: ClankersSubagentLaunchRequest = { agent: request.agent.id, agentDefinitionId: request.agent.id, task: request.prompt, runId, taskId, model: request.agent.model, launchMode: 'fresh' };
         workflowAdmissions.set(nativeRequest, admission);
         workflowActiveAdmissions.set(active, admission);
         const abort = () => signalWorkflowAbort(active, admission);
@@ -7619,7 +7611,7 @@ async function approveWorkflowInteractively(approvals: WorkflowTrustedApprovalAp
     safePayload.slice(0, maxPayload),
     clipped ? `\n[omitted ${Buffer.byteLength(safePayload, 'utf8') - maxPayload} bytes from modal; inspect approval request for full retained bounded payload by fingerprint ${before.requestHash}]` : '',
     '',
-    'This trusted host confirmation is not exposed through clankers_control or its deprecated zerg_control alias and cannot be triggered by a model tool action.',
+    'This trusted host confirmation is not exposed through clankers_control and cannot be triggered by a model tool action.',
   ].join('\n');
   const confirmed = await context.ui.confirm(`Grant ${before.kind} workflow approval ${approvalId}?`, manifest);
   const after = approvals.inspect(approvalId)[0];

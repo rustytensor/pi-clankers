@@ -1,6 +1,6 @@
 {
   "name": "pi-clankers",
-  "version": "1.1.32",
+  "version": "2.0.0",
   "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and coordinated subagent orchestration.",
   "type": "module",
   "license": "MIT",
@@ -15,8 +15,7 @@
   },
   "main": "./index.ts",
   "bin": {
-    "pi-clankers-automation": "./automation-cli.mjs",
-    "pi-zerg-automation": "./automation-cli.mjs"
+    "pi-clankers-automation": "./automation-cli.mjs"
   },
   "exports": {
     ".": "./index.ts",
@@ -56,6 +55,7 @@
     "index.ts",
     "internal-patch.ts",
     "native-continuation.ts",
+    "legacy-names.ts",
     "native-history.ts",
     "native-transcript.ts",
     "parse.ts",
@@ -103,8 +103,7 @@
     "pi",
     "extension",
     "agents",
-    "subagents",
-    "swarm"
+    "subagents"
   ],
   "engines": {
     "node": ">=22.19.0"

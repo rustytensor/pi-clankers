@@ -353,7 +353,7 @@ test('stage8c lease release verifies exact owner before settle and retains bookk
   const ws = createCodingWorkspace({ workflowRunId: 's8c-lease-proof', projectRoot: root, stagingParent: staging, inputPaths: ['a.txt'], writablePaths: ['a.txt'], assertAuthority() {} });
   const key = createHash('sha256').update(`${root}\0a.txt`).digest('hex');
   const uid = typeof process.getuid === 'function' ? process.getuid() : 0;
-  const ownerFile = join(tmpdir(), `pi-zerg-swarm-coding-leases-${uid}`, key, 'owner');
+  const ownerFile = join(tmpdir(), `pi-clankers-coding-leases-${uid}`, key, 'owner');
   writeFileSync(ownerFile, 'other-owner');
   assert.throws(() => ws.settle(), /lease owner|mismatch|changed/);
   assert.throws(() => createCodingWorkspace({ workflowRunId: 's8c-lease-proof-2', projectRoot: root, stagingParent: mkdtempSync(join(tmpdir(), 'cw-stage-lease2-')), inputPaths: ['a.txt'], writablePaths: ['a.txt'], assertAuthority() {} }), /lease exists|exist/i);

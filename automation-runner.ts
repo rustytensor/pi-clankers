@@ -2,11 +2,11 @@ import { randomUUID, createHash } from 'node:crypto';
 import { constants, openSync, closeSync, fstatSync, readlinkSync, mkdirSync, writeFileSync, fsyncSync, unlinkSync, lstatSync, readSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { createZergControl } from './index.js';
-import { createZergPersistenceManager } from './persistence.js';
-import type { ZergPersistenceManager, RecoveryWriterOwnerEvidence } from './persistence.js';
-import { createZergState, createZergStateContainer } from './state.js';
-import type { ZergControl, ZergState } from './types.js';
+import { createClankersControl } from './index.js';
+import { createClankersPersistenceManager } from './persistence.js';
+import type { ClankersPersistenceManager, RecoveryWriterOwnerEvidence } from './persistence.js';
+import { createClankersState, createClankersStateContainer } from './state.js';
+import type { ClankersControl, ClankersState } from './types.js';
 import { workflowHash, workflowView } from './workflow-model.js';
 import { recoverWorkflowState } from './workflow-runtime.js';
 import type { WorkflowState, WorkflowRun, WorkflowView, WorkflowReply } from './workflow-model.js';
@@ -76,12 +76,12 @@ function runtimePath(path: string, file: boolean, create = false): void {
   } finally { for (const fd of handles.reverse()) closeSync(fd); }
 }
 
-function loadState(profile: AutomationProfileV1): { manager: ZergPersistenceManager; container: ReturnType<typeof createZergStateContainer>;
+function loadState(profile: AutomationProfileV1): { manager: ClankersPersistenceManager; container: ReturnType<typeof createClankersStateContainer>;
   workflows: WorkflowState; ledger: AutomationLedgerV1 } {
   runtimePath(profile.snapshotFile, true); // No creation, no legacy symlink hydration.
-  const manager = createZergPersistenceManager({ enabled: true, snapshotFile: profile.snapshotFile });
+  const manager = createClankersPersistenceManager({ enabled: true, snapshotFile: profile.snapshotFile });
   if (!manager || !manager.inspectRecoveryOwnership || !manager.acquireRecoveryOwnership || !manager.releaseRecoveryOwnership) throw new Error('persistence-unavailable');
-  const container = createZergStateContainer();
+  const container = createClankersStateContainer();
   if (manager.hydrate(container).lastLoadError) throw new Error('state-unavailable');
   const state = container.read();
   const workflows = state.extensions.workflows === undefined ? emptyWorkflows() : recoverWorkflowState(state.extensions.workflows);
@@ -131,7 +131,7 @@ async function bounded<T>(operation: Promise<T>, ms: number, signal?: AbortSigna
   } finally { if (timer) clearTimeout(timer); removeAbort(); }
 }
 
-function exactView(state: ZergState, id: string): WorkflowView | undefined {
+function exactView(state: ClankersState, id: string): WorkflowView | undefined {
   // A live ledger is owned by the existing control, not restart-recovered on every poll.
   const workflows = state.extensions.workflows as unknown as WorkflowState | undefined;
   const run = workflows?.runs?.find(run => run.workflowRunId === id);
@@ -156,11 +156,11 @@ export async function runAutomationEvent(profilesDir: string, request: unknown, 
   let event: AutomationRequestV1 | undefined;
   let profile: AutomationProfileV1 | undefined;
   let guard: AutomationProfileIdentityGuard | undefined;
-  let manager: ZergPersistenceManager | undefined;
-  let ownedContainer: ReturnType<typeof createZergStateContainer> | undefined;
+  let manager: ClankersPersistenceManager | undefined;
+  let ownedContainer: ReturnType<typeof createClankersStateContainer> | undefined;
   let publicationPending = false;
   let owner: RecoveryWriterOwnerEvidence | undefined;
-  let control: ZergControl | undefined;
+  let control: ClankersControl | undefined;
   let runtime: ModelRuntime | undefined;
   let configCopy: { path: string; dev: number; ino: number; hash: string; bytes: number } | undefined;
   let runId: string | undefined;
@@ -265,7 +265,7 @@ export async function runAutomationEvent(profilesDir: string, request: unknown, 
     const pruned = pruneAutomationEvents(loaded.ledger, loaded.workflows, profile, Date.now());
     assertOwner();
     // Pure two-ledger pruning/seed preparation joins one SAME-manager owned commit.
-    const seed = createZergState({ ...loaded.container.read(), agentDefinitions: Object.fromEntries(profile.agents.map(agent => [agent.id, agent])),
+    const seed = createClankersState({ ...loaded.container.read(), agentDefinitions: Object.fromEntries(profile.agents.map(agent => [agent.id, agent])),
       extensions: { ...loaded.container.read().extensions, workflows: pruned.workflows, automation: pruned.ledger } });
     publicationPending = true; manager.save(seed); publicationPending = false; loaded.container.replace(seed);
     assertOwner();
@@ -277,7 +277,7 @@ export async function runAutomationEvent(profilesDir: string, request: unknown, 
       assertConfigCopy();
       assertOwner();
     };
-    control = createZergControl(loaded.container, { persistenceManager: manager, recovery: { enabled: true },
+    control = createClankersControl(loaded.container, { persistenceManager: manager, recovery: { enabled: true },
       trustedWorkflow: { maxAdmissions: profile.limits.maxAdmissions, assertAdmission: assertPolicy,
         onStartReservation(run: Readonly<WorkflowRun>) {
           assertPolicy();

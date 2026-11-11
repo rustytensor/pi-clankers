@@ -4,13 +4,13 @@ import { mkdirSync, mkdtempSync, writeFileSync, lstatSync, realpathSync, existsS
 import { join, dirname, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildTrustedCodingWorkflowExample } from '../workflow-coding-example.js';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import { EMPTY_NATIVE_ACTIVITY, projectActivity } from '../activity.js';
 import type { WorkflowDefinition, WorkflowNativeOutcome, WorkflowNativeRequest } from '../workflow-model.js';
 const date = '2026-10-07T00:00:00.000Z';
 function harness(fanout = false, existing?: unknown) {
-  const container = createZergStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'Read only',
+  const container = createClankersStateContainer({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', source: 'builtin', prompt: 'Read only',
     model: 'fake/model', tools: ['read'], permissionMode: 'inherit' } }, ...(existing ? { extensions: { workflows: existing as any } } : {}) });
   let reads = 0, updates = 0, seq = 0;
   const originalRead = container.read.bind(container), originalUpdate = container.update.bind(container);
@@ -148,7 +148,7 @@ test('real workflow approval phase/full repeat lineage comes from compact closur
     guardFixture(target, scratch); writeFileSync(target, text);
   }
   const def = example.definition; def.steps = [def.steps[1]]; def.steps[0].dependsOn = [];
-  const container = createZergStateContainer({ agentDefinitions: Object.fromEntries(['worker', 'reviewer'].map(id => [id,
+  const container = createClankersStateContainer({ agentDefinitions: Object.fromEntries(['worker', 'reviewer'].map(id => [id,
     { id, label: id, source: 'builtin', model: 'fake/model', prompt: 'Fake only', tools: ['read'], permissionMode: 'inherit' }])) });
   const service = createWorkflowService(container, { preflight() {}, execute() { throw new Error('No approval or provider execution permitted'); } },
     { now: () => new Date(date), idFactory: () => 'coding-wf', coding: example.coding });

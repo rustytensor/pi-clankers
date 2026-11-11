@@ -5,8 +5,8 @@ import type { ChildProcess } from 'node:child_process';
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createZergState, createZergStateContainer } from '../state.js';
-import type { StructuralPiToolDefinition, ZergControlAction, ZergStateContainer } from '../types.js';
+import { createClankersState, createClankersStateContainer } from '../state.js';
+import type { StructuralPiToolDefinition, ClankersControlAction, ClankersStateContainer } from '../types.js';
 import type { WorkflowDefinition, WorkflowState } from '../workflow-model.js';
 
 // History's existing static API import is allowed; the shortcut bridge is inert.
@@ -43,7 +43,7 @@ const hook = registerHooks({ resolve(specifier, context, next) {
   return next(specifier, context);
 } });
 after(() => { hook.deregister(); delete (globalThis as any).__scriptControlReadMutation; delete (globalThis as any).__scriptControlSpawn; delete (globalThis as any).__scriptControlPreferenceDirCall; });
-const { createZergControl, createPiZergCommandHandler, registerZergSwarmExtension } = await import('../index.js');
+const { createClankersControl, createPiClankersCommandHandler, registerClankersExtension } = await import('../index.js');
 const { parseWorkflowScriptAction, readWorkflowScriptFile, executeWorkflowScriptAction } = await import('../workflow-script-controls.js');
 
 test('authoring static imports account for history, inert bridge and uncalled preferences facade', async () => {
@@ -80,11 +80,11 @@ const review=native("review",{dependsOn:[],inputs:{},agentId:"safe",prompt:"/lit
 phase("reading",[review]);
 });`;
 function fixture() {
-  const base = createZergStateContainer(createZergState()); let writes = 0, launches = 0, notifications = 0;
-  const container: ZergStateContainer = { read: () => base.read(), snapshot: () => base.snapshot(), subscribe: listener => base.subscribe!(listener),
+  const base = createClankersStateContainer(createClankersState()); let writes = 0, launches = 0, notifications = 0;
+  const container: ClankersStateContainer = { read: () => base.read(), snapshot: () => base.snapshot(), subscribe: listener => base.subscribe!(listener),
     replace: state => { writes++; return base.replace(state); }, update: (state, options) => { writes++; return base.update(state, options); } };
   const off = base.subscribe!(() => { notifications++; });
-  const control = createZergControl(container, { subagentAdapter: { kind: 'fake', launch() { launches++; throw new Error('No native launch authority.'); } } });
+  const control = createClankersControl(container, { subagentAdapter: { kind: 'fake', launch() { launches++; throw new Error('No native launch authority.'); } } });
   return { control, container, close: () => { off(); control.dispose(); }, get effects() { return { writes, launches, notifications, sdkLoads, preferenceDirCalls }; } };
 }
 const payload = (result: Awaited<ReturnType<ReturnType<typeof fixture>['control']['execute']>>) => { assert.equal(result.ok, true, result.error?.message); return result.data as any; };
@@ -163,7 +163,7 @@ test('structured authoring rejects unknown keys/types/getters/prototypes without
       { action: 'workflows.scripts.inspect', definitionId: 'a', source }, { action: 'workflows.scripts.inspect', definitionId: '../a' },
       { action: 'workflows.scripts.import', path: 'a', source }, { action: 'workflows.scripts.import', path: '../a' },
       { action: 'workflows.scripts.validate', source: 'x'.repeat(65537) }, { action: 'workflows.scripts.validate', source: '界'.repeat(30000) },
-    ]) assert.equal((await f.control.execute(action as unknown as ZergControlAction)).ok, false, JSON.stringify(Object.keys(action)));
+    ]) assert.equal((await f.control.execute(action as unknown as ClankersControlAction)).ok, false, JSON.stringify(Object.keys(action)));
     let getter = 0; const hostile = { action: 'workflows.scripts.validate', get source() { getter++; return source; } };
     assert.throws(() => parseWorkflowScriptAction(hostile)); assert.equal(getter, 0);
     assert.throws(() => parseWorkflowScriptAction(Object.assign(Object.create({ inherited: true }), { action: 'workflows.scripts.validate', source })));
@@ -187,32 +187,32 @@ test('malformed source diagnostics remain bounded and cannot cause save/approval
 test('already aborted pure/save/import actions do not parse, read or initialize workflow owner', async () => {
   const f = fixture(), controller = new AbortController(); controller.abort(); const before = f.control.getState(), effects = f.effects;
   try {
-    for (const action of [{ action: 'workflows.scripts.validate', source }, { action: 'workflows.scripts.save', source }, { action: 'workflows.scripts.import', path: 'missing.workflow.js' }] as ZergControlAction[]) assert.equal((await f.control.execute(action, controller.signal)).ok, false);
+    for (const action of [{ action: 'workflows.scripts.validate', source }, { action: 'workflows.scripts.save', source }, { action: 'workflows.scripts.import', path: 'missing.workflow.js' }] as ClankersControlAction[]) assert.equal((await f.control.execute(action, controller.signal)).ok, false);
     assert.deepEqual(f.control.getState(), before); assert.deepEqual(f.effects, effects);
   } finally { f.close(); }
 });
 
 test('slash aliases preserve authoring JSON parity in noninteractive modes without a workflow service', async () => {
-  const f = fixture(), handler = createPiZergCommandHandler(f.container); const before = f.control.getState(), effects = f.effects;
+  const f = fixture(), handler = createPiClankersCommandHandler(f.container); const before = f.control.getState(), effects = f.effects;
   try {
-    for (const command of ['/zerg', '/zerg-swarm', '/swarm']) for (const mode of ['json', 'print', 'rpc'] as const) {
+    for (const command of ['/clankers', '/clankers', '/clankers']) for (const mode of ['json', 'print', 'rpc'] as const) {
       let notice = '', level = '';
       await handler(`${command} workflows scripts validate ${JSON.stringify({ source })}`, { mode, hasUI: false, ui: { notify(text, kind) { notice = text; level = kind ?? ''; }, custom() { throw new Error('No TUI authoring dependency.'); } } });
       assert.equal(level, 'info', notice); assert.equal(JSON.parse(notice).inspection.id, 'script-control');
     }
     for (const body of ['compile {}', 'validate []', 'validate null', 'validate {', 'unknown {}', `validate ${JSON.stringify({ source, action: 'workflows.start' })}`, `validate ${JSON.stringify({ source, start: true })}`, `import ${JSON.stringify({ path: '../bad' })}`]) {
-      let level = ''; await handler(`/zerg workflows scripts ${body}`, { mode: 'json', hasUI: false, ui: { notify(_text, kind) { level = kind ?? ''; } } }); assert.equal(level, 'error', body);
+      let level = ''; await handler(`/clankers workflows scripts ${body}`, { mode: 'json', hasUI: false, ui: { notify(_text, kind) { level = kind ?? ''; } } }); assert.equal(level, 'error', body);
     }
     let invalidNotice = '';
-    await handler('/zerg workflows scripts validate {SOURCE-MUST-NOT-ECHO', { mode: 'json', hasUI: false, ui: { notify(text) { invalidNotice = text; } } });
+    await handler('/clankers workflows scripts validate {SOURCE-MUST-NOT-ECHO', { mode: 'json', hasUI: false, ui: { notify(text) { invalidNotice = text; } } });
     assert.equal(invalidNotice, 'Script command requires valid bounded JSON fields.');
     assert.deepEqual(f.control.getState(), before); assert.deepEqual(f.effects, effects);
   } finally { f.close(); }
 });
 
-test('registered zerg_control authoring schema and unknown-key rejection work without SDK', async () => {
+test('registered clankers_control authoring schema and unknown-key rejection work without SDK', async () => {
   let tool: StructuralPiToolDefinition | undefined;
-  const registration = registerZergSwarmExtension({ registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') tool = value; } });
+  const registration = registerClankersExtension({ registerCommand() {}, registerTool(value) { if (value.name === 'clankers_control') tool = value; } });
   try {
     assert.ok(tool?.execute); const before = registration.control.getState();
     const properties = (tool.parameters as any).properties;
@@ -295,7 +295,7 @@ test('caller abort after actual parser launch and read-only revocation before sa
     assert.ok(parserChildren.length > start); caller.abort(); assert.equal((await aborted).ok, false); await f.control.drain!();
     assert.ok(parserChildren.slice(start).every(record => record.closed)); assert.deepEqual(f.control.getState(), before); assert.equal(f.effects.writes, 0);
     const saving = f.control.execute({ action: 'workflows.scripts.save', source });
-    f.container.replace(createZergState({ ...f.container.read(), mode: { ...f.container.read().mode, readOnly: true } }));
+    f.container.replace(createClankersState({ ...f.container.read(), mode: { ...f.container.read().mode, readOnly: true } }));
     const readonly = f.control.getState(), effects = f.effects;
     assert.equal((await saving).ok, false); assert.deepEqual(f.control.getState(), readonly); assert.deepEqual(f.effects, effects);
     assert.equal(readonly.extensions.workflows, undefined);
@@ -304,11 +304,11 @@ test('caller abort after actual parser launch and read-only revocation before sa
 });
 
 test('registered slash authoring shares control ownership across disposal and shutdown', async () => {
-  const commands: Record<string, { handler: ReturnType<typeof createPiZergCommandHandler> }> = {};
-  const registration = registerZergSwarmExtension({ registerCommand(name, command) { commands[name] = command; } }, { subagentAdapter: { kind: 'fake', launch() { throw new Error('No native launch.'); } } });
+  const commands: Record<string, { handler: ReturnType<typeof createPiClankersCommandHandler> }> = {};
+  const registration = registerClankersExtension({ registerCommand(name, command) { commands[name] = command; } }, { subagentAdapter: { kind: 'fake', launch() { throw new Error('No native launch.'); } } });
   const before = registration.control.getState(), start = parserChildren.length; let notice = '', level = '';
   try {
-    const job = commands.zerg!.handler(`workflows scripts save ${JSON.stringify({ source })}`, { mode: 'json', hasUI: false, ui: { notify(text, kind) { notice = text; level = kind ?? ''; } } });
+    const job = commands.clankers!.handler(`workflows scripts save ${JSON.stringify({ source })}`, { mode: 'json', hasUI: false, ui: { notify(text, kind) { notice = text; level = kind ?? ''; } } });
     assert.ok(parserChildren.length > start); registration.dispose(); await registration.control.drain!(); await job;
     assert.equal(level, 'error', notice); assert.deepEqual(registration.control.getState(), before);
     assert.ok(parserChildren.slice(start).every(record => record.closed));
@@ -317,9 +317,9 @@ test('registered slash authoring shares control ownership across disposal and sh
 
 test('pure authoring with configured durable recovery creates no ledger, snapshots, owner claims, or receipts', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'script-persist-pure-'));
-  const state = createZergStateContainer(createZergState());
+  const state = createClankersStateContainer(createClankersState());
   let launches = 0, settlement = 0;
-  const control = createZergControl(state, { persistence: { enabled: true, rootDir: directory }, recovery: { enabled: true, inspectNativeSettlement() { settlement++; throw new Error('No runtime owner for authoring.'); } },
+  const control = createClankersControl(state, { persistence: { enabled: true, rootDir: directory }, recovery: { enabled: true, inspectNativeSettlement() { settlement++; throw new Error('No runtime owner for authoring.'); } },
     subagentAdapter: { kind: 'fake', launch() { launches++; throw new Error('No native launch.'); } } });
   const files = () => readdirSync(directory, { recursive: true }).map(String).sort().map(name => [name, readFileSync(join(directory, name)).toString('hex')]);
   try {
@@ -334,11 +334,11 @@ test('pure authoring with configured durable recovery creates no ledger, snapsho
 
 test('all five registered slash/structured authoring actions have parity and no implicit start', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'script-parity-')); writeFileSync(join(directory, 'test.workflow.js'), source);
-  const commands: Record<string, { handler: ReturnType<typeof createPiZergCommandHandler> }> = {};
+  const commands: Record<string, { handler: ReturnType<typeof createPiClankersCommandHandler> }> = {};
   let tool: StructuralPiToolDefinition | undefined;
-  const registration = registerZergSwarmExtension({ registerCommand(name, command) { commands[name] = command; }, registerTool(value) { if (value.name === 'zerg_control') tool = value; } }, { cwd: directory,
+  const registration = registerClankersExtension({ registerCommand(name, command) { commands[name] = command; }, registerTool(value) { if (value.name === 'clankers_control') tool = value; } }, { cwd: directory,
     subagentAdapter: { kind: 'fake', launch() { throw new Error('No implicit native start.'); } } });
-  const slash = async (verb: string, fields: object, alias = 'zerg') => {
+  const slash = async (verb: string, fields: object, alias = 'clankers') => {
     let notice = '', level = '';
     await commands[alias]!.handler(`workflows scripts ${verb} ${JSON.stringify(fields)}`, { mode: 'rpc', hasUI: false, cwd: directory, ui: { notify(text, kind) { notice = text; level = kind ?? ''; }, custom() { throw new Error('No custom TUI dependency.'); } } });
     assert.equal(level, 'info', notice); return JSON.parse(notice);
@@ -353,7 +353,7 @@ test('all five registered slash/structured authoring actions have parity and no 
       const before = registration.control.getState(); assert.deepEqual(await slash(verb, { source }), await structured(verb, { source })); assert.deepEqual(registration.control.getState(), before);
     }
     assert.deepEqual(await slash('save', { source }), await structured('save', { source }));
-    for (const alias of ['zerg', 'zerg-swarm', 'swarm']) {
+    for (const alias of ['clankers', 'clankers', 'clankers']) {
       const before = registration.control.getState(), count = parserChildren.length;
       assert.deepEqual(await slash('inspect', { definitionId: 'script-control' }, alias), await structured('inspect', { definitionId: 'script-control' }));
       assert.equal(parserChildren.length, count, 'saved inspect never starts parser'); assert.deepEqual(registration.control.getState(), before);
@@ -387,7 +387,7 @@ test('dispose, caller cancellation, and read-only revocation during lazy-ledger 
       revoked = true;
       if (revoke === 'dispose') f.control.dispose();
       else if (revoke === 'abort') caller.abort();
-      else f.container.replace(createZergState({ ...f.container.read(), mode: { ...f.container.read().mode, readOnly: true } }));
+      else f.container.replace(createClankersState({ ...f.container.read(), mode: { ...f.container.read().mode, readOnly: true } }));
       writesAtRevocation = f.effects.writes;
     });
     try {
@@ -401,9 +401,9 @@ test('dispose, caller cancellation, and read-only revocation during lazy-ledger 
 });
 
 test('public session_shutdown hook aborts and drains structured plus all slash aliases before returning', async () => {
-  const commands: Record<string, { handler: ReturnType<typeof createPiZergCommandHandler> }> = {};
+  const commands: Record<string, { handler: ReturnType<typeof createPiClankersCommandHandler> }> = {};
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
-  const registration = registerZergSwarmExtension({
+  const registration = registerClankersExtension({
     registerCommand(name, command) { commands[name] = command; return { dispose() { delete commands[name]; } }; },
     on(event, handler) { handlers.set(String(event), handler); return () => handlers.delete(String(event)); },
   }, { subagentAdapter: { kind: 'fake', launch() { throw new Error('No native launch.'); } } });
@@ -411,7 +411,7 @@ test('public session_shutdown hook aborts and drains structured plus all slash a
   const notices: string[] = [];
   try {
     const structured = registration.control.execute({ action: 'workflows.scripts.save', source });
-    const slash = ['zerg', 'zerg-swarm', 'swarm'].map(alias => commands[alias]!.handler(`workflows scripts save ${JSON.stringify({ source })}`, {
+    const slash = ['clankers', 'clankers', 'clankers'].map(alias => commands[alias]!.handler(`workflows scripts save ${JSON.stringify({ source })}`, {
       mode: 'json', hasUI: false, ui: { notify(_text, level) { notices.push(level ?? ''); } },
     }));
     assert.ok(parserChildren.length > start); const shutdown = handlers.get('session_shutdown'); assert.ok(shutdown);
@@ -424,22 +424,22 @@ test('public session_shutdown hook aborts and drains structured plus all slash a
 });
 
 test('reload-style disposal drains the old compiler owner and permits a fresh registration on the same fake host', async () => {
-  const commands: Record<string, { handler: ReturnType<typeof createPiZergCommandHandler> }> = {};
-  const host = { registerCommand(name: string, command: { handler: ReturnType<typeof createPiZergCommandHandler> }) {
+  const commands: Record<string, { handler: ReturnType<typeof createPiClankersCommandHandler> }> = {};
+  const host = { registerCommand(name: string, command: { handler: ReturnType<typeof createPiClankersCommandHandler> }) {
     commands[name] = command; return { dispose() { delete commands[name]; } };
   } };
   const adapter = { kind: 'fake' as const, launch() { throw new Error('No native launch.'); } };
-  const old = registerZergSwarmExtension(host, { subagentAdapter: adapter }), before = old.control.getState(), start = parserChildren.length;
+  const old = registerClankersExtension(host, { subagentAdapter: adapter }), before = old.control.getState(), start = parserChildren.length;
   let oldLevel = '', freshLevel = '';
   try {
-    const oldJob = commands.zerg!.handler(`workflows scripts save ${JSON.stringify({ source })}`, { mode: 'rpc', hasUI: false, ui: { notify(_text, level) { oldLevel = level ?? ''; } } });
+    const oldJob = commands.clankers!.handler(`workflows scripts save ${JSON.stringify({ source })}`, { mode: 'rpc', hasUI: false, ui: { notify(_text, level) { oldLevel = level ?? ''; } } });
     old.dispose(); old.dispose(); await old.control.drain!(); await oldJob;
     assert.equal(oldLevel, 'error'); assert.ok(parserChildren.slice(start).every(record => record.closed));
     assert.deepEqual(old.control.getState(), before);
-    const fresh = registerZergSwarmExtension(host, { subagentAdapter: adapter });
+    const fresh = registerClankersExtension(host, { subagentAdapter: adapter });
     try {
       const freshBefore = fresh.control.getState();
-      await commands.swarm!.handler(`workflows scripts validate ${JSON.stringify({ source })}`, { mode: 'rpc', hasUI: false, ui: { notify(_text, level) { freshLevel = level ?? ''; } } });
+      await commands.clankers!.handler(`workflows scripts validate ${JSON.stringify({ source })}`, { mode: 'rpc', hasUI: false, ui: { notify(_text, level) { freshLevel = level ?? ''; } } });
       assert.equal(freshLevel, 'info'); assert.deepEqual(fresh.control.getState(), freshBefore);
       assert.equal((await old.control.execute({ action: 'workflows.scripts.compile', source })).ok, false);
     } finally { fresh.dispose(); await fresh.control.drain!(); }

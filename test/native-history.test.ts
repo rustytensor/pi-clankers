@@ -9,11 +9,11 @@ import { test } from 'node:test';
 import { SessionManager, type SessionEntry } from '@earendil-works/pi-coding-agent';
 import { readNativeHistory, inheritNativeHistory, validateNativeHistorySelection, NATIVE_SESSION_MARKER, NATIVE_CONTINUATION_MARKER, NATIVE_ANCESTOR_SESSION_MARKER, NATIVE_ANCESTOR_CONTINUATION_MARKER, NATIVE_HISTORY_LIMITS, type NativeHistory, type NativeHistoryIdentity } from '../native-history.js';
 import { createNativeTranscriptService } from '../native-transcript.js';
-import type { ZergNativeSessionReference } from '../types.js';
+import type { ClankersNativeSessionReference } from '../types.js';
 
 const timestamp = '2026-10-03T00:00:00.000Z';
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
-const identity = (ref: ZergNativeSessionReference): NativeHistoryIdentity => ({ schemaVersion: 1, parentRunId: ref.parentRunId, memberRunId: ref.memberRunId, agentDefinitionId: ref.agentDefinitionId, piSessionId: ref.piSessionId, sessionFile: ref.sessionFile, cwd: ref.cwd, createdAt: ref.createdAt });
+const identity = (ref: ClankersNativeSessionReference): NativeHistoryIdentity => ({ schemaVersion: 1, parentRunId: ref.parentRunId, memberRunId: ref.memberRunId, agentDefinitionId: ref.agentDefinitionId, piSessionId: ref.piSessionId, sessionFile: ref.sessionFile, cwd: ref.cwd, createdAt: ref.createdAt });
 const entry = (id: string, parentId: string | null, type: string, data: Record<string, unknown> = {}): SessionEntry => ({ id, parentId, type, timestamp, ...data } as SessionEntry);
 const user = (id: string, parentId: string | null, content = 'literal task') => entry(id, parentId, 'message', { message: { role: 'user', content, timestamp: 1 } });
 const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
@@ -21,11 +21,11 @@ const assistant = (id: string, parentId: string | null, content: unknown[] = [{ 
 const result = (id: string, parentId: string | null, toolCallId = 'call1', toolName = 'read') => entry(id, parentId, 'message', { message: { role: 'toolResult', toolCallId, toolName, content: [{ type: 'text', text: 'result' }], isError: false, timestamp: 3 } });
 const tool = { type: 'toolCall', id: 'call1', name: 'read', arguments: { path: 'a' }, thoughtSignature: 'opaque tool signature' };
 async function fixture(t: { after(fn: () => Promise<void>): void }) {
-  const agentDir = await mkdtemp(join(tmpdir(), 'zerg-native-history-'));
+  const agentDir = await mkdtemp(join(tmpdir(), 'clankers-native-history-'));
   t.after(() => rm(agentDir, { recursive: true, force: true }));
   const cwd = resolve(agentDir, 'workspace'), group = `--${cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')}--`;
   const directory = join(agentDir, 'sessions', group); await mkdir(directory, { recursive: true });
-  const ref: ZergNativeSessionReference = { schemaVersion: 1, parentRunId: 'parent', memberRunId: 'member', agentDefinitionId: 'worker', piSessionId: 'session1', sessionFile: join(directory, 'original.jsonl'), cwd, createdAt: timestamp, attachment: 'disposed' };
+  const ref: ClankersNativeSessionReference = { schemaVersion: 1, parentRunId: 'parent', memberRunId: 'member', agentDefinitionId: 'worker', piSessionId: 'session1', sessionFile: join(directory, 'original.jsonl'), cwd, createdAt: timestamp, attachment: 'disposed' };
   const header = { type: 'session' as const, version: 3, id: ref.piSessionId, cwd, timestamp };
   const marker = entry('marker', null, 'custom', { customType: NATIVE_SESSION_MARKER, data: identity(ref) });
   const entries = [marker, user('user', 'marker'), assistant('assistant', 'user')];
@@ -118,7 +118,7 @@ test('fd fencing rejects a changed stat and closes the fd; abort also leaves byt
 test('copy preserves full sibling tree and opaque payloads; every recognized inherited metadata entry is accounted across generations', async (t) => {
   const f = await fixture(t); f.entries.push(user('sibling', 'marker', 'other branch'), entry('opaque', 'sibling', 'custom', { customType: 'other.extension', data: { nested: [1, { data: 'opaque', signature: 'preserve' }] } })); await f.save();
   const original = await readNativeHistory(f.ref, { agentDir: f.agentDir }), raw = JSON.stringify(original.entries);
-  async function next(source: NativeHistory, sourceRef: ZergNativeSessionReference, n: number) {
+  async function next(source: NativeHistory, sourceRef: ClankersNativeSessionReference, n: number) {
     const inherited = inheritNativeHistory(source);
     const ref = { ...f.ref, piSessionId: `session${n}`, sessionFile: join(f.directory, `next${n}.jsonl`) };
     const marker = entry(`marker${n}`, 'user', 'custom', { customType: NATIVE_SESSION_MARKER, data: identity(ref) });

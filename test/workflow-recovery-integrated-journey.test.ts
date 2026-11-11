@@ -6,8 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergState, createZergStateContainer, updateZergState } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer, updateClankersState } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash, workflowRecoveryAddresses, workflowStepEntries } from '../workflow-model.js';
 import { recoveryWriterUsage, validateRecoveryCheckpoint } from '../workflow-recovery.js';
@@ -29,7 +29,7 @@ async function waitFor<T>(get: () => T | undefined, label: string): Promise<T> {
   throw new Error(`deadline: ${label}`);
 }
 async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: boolean; nativeSettlement?: boolean; failAfterCommit?: boolean; cancelOnPublish?: boolean; priorAttempts?: number; writerLimit?: number; fanout?: boolean; failAfterCanonical?: boolean; unrelated?: boolean; repeatHistory?: boolean; cancelBoundary?: 'preflight' | 'effect-intent'; transferBoundary?: 'lease-intent' | 'lease-receipt' | 'new-root' | 'new-copy' | 'carry-mutation'; stageBoundary?: 'initial' | 'mutation' | 'two'; appBoundary?: 'first-write' | 'first-receipt' | 'second-intent' | 'second-write'; mutationPhase?: 'acquire' | 'id' | 'clock'; mutate?: (f: any) => void } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-selected-execution-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-selected-execution-'));
   const previousTmpdir = process.env.TMPDIR; process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage'), snapshotFile = join(root, 'state.json');
   mkdirSync(projectRoot, { mode: 0o700 }); mkdirSync(stagingParent, { mode: 0o700 }); mkdirSync(join(projectRoot, 'src'));
@@ -45,8 +45,8 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
     import { syncBuiltinESMExports } from 'node:module';
     import { join } from 'node:path';
     import { createWorkflowService } from ${JSON.stringify(runtimeUrl)};
-    import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(stateUrl)};
-    import { createZergPersistenceManager } from ${JSON.stringify(persistUrl)};
+    import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(stateUrl)};
+    import { createClankersPersistenceManager } from ${JSON.stringify(persistUrl)};
     import { workflowHash } from ${JSON.stringify(modelUrl)};
     const projectRoot=process.argv[1], stagingParent=process.argv[2], snapshotFile=process.argv[3];
     const transferBoundary=${JSON.stringify(options.transferBoundary ?? null)}; const boundary='after-write'; const stageBoundary=${JSON.stringify(options.stageBoundary ?? null)}, appBoundary=${JSON.stringify(options.appBoundary ?? 'first-write')}; const interruptWriter=${JSON.stringify(options.interruptWriter ?? false)};
@@ -63,9 +63,9 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
       {id:'apply',kind:'coding',dependsOn:['review'],inputs:{},outputSchema:object({status:str,candidateHash:str,appliedPaths:array(str),rejectedPaths:array(str),diagnostics:array(str),outcomeHash:str}),coding:{operation:'apply',policy}}
     ]};
     const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-    const base=createZergStateContainer({agentDefinitions:agents});
-    const store=createZergPersistenceManager({snapshotFile}); store.hydrate(base);
-    const container={...base, replace(next){const value=createZergState(next);store.save(value);checkpointBoundary(value);if(boundary==='before-write' && value.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(value);}, update(patch,options){const next=updateZergState(base.read(),patch,options);store.save(next);checkpointBoundary(next);if(boundary==='before-write' && next.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(next);}};
+    const base=createClankersStateContainer({agentDefinitions:agents});
+    const store=createClankersPersistenceManager({snapshotFile}); store.hydrate(base);
+    const container={...base, replace(next){const value=createClankersState(next);store.save(value);checkpointBoundary(value);if(boundary==='before-write' && value.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(value);}, update(patch,options){const next=updateClankersState(base.read(),patch,options);store.save(next);checkpointBoundary(next);if(boundary==='before-write' && next.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(next);}};
     let runId='', approval;
     const keepAlive=setInterval(()=>{},1000);
     const native={preflight(){},async execute(req){nativeEntered=true;
@@ -121,13 +121,13 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
       .replace(/    const d=await service.execute[\s\S]*?runId=r.view.workflowRunId;/, `    const source=service.get(${JSON.stringify(oldReady.runId)});const ids=source.definition.steps.flatMap(s=>s.kind==='repeat'?Array.from({length:s.maxIterations},(_,i)=>s.body.map(b=>s.id+'@'+i+'/'+b.id+':0')).flat():[s.id+':0']);const selections={rerunUnitIds:ids};const p=await service.recovery.prepare(source.workflowRunId,selections);if(p.assessment.plan.status!=='prepared')throw Error(JSON.stringify(p.assessment.blocked));const r=await service.recovery.authorize({workflowRunId:source.workflowRunId,assessmentFingerprint:p.assessment.fingerprint,selections});if(!r.ok)throw Error(r.error);runId=r.view.workflowRunId;`);
     processFixture = launch(continuationDriver); ready = await killProducer(); ancestorIds.push(ready.runId); ancestorOwners.push(ready.owner);
   }
-  const store = createZergPersistenceManager({ snapshotFile })!;
-  const base = createZergStateContainer(); store.hydrate(base);
+  const store = createClankersPersistenceManager({ snapshotFile })!;
+  const base = createClankersStateContainer(); store.hydrate(base);
   const originalSnapshot = readFileSync(snapshotFile); const originalStageEntries = readdirSync(stagingParent).sort();
   let publications = 0, nativeCalls = 0, freshWriter = '', freshReviewer = ''; let f: any, armed = false;
   const mutate = (phase: string) => { if (options.mutationPhase === phase) options.mutate?.(f); };
   const cancelBoundary = (phase: string) => { if (armed && options.cancelBoundary === phase) { armed = false; controller.abort(); } };
-  const container = { ...base, replace(next: ReturnType<typeof base.read>) { const value = createZergState(next); store.save(value); return base.replace(value); }, update(patch: any, opts: any) { const value = updateZergState(base.read(), patch, opts); store.save(value); const result = base.replace(value); const child = (value.extensions[WORKFLOW_EXTENSION_KEY] as any)?.runs?.find((r:any)=>r.workflowRunId==='selected-child'); if (child?.recovery?.operations.at(-1)?.kind==='stage-write' && !child.recovery.operations.at(-1).result) cancelBoundary('effect-intent'); return result; } };
+  const container = { ...base, replace(next: ReturnType<typeof base.read>) { const value = createClankersState(next); store.save(value); return base.replace(value); }, update(patch: any, opts: any) { const value = updateClankersState(base.read(), patch, opts); store.save(value); const result = base.replace(value); const child = (value.extensions[WORKFLOW_EXTENSION_KEY] as any)?.runs?.find((r:any)=>r.workflowRunId==='selected-child'); if (child?.recovery?.operations.at(-1)?.kind==='stage-write' && !child.recovery.operations.at(-1).result) cancelBoundary('effect-intent'); return result; } };
   const controller = new AbortController();
   const settledRequests: WorkflowRecoveryNativeSettlementRequest[] = [];
   const config: WorkflowServiceOptions = {
@@ -264,11 +264,11 @@ test('integrated: ordered partial proof rejects mutated hashes, generations, sou
   for(const [label,mutate] of corruptions){
     const snapshot=structuredClone(original);mutate((snapshot.extensions[WORKFLOW_EXTENSION_KEY] as any).runs[0]);
     let s:ReturnType<typeof createWorkflowService>|undefined;
-    try{s=createWorkflowService(createZergStateContainer(snapshot),f.native,f.config);const p=await s.recovery!.prepare(f.ready.runId,f.selections);assert.equal((p.assessment as any).plan.status,'blocked',label);}
+    try{s=createWorkflowService(createClankersStateContainer(snapshot),f.native,f.config);const p=await s.recovery!.prepare(f.ready.runId,f.selections);assert.equal((p.assessment as any).plan.status,'blocked',label);}
     catch(e){assert.match(String(e),/Recovery checkpoint|Invalid.*recovery/,label);}finally{s?.dispose();}
   }
   const config={...f.config,recovery:{...f.config.recovery!,inspectNativeSettlement:undefined}};
-  const unknown=createWorkflowService(createZergStateContainer(original),f.native,config);
+  const unknown=createWorkflowService(createClankersStateContainer(original),f.native,config);
   try{const p=await unknown.recovery!.prepare(f.ready.runId,f.selections);assert.equal((p.assessment as any).plan.status,'blocked');assert.match(JSON.stringify(p.assessment),/previous-native-settlement-unknown/);}finally{unknown.dispose();}
   assert.equal(f.nativeCalls,0);assert.equal(f.publications,0);
 });

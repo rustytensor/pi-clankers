@@ -60,7 +60,7 @@ export function assertQuotaReadEvidence(events,{issuedToolCallIds,readText,succe
  assert.ok(refusal,'public SDK refusal text must match quota error or its abort');assert.equal(denied.textBytes,Buffer.byteLength(refusal));
 }
 export async function acceptance(layout,evidence,focus) {
- assert.equal(process.env.ZERG_WORKFLOW_AUTOMATION_ACCEPTANCE,'parent-approved');
+ assert.equal(process.env.CLANKERS_WORKFLOW_AUTOMATION_ACCEPTANCE,'parent-approved');
  assert.ok(focus===undefined||focus==='quota-outcome'||focus==='lifecycle-proof','unsupported acceptance focus');
  const lifecycleScenarios=new Set(['happy-duplicate-conflict-inspection','quota-42-read3x21','monotonic-deadline']);
  const quotaScenarios=new Set(['exact-read-byte-boundary','exact-cumulative-read-boundary','cumulative-read-cap','provider-preparation-cap','quota-42-read3x21']);
@@ -108,7 +108,7 @@ export async function acceptance(layout,evidence,focus) {
   const time=new Date().toISOString();const event={version:1,profileId:'daily',eventId:time,occurrenceTime:time};
   function start(operation='run',input=event){
    const log=root+'/probe-'+processes.length+'.jsonl';
-   const env={HOME:root+'/home',PI_AGENT_DIR:root+'/home',PATH:path.dirname(process.execPath),ZERG_WORKFLOW_AUTOMATION_ACCEPTANCE:'parent-approved',S8E_LAYOUT:layout,S8E_OWNED_ROOT:root,S8E_PORT:String(port)};
+   const env={HOME:root+'/home',PI_AGENT_DIR:root+'/home',PATH:path.dirname(process.execPath),CLANKERS_WORKFLOW_AUTOMATION_ACCEPTANCE:'parent-approved',S8E_LAYOUT:layout,S8E_OWNED_ROOT:root,S8E_PORT:String(port)};
    if(!options.missingAuth)env.S8E_DUMMY_KEY='DUMMY-NOT-CREDENTIAL';
    // Each child owns its lifecycle probe stream; fixture never inherits user env/credentials.
    const native=fileURLToPath(new URL('./automation-native-acceptance.mjs',import.meta.url));

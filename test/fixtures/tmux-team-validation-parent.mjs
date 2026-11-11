@@ -13,8 +13,8 @@ const jiti = createJiti(import.meta.url, { fsCache: false, alias: { '@earendil-w
 const { ProjectTrustStore } = await import(pathToFileURL(sdk).href);
 new ProjectTrustStore(path.join(root, 'agent')).set(path.join(root, 'workspace'), true);
 const { createTmuxControl } = await jiti.import('../../tmux-control.ts');
-const { createZergState, createZergStateContainer, upsertAgentDefinition } = await jiti.import('../../state.ts');
-const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+const { createClankersState, createClankersStateContainer, upsertAgentDefinition } = await jiti.import('../../state.ts');
+const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
 for (const id of ['a','b','c','lead','solo','s','slead']) state.replace(upsertAgentDefinition(state.read(), { id, label: id, source: 'user', prompt: id, tools: [], model: 'team-fixture/fixed:off' }));
 const next = state.read();
 next.teams.team = { id:'team', label:'Team', kind:'team', status:'idle', leaderAgentId:'lead', memberAgentIds:['a','b','a','c','lead'] };

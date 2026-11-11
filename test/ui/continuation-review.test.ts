@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CURSOR_MARKER, visibleWidth } from '@earendil-works/pi-tui';
 import type { NativeContinuationPrepare, NativeContinuationReview, NativeContinuationService } from '../../native-continuation.js';
-import { ZergContinuationReviewComponent } from '../../ui/continuation-review.js';
+import { ClankersContinuationReviewComponent } from '../../ui/continuation-review.js';
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 const key = { parentRunId: 'parent-source', memberRunId: 'member-source', piSessionId: 'pi-source' };
@@ -24,7 +24,7 @@ function fixture(unconfirmed = false) {
     start: async (request) => { starts.push(request); return { runId: 'NEW-run', taskId: 'NEW-task' }; },
     discard: ({ reviewId }) => { discards.push(reviewId); }, dispose: () => { disposedServices++; },
   };
-  const component = new ZergContinuationReviewComponent({ terminal: { rows: 48 }, requestRender: () => { renders++; } }, undefined,
+  const component = new ClankersContinuationReviewComponent({ terminal: { rows: 48 }, requestRender: () => { renders++; } }, undefined,
     { source: { key, entryId: 'at-entry', unconfirmed }, service, isCurrent: () => current, close: () => { closed++; } });
   component.focused = true;
   component.render(160, 40);
@@ -40,9 +40,9 @@ test('new continuation is separate prepare/review/explicit authorization; exact 
   const f = fixture();
   assert.equal(f.prepares.length, 0);
   assert.equal(f.starts.length, 0);
-  await prepared(f, '  /zerg run --dangerous\n  qsb n  ');
+  await prepared(f, '  /clankers run --dangerous\n  qsb n  ');
   assert.equal(f.prepares.length, 1);
-  assert.deepEqual(f.prepares[0], { ...key, entryId: 'at-entry', body: '  /zerg run --dangerous\n  qsb n  ' });
+  assert.deepEqual(f.prepares[0], { ...key, entryId: 'at-entry', body: '  /clankers run --dangerous\n  qsb n  ' });
   assert.equal(f.starts.length, 0);
   f.component.handleInput('\r');
   f.component.handleInput('\x13');
@@ -314,8 +314,8 @@ test('throwing observer/discard and arbitrary errors are safe; no implicit submi
 test('reentrant redraw disposal before authorization commit never calls start', async () => {
   const f = fixture();
   let armed = false;
-  let component!: ZergContinuationReviewComponent;
-  component = new ZergContinuationReviewComponent({ terminal: { rows: 48 }, requestRender: () => { if (armed) { armed = false; component.dispose(); } } }, undefined,
+  let component!: ClankersContinuationReviewComponent;
+  component = new ClankersContinuationReviewComponent({ terminal: { rows: 48 }, requestRender: () => { if (armed) { armed = false; component.dispose(); } } }, undefined,
     { source: { key, entryId: 'at-entry', unconfirmed: false }, service: f.service, isCurrent: () => true, close: () => undefined });
   component.focused = true;
   component.render(160, 40);

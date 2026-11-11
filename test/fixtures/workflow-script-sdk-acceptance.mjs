@@ -78,7 +78,7 @@ function preparePackedLayout() {
   assert.equal(result.status, 0, String(result.error ?? result.stderr));
   const info = JSON.parse(result.stdout); assert.equal(info.length, 1);
   assert(/^[A-Za-z0-9_.-]+\.tgz$/.test(info[0].filename));
-  const packagePath = join(root, 'layout/node_modules/pi-zerg-swarm'); mkdirSync(packagePath, { recursive: true });
+  const packagePath = join(root, 'layout/node_modules/pi-clankers'); mkdirSync(packagePath, { recursive: true });
   const tar = spawnSync('/usr/bin/tar', ['-xzf', join(pack, info[0].filename), '--strip-components=1', '-C', packagePath], { env, timeout: 10_000, maxBuffer: 4096, encoding: 'utf8' });
   assert.equal(tar.status, 0, String(tar.error ?? tar.stderr));
   const metadata = JSON.parse(readFileSync(join(packagePath, 'package.json'), 'utf8'));

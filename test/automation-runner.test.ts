@@ -182,14 +182,14 @@ function harness(scenario: Scenario = {}, timers?: ReturnType<typeof controlledR
     throw new Error('unexpected action');
   }, dispose() { calls.push('dispose'); }, async drain() { calls.push('drain'); if (scenario.drainReject) throw new Error('SECRET drain output'); } };
   const modules: Record<string, any> = {
-    './index.js': { createZergControl(c: any, options: any) { calls.push('control'); assert.equal(c, container); assert.equal(options.persistenceManager, manager);
+    './index.js': { createClankersControl(c: any, options: any) { calls.push('control'); assert.equal(c, container); assert.equal(options.persistenceManager, manager);
       assert.equal(options.persistence, undefined);
       assert.deepEqual(Object.keys(options.recovery), ['enabled']); assert.equal(options.recovery.enabled, true);
       assert.deepEqual(Object.keys(options).sort(), ['persistenceManager', 'recovery', 'trustedAutomationNative', 'trustedWorkflow']);
       assert.equal(calls.filter(call => call === 'acquire').length, 1);
       nativeOptions = options; return fakeControl; } },
-    './persistence.js': { createZergPersistenceManager: () => manager },
-    './state.js': { createZergState: clone, createZergStateContainer: () => container },
+    './persistence.js': { createClankersPersistenceManager: () => manager },
+    './state.js': { createClankersState: clone, createClankersStateContainer: () => container },
     './workflow-model.js': { workflowHash: JSON.stringify, workflowView: viewOf },
     './workflow-runtime.js': { recoverWorkflowState: clone },
     './automation-profile.js': { validateAutomationRequest(v: any) { if (Object.keys(v).sort().join(',') !== 'eventId,occurrenceTime,profileId,version') throw new Error('bad request'); return clone(v); },

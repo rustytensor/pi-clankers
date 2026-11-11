@@ -1,6 +1,6 @@
 import type { ActivitySource, WorkflowActivitySnapshot } from './activity.js';
 import { createHash } from 'node:crypto';
-import type { ZergAgentDefinition } from './types.js';
+import type { ClankersAgentDefinition } from './types.js';
 import { validateCodingPolicy } from './workflow-coding.js';
 import type { WorkflowCodingPolicy, WorkflowCodingCapability, WorkflowCodingApprovalKind, WorkflowCodingApprovalRecord, WorkflowCodingApprovalRequest } from './workflow-coding.js';
 import type { RecoveryCheckpointV1 } from './workflow-recovery.js';
@@ -55,7 +55,7 @@ export interface WorkflowControlledCodingContext {
   inspect(): { candidateHash: string; changedPaths: string[]; files: Array<{ path: string; beforeText: string | null; afterText: string | null; beforeHash: string | null; afterHash: string | null }> };
 }
 export interface WorkflowNativeRequest extends WorkflowNativeLineage {
-  agent: ZergAgentDefinition; prompt: string; signal: AbortSignal;
+  agent: ClankersAgentDefinition; prompt: string; signal: AbortSignal;
   /** Present only for v3 controlled staged coding writer/reviewer requests; native SDK must not infer authority from prompts. */
   coding?: WorkflowControlledCodingContext;
   onIdentity(identity: WorkflowNativeIdentity): void;
@@ -70,7 +70,7 @@ export interface WorkflowNativeOutcome {
 }
 export interface WorkflowNativePort {
   /** Must reject an unowned adapter or unsupported/non-read-only frozen policy; no side effects. */
-  preflight(agent: ZergAgentDefinition): void;
+  preflight(agent: ClankersAgentDefinition): void;
   /** Never resolve before runner-owned settlement; rejection means cleanup is UNKNOWN. */
   execute(request: WorkflowNativeRequest): Promise<WorkflowNativeOutcome>;
 }
@@ -90,7 +90,7 @@ export interface WorkflowRecoveryOriginal { version: 1; recordedAt: string; stat
 export interface WorkflowRun {
   workflowRunId: string; familyId: string; attemptNo: number; retryOf?: string; recoveryOf?: string; supersededBy?: string;
   definition: WorkflowDefinition; definitionHash: string; inputs: WorkflowJson;
-  agents: Record<string, ZergAgentDefinition>; concurrency: number; status: WorkflowRunStatus;
+  agents: Record<string, ClankersAgentDefinition>; concurrency: number; status: WorkflowRunStatus;
   createdAt: string; updatedAt: string; admissions: number; cleanupSettled: boolean; recovered: boolean;
   steps: WorkflowStepRun[]; report?: WorkflowJson; error?: string;
   /** Immutable first observed raw recovery status evidence; inert, bounded, and never replay authority. */
@@ -731,7 +731,7 @@ export function aggregateWorkflow(operation: NonNullable<WorkflowStep['operation
 }
 
 /** Existing TypeScript agent definitions may carry absent optional own fields as undefined. */
-export function normalizeWorkflowAgent(agent: ZergAgentDefinition): ZergAgentDefinition {
+export function normalizeWorkflowAgent(agent: ClankersAgentDefinition): ClankersAgentDefinition {
   workflowAssert(agent && typeof agent === 'object' && !Array.isArray(agent) && (Object.getPrototypeOf(agent) === Object.prototype || Object.getPrototypeOf(agent) === null), 'Expected plain agent definition');
   workflowAssert(Object.getOwnPropertySymbols(agent).length === 0, 'Agent symbol keys forbidden');
   const optional = ['description', 'model', 'fallbackModels', 'maxTurns', 'tools', 'disallowedTools', 'permissionMode', 'metadata', 'extensions', 'result_schema', 'may_write'];
@@ -744,7 +744,7 @@ export function normalizeWorkflowAgent(agent: ZergAgentDefinition): ZergAgentDef
     out[key] = descriptor.value;
   }
   workflowAssert(required.every(k => typeof out[k] === 'string'), 'Missing required agent field');
-  return freezeWorkflowData(out, WORKFLOW_LIMITS.definitionBytes) as unknown as ZergAgentDefinition;
+  return freezeWorkflowData(out, WORKFLOW_LIMITS.definitionBytes) as unknown as ClankersAgentDefinition;
 }
 
 /** Dependency identities include resolved output data and frozen agent policy, never mutable caller objects. */

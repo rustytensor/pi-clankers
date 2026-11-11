@@ -12,8 +12,8 @@ import { tmpdir } from 'node:os';
 export function installFixtureSafety({ name = 'sdk', maxRequests = 64,
   maxRequestBytes = 1024 * 1024, maxOutputBytes = 8 * 1024 * 1024,
   timeoutMs = 195000 } = {}) {
-  if (globalThis[Symbol.for('zerg/fixture-safety')]) throw Error('Fixture guard already installed');
-  const root = mkdtempSync(join(tmpdir(), 'zerg-fixture-' + name.replace(/[^a-z0-9-]/gi, '-') + '-'));
+  if (globalThis[Symbol.for('clankers/fixture-safety')]) throw Error('Fixture guard already installed');
+  const root = mkdtempSync(join(tmpdir(), 'clankers-fixture-' + name.replace(/[^a-z0-9-]/gi, '-') + '-'));
   const environment = { PATH: '/usr/bin:/bin', HOME: join(root, 'home'),
     TMPDIR: join(root, 'tmp'), XDG_CONFIG_HOME: join(root, 'home'),
     XDG_CACHE_HOME: join(root, 'cache'), XDG_DATA_HOME: join(root, 'data'),
@@ -176,6 +176,6 @@ export function installFixtureSafety({ name = 'sdk', maxRequests = 64,
       };
     },
     markFailure: (error) => { failure ??= error instanceof Error ? error : Error(String(error)); process.exitCode = 86; } };
-  globalThis[Symbol.for('zerg/fixture-safety')] = guard;
+  globalThis[Symbol.for('clankers/fixture-safety')] = guard;
   return guard;
 }

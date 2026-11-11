@@ -6,10 +6,10 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { isDeepStrictEqual } from 'node:util';
-import { createZergState, createZergStateContainer, snapshotZergState, updateZergState, seedBuiltinAgentDefinitions } from '../state.js';
+import { createClankersState, createClankersStateContainer, snapshotClankersState, updateClankersState, seedBuiltinAgentDefinitions } from '../state.js';
 import { createWorkflowService } from '../workflow-runtime.js';
-import { createZergControl } from '../index.js';
-import { createZergPersistenceManager, type ZergPersistenceManager } from '../persistence.js';
+import { createClankersControl } from '../index.js';
+import { createClankersPersistenceManager, type ClankersPersistenceManager } from '../persistence.js';
 import { createSealedWorkflowResourceLoader } from '../workflow-native-tools.js';
 import { normalizeWorkflowAgent, validateWorkflowDefinition, workflowHash } from '../workflow-model.js';
 import type { WorkflowRun, WorkflowState, WorkflowService, WorkflowServiceOptions, WorkflowNativePort } from '../workflow-model.js';
@@ -70,7 +70,7 @@ test('pruning retains active, uncertain, needs-attention and referenced evidence
   }
 });
 function harness(options: WorkflowServiceOptions = {}) {
-  const p = profile(), base = createZergStateContainer({ agentDefinitions: { reader: agent } });
+  const p = profile(), base = createClankersStateContainer({ agentDefinitions: { reader: agent } });
   const snapshots: ReturnType<typeof base.snapshot>[] = [];
   let calls = 0, ids = 0;
   const port: WorkflowNativePort = { preflight() {}, async execute(req) { calls++; req.assertAdmission(); const identity = { runId: `native-${calls}`, taskId: `task-${calls}` }; req.onIdentity(identity); return { status: 'completed', text: '"ok"', identity, cleanupSettled: true }; } };
@@ -136,12 +136,12 @@ test('native lower admission cap rejects further units without granting refunds'
 test('prepared same persistence manager requires acquisition before construction, never rehydrates or auto releases', () => {
   const dir = mkdtempSync(join(tmpdir(), 'automation-kernel-'));
   try {
-    const manager = createZergPersistenceManager({ snapshotFile: join(dir, 'state.json') })!;
-    const container = createZergStateContainer(); manager.hydrate(container);
-    assert.throws(() => createZergControl(container, { persistenceManager: manager }), /prepared|generation/i);
+    const manager = createClankersPersistenceManager({ snapshotFile: join(dir, 'state.json') })!;
+    const container = createClankersStateContainer(); manager.hydrate(container);
+    assert.throws(() => createClankersControl(container, { persistenceManager: manager }), /prepared|generation/i);
     const owner = manager.acquireRecoveryOwnership!({ expectedSnapshotHash: manager.inspectRecoveryOwnership!().actualSnapshotHash }).owner;
     let hydration = 0; const original = manager.hydrate.bind(manager); manager.hydrate = (...args) => { hydration++; return original(...args); };
-    const control = createZergControl(container, { persistenceManager: manager }); assert.equal(hydration, 0);
+    const control = createClankersControl(container, { persistenceManager: manager }); assert.equal(hydration, 0);
     control.dispose(); assert.equal(manager.inspectRecoveryOwnership!().owner?.generation, owner.generation);
     manager.releaseRecoveryOwnership!(owner);
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -200,12 +200,12 @@ test('real owned persistence commits exact event and attempt together before fak
   for (const failure of ['none', 'before', 'after']) {
     const dir = mkdtempSync(join(tmpdir(), 'automation-atomic-'));
     try {
-      const p = profile(), base = createZergStateContainer({ agentDefinitions: { reader: agent } });
-      const manager = createZergPersistenceManager({ snapshotFile: join(dir, 'state.json') })!; manager.hydrate(base);
+      const p = profile(), base = createClankersStateContainer({ agentDefinitions: { reader: agent } });
+      const manager = createClankersPersistenceManager({ snapshotFile: join(dir, 'state.json') })!; manager.hydrate(base);
       const owner = manager.acquireRecoveryOwnership!({ expectedSnapshotHash: manager.inspectRecoveryOwnership!().actualSnapshotHash }).owner;
       let attempts = 0, calls = 0; const update = base.update.bind(base);
       base.update = (...args) => {
-        const projected = createZergStateContainer(base.snapshot()); const next = projected.update(...args);
+        const projected = createClankersStateContainer(base.snapshot()); const next = projected.update(...args);
         const firstAttempt = (next.extensions.workflows as WorkflowState).runs[0];
         const reservation = !!firstAttempt && !(base.read().extensions.workflows as WorkflowState).runs.length;
         if (reservation) {
@@ -262,12 +262,12 @@ test('prepared thinking drift is rejected even when session thinking remains exa
 test('prepared control refuses clock-reentrant release instead of falling back to an unowned generic save', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'automation-owner-clock-'));
   try {
-    const manager = createZergPersistenceManager({ snapshotFile: join(dir, 'state.json') })!;
-    const container = createZergStateContainer(); manager.hydrate(container);
+    const manager = createClankersPersistenceManager({ snapshotFile: join(dir, 'state.json') })!;
+    const container = createClankersStateContainer(); manager.hydrate(container);
     const owner = manager.acquireRecoveryOwnership!({ expectedSnapshotHash: manager.inspectRecoveryOwnership!().actualSnapshotHash }).owner;
     let armed = false, fired = false, saves = 0;
     const original = manager.save.bind(manager); manager.save = (...args) => { const result = original(...args); saves++; return result; };
-    const control = createZergControl(container, { persistenceManager: manager, now: () => {
+    const control = createClankersControl(container, { persistenceManager: manager, now: () => {
       if (armed && !fired) { fired = true; manager.releaseRecoveryOwnership!(owner); }
       return new Date(time);
     } });
@@ -282,32 +282,32 @@ test('prepared control refuses clock-reentrant release instead of falling back t
 });
 
 // Exact production constructor prefix + recovery builder: no replacement owner guard.
-function preparedWriterFixture(base: ReturnType<typeof createZergStateContainer>, manager: ZergPersistenceManager, associated?: ZergPersistenceManager) {
+function preparedWriterFixture(base: ReturnType<typeof createClankersStateContainer>, manager: ClankersPersistenceManager, associated?: ClankersPersistenceManager) {
   const source = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
   const ast = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022, true);
   const fn = (name: string) => {
     const node = ast.statements.find((n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === name);
     assert.ok(node, `Missing actual ${name}`); return node;
   };
-  const statements = [...fn('createZergControl').body!.statements];
+  const statements = [...fn('createClankersControl').body!.statements];
   const end = statements.findIndex(n => ts.isVariableStatement(n) && n.declarationList.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === 'nativeTranscriptService'));
   assert.ok(end > 0);
   const ownedPersistenceManagers = new WeakMap(); if (associated) ownedPersistenceManagers.set(base, associated);
-  const dependencies = { createZergStateContainer, createZergState, seedBuiltinAgentDefinitions, createZergPersistenceManager, snapshotZergState, updateZergState, isDeepStrictEqual,
+  const dependencies = { createClankersStateContainer, createClankersState, seedBuiltinAgentDefinitions, createClankersPersistenceManager, snapshotClankersState, updateClankersState, isDeepStrictEqual,
     ownedPersistenceManagers, recoveryPublications: new WeakMap(), recoveryWriterIdleChecks: new WeakMap(), inspectPreviousWorkflowOwner: () => 'unknown' };
-  const text = ['isZergStateContainer', 'inspectStartupRecoveryBlock', 'buildWorkflowRecoveryOptions'].map(name => fn(name).getText(ast)).join('\n')
+  const text = ['isClankersStateContainer', 'inspectStartupRecoveryBlock', 'buildWorkflowRecoveryOptions'].map(name => fn(name).getText(ast)).join('\n')
     + '\n' + statements.slice(0, end).map(n => n.getText(ast)).join('\n')
     + '\nreturn { container, port: (isDisposed, onWriter) => buildWorkflowRecoveryOptions(options, persistenceManager, container, isDisposed, onWriter, preparedOwner ? () => assertPreparedOwner()! : undefined).durablePort };';
   const js = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   return new Function('stateOrContainer', 'options', ...Object.keys(dependencies), js)(base, { persistenceManager: manager, recovery: { enabled: true } }, ...Object.values(dependencies)) as {
-    container: ReturnType<typeof createZergStateContainer>;
+    container: ReturnType<typeof createClankersStateContainer>;
     port(isDisposed: () => boolean, onWriter: (owner: unknown) => void): NonNullable<NonNullable<WorkflowServiceOptions['recovery']>['durablePort']>;
   };
 }
 function preparedDisk(t: test.TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'automation-prepared-cp-')), snapshotFile = join(dir, 'state.json');
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const base = createZergStateContainer(), manager = createZergPersistenceManager({ snapshotFile })!;
+  const base = createClankersStateContainer(), manager = createClankersPersistenceManager({ snapshotFile })!;
   manager.hydrate(base); manager.save(base.read());
   const owner = manager.acquireRecoveryOwnership!({ expectedSnapshotHash: manager.inspectRecoveryOwnership!().actualSnapshotHash }).owner;
   const acquire = manager.acquireRecoveryOwnership!.bind(manager), release = manager.releaseRecoveryOwnership!.bind(manager), save = manager.save.bind(manager);
@@ -369,15 +369,15 @@ test('prepared notification cannot advance a coherent manager head or dispose th
 
 test('prepared construction rejects mixed options, associated wrappers, incoherent head and startup-clock ownership loss', t => {
   const f = preparedDisk(t);
-  assert.throws(() => createZergControl(f.base, { persistenceManager: f.manager, persistence: { snapshotFile: f.snapshotFile } }), /conflicts/);
+  assert.throws(() => createClankersControl(f.base, { persistenceManager: f.manager, persistence: { snapshotFile: f.snapshotFile } }), /conflicts/);
   assert.throws(() => preparedWriterFixture(f.base, f.manager, f.manager), /associated wrapper/);
-  const foreign = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const foreign = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
   assert.throws(() => preparedWriterFixture(f.base, f.manager, foreign), /associated wrapper/);
   assert.deepEqual(f.counts, { acquisitions: 0, releases: 0, saves: 0 });
   writeFileSync(f.snapshotFile, readFileSync(f.snapshotFile, 'utf8') + '\n');
-  assert.throws(() => createZergControl(f.base, { persistenceManager: f.manager }), /coherent generation/);
+  assert.throws(() => createClankersControl(f.base, { persistenceManager: f.manager }), /coherent generation/);
   const g = preparedDisk(t);
-  assert.throws(() => createZergControl(g.base, { persistenceManager: g.manager, now: () => { g.releaseExternally(); return new Date(time); } }), /owner\/head changed/);
+  assert.throws(() => createClankersControl(g.base, { persistenceManager: g.manager, now: () => { g.releaseExternally(); return new Date(time); } }), /owner\/head changed/);
   assert.deepEqual(g.counts, { acquisitions: 0, releases: 0, saves: 0 });
 });
 
@@ -392,7 +392,7 @@ test('public prepared control can produce inert CP and reserve in one commit; ex
   const aggregate = validateWorkflowDefinition({ ...definition, steps: [{ id: 'collect', kind: 'aggregate', operation: 'collect', dependsOn: [], inputs: {} }] });
   const p = { ...profile(), definition: aggregate, definitionHash: workflowHash(aggregate), agents: [] };
   let reservations = 0, launches = 0;
-  const control = createZergControl(f.base, { persistenceManager: f.manager, recovery: { enabled: true }, now: () => new Date(time),
+  const control = createClankersControl(f.base, { persistenceManager: f.manager, recovery: { enabled: true }, now: () => new Date(time),
     subagentAdapter: { kind: 'fake', launch() { launches++; throw new Error('No native/session effect allowed'); } },
     trustedWorkflow: { assertAdmission() {}, onStartReservation(run) {
       reservations++; assert.ok(run.recovery); assert.equal(run.recovery.selection, undefined); assert.equal(run.recovery.origin, undefined);
@@ -446,7 +446,7 @@ test('prepared producer start rechecks clock cancellation/readOnly/disposal befo
     const f = preparedDisk(t), caller = new AbortController(); let armed = false, fired = false, reservations = 0;
     const aggregate = validateWorkflowDefinition({ ...definition, steps: [{ id: 'collect', kind: 'aggregate', operation: 'collect', dependsOn: [], inputs: {} }] });
     const p = { ...profile(), definition: aggregate, definitionHash: workflowHash(aggregate), agents: [] };
-    const control = createZergControl(f.base, { persistenceManager: f.manager, recovery: { enabled: true },
+    const control = createClankersControl(f.base, { persistenceManager: f.manager, recovery: { enabled: true },
       subagentAdapter: { kind: 'fake', launch() { throw new Error('No native effect'); } },
       now: () => {
         if (armed && !fired) {

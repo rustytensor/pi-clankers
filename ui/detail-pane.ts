@@ -1,7 +1,7 @@
-import type { ZergManagementTargetKind, ZergManagementUiState, ZergPermissionRequest, ZergState } from '../types.js';
+import type { ClankersManagementTargetKind, ClankersManagementUiState, ClankersPermissionRequest, ClankersState } from '../types.js';
 import { fitRawLine, healthGlyph, renderPane, sanitizeUiText, styleText, type UiThemeLike } from './components.js';
 
-export function resolveSelectedTarget(state: ZergState, uiState: ZergManagementUiState): { id: string; kind: ZergManagementTargetKind } | undefined {
+export function resolveSelectedTarget(state: ClankersState, uiState: ClankersManagementUiState): { id: string; kind: ClankersManagementTargetKind } | undefined {
   if (uiState.selectedTargetId && uiState.selectedTargetKind) {
     return { id: uiState.selectedTargetId, kind: uiState.selectedTargetKind };
   }
@@ -14,7 +14,7 @@ export function resolveSelectedTarget(state: ZergState, uiState: ZergManagementU
   return undefined;
 }
 
-export function renderDetailPane(state: ZergState, uiState: ZergManagementUiState, width: number, height: number, theme?: UiThemeLike): string[] {
+export function renderDetailPane(state: ClankersState, uiState: ClankersManagementUiState, width: number, height: number, theme?: UiThemeLike): string[] {
   const selected = resolveSelectedTarget(state, uiState);
   const lines: string[] = [];
   if (!selected) {
@@ -77,7 +77,7 @@ export function renderDetailPane(state: ZergState, uiState: ZergManagementUiStat
   return renderPane(clean.map((line) => fitRawLine(line, width - 4)), { title: 'Details', focused: uiState.focusedPane === 'detail', width, height, theme });
 }
 
-function targetPermissionLines(state: ZergState, targetId: string): string[] {
+function targetPermissionLines(state: ClankersState, targetId: string): string[] {
   const requests = readPermissions(state).filter((request) => request.targetId === targetId || request.agentId === targetId || request.runId === targetId).slice(-4).reverse();
   if (requests.length === 0) {
     return ['permissions: none for target'];
@@ -85,7 +85,7 @@ function targetPermissionLines(state: ZergState, targetId: string): string[] {
   return ['permissions:', ...requests.map((request) => `  ${request.id} [${request.status}/${request.kind}] ${request.summary}`)];
 }
 
-function targetLogLines(state: ZergState, targetId: string, kind: ZergManagementTargetKind): string[] {
+function targetLogLines(state: ClankersState, targetId: string, kind: ClankersManagementTargetKind): string[] {
   const records = readLogs(state).filter((record) => {
     if (kind === 'agent') return record.agentId === targetId || record.runId === targetId;
     if (kind === 'team') return record.teamId === targetId;
@@ -97,7 +97,7 @@ function targetLogLines(state: ZergState, targetId: string, kind: ZergManagement
   return ['logs:', ...records.map((record) => `  ${record.id} [${record.level}/${record.source}] ${record.message}`)];
 }
 
-function latestGlobalSignals(state: ZergState): string[] {
+function latestGlobalSignals(state: ClankersState): string[] {
   const permissions = readPermissions(state).filter((request) => request.status === 'pending');
   const warnings = readLogs(state).filter((record) => record.level === 'warn' || record.level === 'error');
   const lines = [`pending permissions: ${permissions.length}`];
@@ -113,16 +113,16 @@ function latestGlobalSignals(state: ZergState): string[] {
   return lines;
 }
 
-function readPermissions(state: ZergState): ZergPermissionRequest[] {
-  const candidate = state.extensions.zergPermissions;
+function readPermissions(state: ClankersState): ClankersPermissionRequest[] {
+  const candidate = state.extensions.clankersPermissions;
   if (!candidate || typeof candidate !== 'object' || !Array.isArray((candidate as { requests?: unknown }).requests)) {
     return [];
   }
-  return (candidate as { requests: ZergPermissionRequest[] }).requests;
+  return (candidate as { requests: ClankersPermissionRequest[] }).requests;
 }
 
-function readLogs(state: ZergState): Array<{ id: string; level: string; source: string; message: string; runId?: string; agentId?: string; teamId?: string; taskId?: string }> {
-  const candidate = state.extensions.zergLogs;
+function readLogs(state: ClankersState): Array<{ id: string; level: string; source: string; message: string; runId?: string; agentId?: string; teamId?: string; taskId?: string }> {
+  const candidate = state.extensions.clankersLogs;
   if (!candidate || typeof candidate !== 'object' || !Array.isArray((candidate as { records?: unknown }).records)) {
     return [];
   }

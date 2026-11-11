@@ -218,7 +218,7 @@ function evidenceStat(path) {
 }
 function evidencePath(root, name) {
   assert(EVIDENCE_NAMES.includes(name) || name === EVIDENCE_PENDING, 'Unowned evidence path');
-  assert(root.startsWith('/tmp/zerg-stage9-') && resolve(root) === root);
+  assert(root.startsWith('/tmp/clankers-stage9-') && resolve(root) === root);
   const owner = lstatSync(root); assert(owner.isDirectory() && owner.uid === process.getuid() && (owner.mode & 0o077) === 0);
   const path = join(root, 'evidence', name); assert(path.startsWith(root + '/evidence/') && resolve(path) === path);
   regularPath(dirname(path), root, true); // Reuse the existing normal-parent guard.

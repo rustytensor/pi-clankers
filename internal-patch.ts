@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ExtensionRunner } from '@earendil-works/pi-coding-agent';
 import { appendHookEvent } from './state.js';
-import type { HookLifecycleEvent, StructuralPiExtensionContext, ZergInternalPatchController, ZergState, ZergStateContainer } from './types.js';
+import type { HookLifecycleEvent, StructuralPiExtensionContext, ClankersInternalPatchController, ClankersState, ClankersStateContainer } from './types.js';
 
 export type PiPackageMetadataEntry = { pkg: string | { source: string; autoload?: boolean }; scope: 'user' | 'project' };
 
@@ -32,7 +32,7 @@ export interface InternalPatchOptions {
   now?: () => Date;
 }
 
-type InternalPatchStateTarget = ZergState | ZergStateContainer;
+type InternalPatchStateTarget = ClankersState | ClankersStateContainer;
 
 interface PatchRecord {
   disposed: boolean;
@@ -50,7 +50,7 @@ export function installInternalPatch(
   context: StructuralPiExtensionContext | undefined,
   state: InternalPatchStateTarget,
   options: InternalPatchOptions = {},
-): ZergInternalPatchController {
+): ClankersInternalPatchController {
   const target = typeof context === 'object' && context !== null ? context : undefined;
   const alreadyInstalled = target ? activePatchesByContext.has(target) : false;
 
@@ -71,7 +71,7 @@ export function installInternalPatch(
     }, 0);
   };
 
-  const nextGeneratedEventId = (current: ZergState): string => {
+  const nextGeneratedEventId = (current: ClankersState): string => {
     generatedEventSequence = Math.max(
       generatedEventSequence,
       current.revision,
@@ -81,9 +81,9 @@ export function installInternalPatch(
     return `event-${generatedEventSequence}`;
   };
 
-  const emitLifecycleEvent: ZergInternalPatchController['emit'] = (event) => {
+  const emitLifecycleEvent: ClankersInternalPatchController['emit'] = (event) => {
     if (disposed) {
-      throw new Error('Cannot emit zerg internal patch events after dispose().');
+      throw new Error('Cannot emit clankers internal patch events after dispose().');
     }
 
     const current = readPatchState(state);
@@ -137,17 +137,17 @@ export function installInternalPatch(
   };
 
   try {
-    restoreStack.push(replaceEventBusMethod(eventBus, 'emit', (original) => function zergPatchedPiEventEmit(this: unknown, ...args: unknown[]): unknown {
+    restoreStack.push(replaceEventBusMethod(eventBus, 'emit', (original) => function clankersPatchedPiEventEmit(this: unknown, ...args: unknown[]): unknown {
       const result = original.apply(this, args);
 
-      safelyEmitPatchObservation(record, emitLifecycleEvent, `pi-zerg-swarm observed Pi event bus emit: ${formatObservedPiEventName(args[0])}`);
+      safelyEmitPatchObservation(record, emitLifecycleEvent, `pi-clankers observed Pi event bus emit: ${formatObservedPiEventName(args[0])}`);
       return result;
     }));
 
-    restoreStack.push(replaceEventBusMethod(eventBus, 'on', (original) => function zergPatchedPiEventOn(this: unknown, ...args: unknown[]): unknown {
+    restoreStack.push(replaceEventBusMethod(eventBus, 'on', (original) => function clankersPatchedPiEventOn(this: unknown, ...args: unknown[]): unknown {
       const result = original.apply(this, args);
 
-      safelyEmitPatchObservation(record, emitLifecycleEvent, `pi-zerg-swarm observed Pi event bus subscription: ${formatObservedPiEventName(args[0])}`);
+      safelyEmitPatchObservation(record, emitLifecycleEvent, `pi-clankers observed Pi event bus subscription: ${formatObservedPiEventName(args[0])}`);
       return result;
     }));
   } catch (error) {
@@ -219,7 +219,7 @@ function replaceEventBusMethod(
 
 function safelyEmitPatchObservation(
   record: PatchRecord,
-  emit: ZergInternalPatchController['emit'],
+  emit: ClankersInternalPatchController['emit'],
   message: string,
 ): void {
   if (record.disposed) {
@@ -229,7 +229,7 @@ function safelyEmitPatchObservation(
   try {
     emit({ type: 'hook', message, status: 'done' });
   } catch {
-    // Pi runtime hooks must preserve original event-bus behavior even if zerg telemetry fails.
+    // Pi runtime hooks must preserve original event-bus behavior even if clankers telemetry fails.
   }
 }
 
@@ -237,12 +237,12 @@ function formatObservedPiEventName(value: unknown): string {
   return typeof value === 'string' && value.length > 0 ? value : '<unknown>';
 }
 
-function readPatchState(state: InternalPatchStateTarget): ZergState {
-  return isZergStateContainer(state) ? state.snapshot() : state;
+function readPatchState(state: InternalPatchStateTarget): ClankersState {
+  return isClankersStateContainer(state) ? state.snapshot() : state;
 }
 
-function writePatchState(target: InternalPatchStateTarget, nextState: ZergState): void {
-  if (isZergStateContainer(target)) {
+function writePatchState(target: InternalPatchStateTarget, nextState: ClankersState): void {
+  if (isClankersStateContainer(target)) {
     target.replace(nextState);
     return;
   }
@@ -250,9 +250,9 @@ function writePatchState(target: InternalPatchStateTarget, nextState: ZergState)
   Object.assign(target, nextState);
 }
 
-function isZergStateContainer(value: InternalPatchStateTarget): value is ZergStateContainer {
-  return typeof (value as ZergStateContainer).snapshot === 'function'
-    && typeof (value as ZergStateContainer).replace === 'function';
+function isClankersStateContainer(value: InternalPatchStateTarget): value is ClankersStateContainer {
+  return typeof (value as ClankersStateContainer).snapshot === 'function'
+    && typeof (value as ClankersStateContainer).replace === 'function';
 }
 
 // Necessary compatibility bridge only. The existing event-bus patch above is unchanged.
@@ -360,7 +360,7 @@ export function installManagementShortcutCatalogGuard(options: ManagementCatalog
           }
           if (extension.commands.size > 4096) throw new Error('Command catalog overflow.');
           // Canonical command anchors one extension; aliases may share the same handler.
-          if (extension.commands.get('zerg')?.handler === options.ownerCommandHandler) { anchors += 1; anchoredExtension = extension; belongs = true; }
+          if (extension.commands.get('clankers')?.handler === options.ownerCommandHandler) { anchors += 1; anchoredExtension = extension; belongs = true; }
           if (extension.shortcuts.size + entries.length > 4096) throw new Error('Shortcut catalog overflow.');
           for (const [key, shortcut] of extension.shortcuts) {
             if (entries.length >= 4096) throw new Error('Shortcut catalog overflow.');

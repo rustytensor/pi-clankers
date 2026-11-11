@@ -3,7 +3,7 @@ import test from 'node:test';
 import { setImmediate as tick } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { createJiti } from 'jiti';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 import type { TmuxControl } from '../tmux-control.js';
 
 // Import the working-tree controller, replacing only its external launch boundary.
@@ -21,7 +21,7 @@ async function until(check: () => boolean) {
 }
 function fixture() {
   fake.launches.length = 0;
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   state.replace(upsertAgentDefinition(state.read(), { id: 'fixture', label: 'Fixture', source: 'user', prompt: 'Synthetic only.', tools: [], model: 'fixture/fixed' }));
   let n = 0;
   const hooks: { ids?: () => { runId: string; taskId: string }; notice?: () => void; authority?: () => void } = {};

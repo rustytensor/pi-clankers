@@ -2,41 +2,41 @@ import { randomUUID } from 'node:crypto';
 import { CURSOR_MARKER, Editor, getKeybindings, matchesKey as piMatchesKey, Text, stripTerminalSequences, truncateToWidth, type Focusable, type TUI } from '@earendil-works/pi-tui';
 import type { NativeTranscriptKey, NativeTranscriptReadHandle, NativeTranscriptSnapshot } from '../native-transcript.js';
 import type { NativeContinuationService } from '../native-continuation.js';
-import type { StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ZergNativeSessionReference } from '../types.js';
+import type { StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ClankersNativeSessionReference } from '../types.js';
 import { styleText, uiErrorText, type UiThemeLike } from './components.js';
-import { ZergContinuationReviewComponent, type ContinuationSource } from './continuation-review.js';
+import { ClankersContinuationReviewComponent, type ContinuationSource } from './continuation-review.js';
 import { matchesKey } from './state.js';
 
-export type ZergComposerMode = 'steer' | 'followUp';
-export type ZergReceiptPersistence = 'memory' | 'saved' | 'failed';
-export interface ZergComposerReceipt {
+export type ClankersComposerMode = 'steer' | 'followUp';
+export type ClankersReceiptPersistence = 'memory' | 'saved' | 'failed';
+export interface ClankersComposerReceipt {
   messageId: string;
   key: NativeTranscriptKey;
   status: 'recorded' | 'queued' | 'delivered' | 'failed' | 'needs-attention';
   detail: string;
   createdAt: string;
   updatedAt: string;
-  persistence: ZergReceiptPersistence;
+  persistence: ClankersReceiptPersistence;
 }
-export interface ZergComposerState {
+export interface ClankersComposerState {
   key: NativeTranscriptKey;
   canSend: boolean;
   reason?: string;
-  allowedModes: ZergComposerMode[];
-  persistence: ZergReceiptPersistence;
-  receipts: ZergComposerReceipt[];
+  allowedModes: ClankersComposerMode[];
+  persistence: ClankersReceiptPersistence;
+  receipts: ClankersComposerReceipt[];
   droppedReceipts?: number;
 }
-export interface ZergOverlayComposer {
-  getState(key: NativeTranscriptKey): ZergComposerState;
+export interface ClankersOverlayComposer {
+  getState(key: NativeTranscriptKey): ClankersComposerState;
   subscribe(key: NativeTranscriptKey, listener: () => void): () => void;
-  send(request: { key: NativeTranscriptKey; messageId: string; body: string; mode: ZergComposerMode }): Promise<{ ok: boolean; message: string; receipt?: ZergComposerReceipt }>;
+  send(request: { key: NativeTranscriptKey; messageId: string; body: string; mode: ClankersComposerMode }): Promise<{ ok: boolean; message: string; receipt?: ClankersComposerReceipt }>;
 }
-export interface ZergAgentOverlayOptions {
-  getReferences(): ZergNativeSessionReference[];
+export interface ClankersAgentOverlayOptions {
+  getReferences(): ClankersNativeSessionReference[];
   subscribeReferences(listener: () => void): () => void;
   open(key: NativeTranscriptKey, options?: { signal?: AbortSignal }): Promise<NativeTranscriptReadHandle>;
-  composer?: ZergOverlayComposer;
+  composer?: ClankersOverlayComposer;
   nativeContinuationService?: NativeContinuationService;
   /** Explicit exact drilldown; never defaults to a chooser/leader if stale. */
   initialKey?: NativeTranscriptKey;
@@ -78,16 +78,16 @@ function cleanup(callback?: () => void): void {
   try { callback?.(); } catch { /* Finish every viewer cleanup, even if a host observer fails. */ }
 }
 
-export async function openZergAgentOverlay(context: StructuralPiCommandContext, options: ZergAgentOverlayOptions): Promise<void> {
+export async function openClankersAgentOverlay(context: StructuralPiCommandContext, options: ClankersAgentOverlayOptions): Promise<void> {
   if (context.hasUI === false || (context.mode !== undefined && context.mode !== 'tui') || !context.ui?.custom) {
     throw new Error('Coding viewer requires an interactive Pi TUI.');
   }
-  let component: ZergAgentOverlayComponent | undefined;
+  let component: ClankersAgentOverlayComponent | undefined;
   try {
     await Promise.resolve(context.ui.custom(
       (tui?: StructuralPiTuiHandle, theme?: unknown, _keys?: unknown, done?: () => void) => {
         component?.dispose();
-        return component = new ZergAgentOverlayComponent(tui, theme as UiThemeLike | undefined, done, options);
+        return component = new ClankersAgentOverlayComponent(tui, theme as UiThemeLike | undefined, done, options);
       },
       { overlay: true, overlayOptions: { title: 'clankers coding', anchor: 'center', width: '90%', maxHeight: '82%' } },
     ));
@@ -95,10 +95,10 @@ export async function openZergAgentOverlay(context: StructuralPiCommandContext, 
 }
 
 /** Owns observer UI and explicit composer callbacks, never a runner or SDK session. */
-export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, Focusable {
+export class ClankersAgentOverlayComponent implements StructuralPiCustomComponent, Focusable {
   private disposed = false;
   private mode: 'chooser' | 'transcript' | 'branches' = 'chooser';
-  private references: ZergNativeSessionReference[] = [];
+  private references: ClankersNativeSessionReference[] = [];
   private choice = 0;
   private branchChoice = 0;
   private key?: NativeTranscriptKey;
@@ -120,18 +120,18 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
   private editor?: Editor;
   private composing = false;
   private _focused = false;
-  private composerState?: ZergComposerState;
+  private composerState?: ClankersComposerState;
   private composerError = '';
   private composerWatchError = '';
   private composerMessage = '';
-  private composerMode: ZergComposerMode = 'followUp';
+  private composerMode: ClankersComposerMode = 'followUp';
   private layoutAvailable = true;
   private sending = false;
-  private attempt?: { key: NativeTranscriptKey; messageId: string; body: string; mode: ZergComposerMode };
+  private attempt?: { key: NativeTranscriptKey; messageId: string; body: string; mode: ClankersComposerMode };
   private editRevision = 0;
   private editorInputs = 0;
   private paste?: { text: string; tail: string; rejected: boolean };
-  private continuation?: ZergContinuationReviewComponent;
+  private continuation?: ClankersContinuationReviewComponent;
   private displayedContinuation?: { source: ContinuationSource; proof: string };
   private displayedChoice?: { index: number; key: NativeTranscriptKey };
   get focused(): boolean { return this._focused; }
@@ -145,7 +145,7 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
     private readonly tui: StructuralPiTuiHandle | undefined,
     private readonly theme: UiThemeLike | undefined,
     private readonly done: (() => void) | undefined,
-    private readonly options: ZergAgentOverlayOptions,
+    private readonly options: ClankersAgentOverlayOptions,
   ) {
     this.refreshReferences();
     if (options.initialKey !== undefined) {
@@ -304,7 +304,7 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
       this.message = 'NEW continuation disabled: display an exact non-live saved entry first; stale/live sources never retarget.';
       return;
     }
-    this.continuation = new ZergContinuationReviewComponent(this.tui, this.theme, {
+    this.continuation = new ClankersContinuationReviewComponent(this.tui, this.theme, {
       source: displayed.source, service, isCurrent: () => !this.disposed && this.continuationCurrent(displayed.proof),
       close: () => {
         this.continuation = undefined;
@@ -471,7 +471,7 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
     } catch (error) { this.composerWatchError = rowText(`Composer observer unavailable: ${uiErrorText(error)}`).slice(0, 256); }
   }
 
-  private validReceipt(receipt: ZergComposerReceipt, key: NativeTranscriptKey, messageId?: string): boolean {
+  private validReceipt(receipt: ClankersComposerReceipt, key: NativeTranscriptKey, messageId?: string): boolean {
     return Boolean(receipt && receipt.key && sameKey(receipt.key, key) && typeof receipt.messageId === 'string'
       && (messageId === undefined || receipt.messageId === messageId)
       && ['recorded', 'queued', 'delivered', 'failed', 'needs-attention'].includes(receipt.status)
@@ -488,7 +488,7 @@ export class ZergAgentOverlayComponent implements StructuralPiCustomComponent, F
       if (receipts.some((receipt) => !this.validReceipt(receipt, this.key!))) throw new Error('Receipt identity or status mismatch.');
       this.composerState = {
         key: { ...this.key }, canSend: state.canSend === true, reason: state.reason === undefined ? undefined : rowText(state.reason).slice(0, 256),
-        allowedModes: ['followUp', 'steer'].filter((mode) => state.allowedModes.includes(mode as ZergComposerMode)) as ZergComposerMode[],
+        allowedModes: ['followUp', 'steer'].filter((mode) => state.allowedModes.includes(mode as ClankersComposerMode)) as ClankersComposerMode[],
         persistence: state.persistence,
         droppedReceipts: Math.max(0, Number.isSafeInteger(state.droppedReceipts) ? state.droppedReceipts! : 0) + Math.max(0, state.receipts.length - MAX_RECEIPTS),
         // Never retain backend extra fields (especially message bodies) in the UI.

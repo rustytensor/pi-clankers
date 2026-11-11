@@ -112,24 +112,24 @@ def main():
             assert (agent['id'],agent['prompt'],agent['tools'],agent['model'])==(role,role,[],'team-fixture/fixed:off'),'public_agent_config'
         team=call({'action':'team.create','id':'team','leader':'lead','members':['a','b','c']})['data']['team']
         assert team['id']=='team' and team['leaderAgentId']=='lead' and team['memberAgentIds']==['a','b','c'],'public_team_config'
-        p=call(run_action('SUCCESS'));assert (p['runId'],p['taskId'])==('zerg-pub-run-1','task-pub-task-1'),'public_parent_ids'
+        p=call(run_action('SUCCESS'));assert (p['runId'],p['taskId'])==('clankers-pub-run-1','task-pub-task-1'),'public_parent_ids'
         reset();wait(lambda:current('a','SUCCESS') and current('b','SUCCESS'),'public_dispatch_two')
-        rows=workers();assert len(rows)==4 and {r['agentId']:r['currentRunId'] for r in rows if r['phase']=='busy'}=={'a':'zerg-pub-run-2','b':'zerg-pub-run-3'},'public_concurrency_ids'
+        rows=workers();assert len(rows)==4 and {r['agentId']:r['currentRunId'] for r in rows if r['phase']=='busy'}=={'a':'clankers-pub-run-2','b':'clankers-pub-run-3'},'public_concurrency_ids'
         release('b','SUCCESS');release('c','SUCCESS');assert not current('lead','SUCCESS'),'leader_before_a'
         release('a','SUCCESS');release('lead','SUCCESS')
-        s=wait(lambda:settled('zerg-pub-run-1'),'public_success_settled');assert s['agents']['zerg-pub-run-1']['status']=='done','public_aggregate'
-        for role,n,text in [('a',2,'A_OK'),('b',3,'B_OK'),('c',4,'C_OK'),('lead',5,'LEAD_OK'),('lead',1,'LEAD_OK')]:exact(role,f'zerg-pub-run-{n}','zerg-pub-run-1','task-pub-task-1',text)
+        s=wait(lambda:settled('clankers-pub-run-1'),'public_success_settled');assert s['agents']['clankers-pub-run-1']['status']=='done','public_aggregate'
+        for role,n,text in [('a',2,'A_OK'),('b',3,'B_OK'),('c',4,'C_OK'),('lead',5,'LEAD_OK'),('lead',1,'LEAD_OK')]:exact(role,f'clankers-pub-run-{n}','clankers-pub-run-1','task-pub-task-1',text)
         checks.append('public_config_dispatch_exact_results_aggregate');close_all();reset()
-        p=call({'fixture':'tool','action':run_action('CANCEL')});assert (p['runId'],p['taskId'])==('zerg-pub-run-6','task-pub-task-6'),'registered_tool_parent_ids'
+        p=call({'fixture':'tool','action':run_action('CANCEL')});assert (p['runId'],p['taskId'])==('clankers-pub-run-6','task-pub-task-6'),'registered_tool_parent_ids'
         wait(lambda:current('a','CANCEL') and current('b','CANCEL'),'cancel_two_active')
-        solo=call(run_action('SOLO','solo'));assert (solo['runId'],solo['taskId'])==('zerg-pub-run-11','task-pub-task-11'),'solo_ids'
+        solo=call(run_action('SOLO','solo'));assert (solo['runId'],solo['taskId'])==('clankers-pub-run-11','task-pub-task-11'),'solo_ids'
         wait(lambda:current('solo','SOLO'),'solo_active');rows=workers();assert len(rows)==5,'five_slots'
         before=next(r for r in rows if r['agentId']=='solo')
-        call({'fixture':'tool','action':{'action':'interrupt','runId':'zerg-pub-run-6'}})
-        s=wait(lambda:settled('zerg-pub-run-6'),'public_cancel_settled');assert s['agents']['zerg-pub-run-6']['status']=='cancelled','public_cancelled'
+        call({'fixture':'tool','action':{'action':'interrupt','runId':'clankers-pub-run-6'}})
+        s=wait(lambda:settled('clankers-pub-run-6'),'public_cancel_settled');assert s['agents']['clankers-pub-run-6']['status']=='cancelled','public_cancelled'
         assert not current('c','CANCEL') and not current('lead','CANCEL'),'queued_leader_executed'
         after=next(r for r in workers() if r['agentId']=='solo');assert after['phase']=='busy' and after['job']==before['job'],'unrelated_worker_affected'
-        release('solo','SOLO');wait(lambda:settled('zerg-pub-run-11'),'solo_settled');exact('solo','zerg-pub-run-11','zerg-pub-run-11','task-pub-task-11','SOLO_OK')
+        release('solo','SOLO');wait(lambda:settled('clankers-pub-run-11'),'solo_settled');exact('solo','clankers-pub-run-11','clankers-pub-run-11','task-pub-task-11','SOLO_OK')
         checks.append('registered_tool_cancel_exact_team_unrelated_exact_result')
         # Invoke registered slash parser without driving any terminal or launching work.
         slash=call({'fixture':'slash','text':'tmux workers list'})

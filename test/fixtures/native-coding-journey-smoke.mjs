@@ -17,7 +17,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 const sdk = await import('@earendil-works/pi-coding-agent');
 guard.watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const state = await import(new URL('../../state.ts', import.meta.url).href);
 const persistence = await import(new URL('../../persistence.ts', import.meta.url).href);
 
@@ -28,7 +28,7 @@ if (process.argv[2] === '--recover') {
   for (const method of ['bindExtensions', 'prompt']) sdk.AgentSession.prototype[method] = function () {
     execution++; throw Error('Recovery must not execute SDK sessions');
   };
-  const owner = zerg.createZergControl(state.createZergStateContainer(), {
+  const owner = clankers.createClankersControl(state.createClankersStateContainer(), {
     persistence: { enabled: true, snapshotFile: info.snapshotFile },
     subagentAdapter: { kind: 'fake', launch() { execution++; throw Error('Recovery launch'); },
       sendMessage() { execution++; throw Error('Recovery send'); } },
@@ -83,7 +83,7 @@ test('nonzero remains nonzero',()=>assert.equal(boundedCount(4),4));\n`);
     });
   }
   function releaseAll() { for (const release of [...gates]) release(); investigationGate?.(); }
-  const policyKey = Symbol.for('zerg/coding-journey/policy');
+  const policyKey = Symbol.for('clankers/coding-journey/policy');
   globalThis[policyKey] = {
     trace,
     admit(role, event) {
@@ -115,7 +115,7 @@ test('nonzero remains nonzero',()=>assert.equal(boundedCount(4),4));\n`);
   // Trusted normal auto-discovered fixture extension, not sealed resources.
   // Wrap only the public read tool to gate a REAL tool execution for cancellation.
   writeFileSync(join(agentDir, 'extensions', 'journey.ts'), `import { createReadTool } from '@earendil-works/pi-coding-agent';
-const key=Symbol.for('zerg/coding-journey/policy');
+const key=Symbol.for('clankers/coding-journey/policy');
 export default function(pi) {
   pi.on('session_start',(_event,ctx)=>globalThis[key].startup(ctx.model?.id,ctx.signal));
   pi.on('tool_call',(event,ctx)=>{globalThis[key].admit(ctx.model?.id,event);});
@@ -236,7 +236,7 @@ export default function(pi) {
     while (Date.now() < end) { guard.check(); if (serverFailure) throw serverFailure; if (await check()) return; await sleep(20); }
     throw Error('Timeout: ' + label);
   }
-  const container = state.createZergStateContainer();
+  const container = state.createClankersStateContainer();
   async function execute(input) { const result = await owner.execute(input); assert(result.ok, JSON.stringify(result)); return result; }
   const show = async runId => (await execute({ action: 'runs.show', runId })).data.run;
   async function terminal(runId, status = 'done') {
@@ -263,7 +263,7 @@ export default function(pi) {
       baseUrl: 'http://127.0.0.1:' + server.address().port + '/v1', apiKey: 'dummy-journey-only',
       models: ['investigator', 'designer', 'implementer', 'reviewer', 'verifier', 'summary', 'continuation',
         'cancel-stream', 'cancel-tool', 'cancel-startup', 'must-never-start', 'must-never-worker'].map(id => ({ id, reasoning: false, input: ['text'], contextWindow: 32768, maxTokens: 2048 })) } } }));
-    owner = zerg.createZergControl(container, { persistence: { enabled: true, snapshotFile } });
+    owner = clankers.createClankersControl(container, { persistence: { enabled: true, snapshotFile } });
     await define('investigator'); await define('designer');
     await define('implementer', ['read', 'edit'], 'IMPLEMENTER_AUTHORITY: leader is sole source writer AFTER receiving both exact worker reports. Only exact value || max to value ?? max edit in src/bounded-count.mjs; no test edits.');
     await execute({ action: 'team.create', id: 'implementation', leader: 'implementer', members: ['investigator', 'designer'] });
@@ -325,7 +325,7 @@ export default function(pi) {
     assert.equal(newRun.metadata.nativeContinuation.entryId, entryId);
     const copiedRows = readFileSync(newRun.nativeSessions[0].sessionFile, 'utf8').trim().split('\n').map(JSON.parse);
     assert.equal(copiedRows[0].parentSession, selected.sessionFile);
-    const lineage = copiedRows.filter(row => row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-continuation/v1');
+    const lineage = copiedRows.filter(row => row.type === 'custom' && row.customType === 'pi-clankers/native-continuation/v1');
     assert.equal(lineage.length, 1); assert.equal(lineage[0].data.entryId, entryId);
     assert.deepEqual(key(lineage[0].data.source), key(selected));
     assert.equal(lineage[0].data.sourceFingerprint, consent.sourceFingerprint);
@@ -367,8 +367,8 @@ export default function(pi) {
     assert.equal(outputs.length, 3); assert(outputs.every(entry => entry.exactKey && !('replyTo' in entry)));
     const restartReview = await prepare(), saved = owner.getState(); owner.dispose();
     // Test-owned recovery-boundary snapshot injection is NOT a live queued message.
-    saved.extensions.zergSessionMessages.receipts[0].status = 'queued';
-    persistence.createZergPersistenceManager({ enabled: true, snapshotFile }).save(saved);
+    saved.extensions.clankersSessionMessages.receipts[0].status = 'queued';
+    persistence.createClankersPersistenceManager({ enabled: true, snapshotFile }).save(saved);
     const recoveryInfo = join(work, 'recovery-info.json');
     writeFileSync(recoveryInfo, JSON.stringify({ snapshotFile, reviewId: restartReview.reviewId,
       key: key(live), hashes: [...immutable, ...nativeHashes, [source, hash(source)]] }));

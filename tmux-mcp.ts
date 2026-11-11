@@ -15,7 +15,7 @@ export function normalizeTmuxMcpOperation(name: string): string {
   if (!NAME.test(name) || name.startsWith('mcp__')) throw new Error('Unsupported Larra operation');
   return name;
 }
-const controller = (name: string) => /^(clankers_control|zerg_control)/.test(name);
+const controller = (name: string) => /^(clankers_control|clankers_control)/.test(name);
 export function resolveTmuxToolPolicy(tools: readonly string[] = ['read', 'bash'], disallowed: readonly string[] = []) {
   const expand = (values: readonly string[]) => {
     if (!Array.isArray(values) || values.length > 128) throw new Error('Invalid worker tool policy');

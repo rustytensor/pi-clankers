@@ -1,6 +1,6 @@
 import { truncateToWidth } from '@earendil-works/pi-tui';
 import { sanitizeNativeTranscriptText } from './native-transcript.js';
-import { ZERG_COMMAND_INVOCATIONS, ZERG_EXTENSION_VERSION, type AgentIdentity, type HookLifecycleEvent, type TaskRecord, type TeamIdentity, type ZergTimelineSnapshot, type ZergNativeSessionReference, type ZergAgentDefinition, type ZergConfigOverlayTab, type ZergLogRecord, type ZergLogState, type ZergPermissionQueueState, type ZergPermissionRequest, type ZergState, type ZergSubagentRunSnapshot, type ZergTreeNode } from './types.js';
+import { CLANKERS_COMMAND_INVOCATIONS, CLANKERS_EXTENSION_VERSION, type AgentIdentity, type HookLifecycleEvent, type TaskRecord, type TeamIdentity, type ClankersTimelineSnapshot, type ClankersNativeSessionReference, type ClankersAgentDefinition, type ClankersConfigOverlayTab, type ClankersLogRecord, type ClankersLogState, type ClankersPermissionQueueState, type ClankersPermissionRequest, type ClankersState, type ClankersSubagentRunSnapshot, type ClankersTreeNode } from './types.js';
 
 export interface RenderOptions {
   width?: number;
@@ -14,7 +14,7 @@ export interface MonitorRenderOptions extends RenderOptions {
   recentEventCount?: number;
 }
 
-export interface ZergManagementOverlayRow {
+export interface ClankersManagementOverlayRow {
   id: string;
   label: string;
   kind: 'text' | 'target' | 'permission' | 'run' | 'log' | 'intervention' | 'config' | 'event';
@@ -25,11 +25,11 @@ export interface ZergManagementOverlayRow {
   detailLines?: string[];
 }
 
-export interface ZergManagementOverlayRenderOptions extends RenderOptions {
+export interface ClankersManagementOverlayRenderOptions extends RenderOptions {
   height?: number;
-  activeTab: ZergConfigOverlayTab;
-  tabs: readonly ZergConfigOverlayTab[];
-  rows: readonly ZergManagementOverlayRow[];
+  activeTab: ClankersConfigOverlayTab;
+  tabs: readonly ClankersConfigOverlayTab[];
+  rows: readonly ClankersManagementOverlayRow[];
   selectedIndex?: number;
   scrollOffset?: number;
   detailRowId?: string;
@@ -38,9 +38,9 @@ export interface ZergManagementOverlayRenderOptions extends RenderOptions {
   adapterKind?: string;
 }
 
-export function renderZergManagementOverlay(
-  state: ZergState,
-  options: ZergManagementOverlayRenderOptions,
+export function renderClankersManagementOverlay(
+  state: ClankersState,
+  options: ClankersManagementOverlayRenderOptions,
 ): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const rows = [...options.rows];
@@ -103,7 +103,7 @@ export function renderZergManagementOverlay(
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-function overlayKeyHelp(tab: ZergConfigOverlayTab): string {
+function overlayKeyHelp(tab: ClankersConfigOverlayTab): string {
   const common = 'keys: tab/shift-tab/←/→ tabs | ↑/↓ rows | enter detail/select | q/esc close';
   if (tab === 'permissions') {
     return `${common} | p approve | d deny | / filter deferred`;
@@ -117,9 +117,9 @@ function overlayKeyHelp(tab: ZergConfigOverlayTab): string {
   return `${common} | r read-only | m manual | a assisted | u automatic | / filter deferred`;
 }
 
-export function renderMonitor(state: ZergState, options: MonitorRenderOptions = {}): string {
+export function renderMonitor(state: ClankersState, options: MonitorRenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
-  const snapshot = state ?? ({} as ZergState);
+  const snapshot = state ?? ({} as ClankersState);
   const eventCount = options.recentEventCount ?? MAX_MONITOR_EVENTS;
   const readOnly = Boolean(snapshot.mode?.readOnly) ? 'enabled' : 'disabled';
   const permissions = readRenderPermissionQueueState(snapshot);
@@ -151,8 +151,8 @@ export function renderMonitor(state: ZergState, options: MonitorRenderOptions = 
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderStatusLine(state: ZergState, options: RenderOptions = {}): string {
-  const snapshot = state ?? ({} as ZergState);
+export function renderStatusLine(state: ClankersState, options: RenderOptions = {}): string {
+  const snapshot = state ?? ({} as ClankersState);
   const agents = recordValues(snapshot.agents);
   const tasks = recordValues(snapshot.tasks);
   const teams = recordValues(snapshot.teams);
@@ -172,7 +172,7 @@ export function renderStatusLine(state: ZergState, options: RenderOptions = {}):
   const permissionQueue = readRenderPermissionQueueState(snapshot);
   const permissions = ` | permissions ${permissionQueue.pendingCount} pending`;
   const width = options.width ?? DEFAULT_WIDTH;
-  const brand = `clankers v${ZERG_EXTENSION_VERSION}`;
+  const brand = `clankers v${CLANKERS_EXTENSION_VERSION}`;
   let header = `${brand} command surface`;
   const counts = ` | agents ${agents.length} (${runningAgents} running) | teams ${teams.length} (${runningTeams} running) | tasks ${tasks.length} | blocked ${blocked} | unhealthy ${unhealthy}`;
   // Reserve fit's ellipsis column before sacrificing any current activity.
@@ -187,8 +187,8 @@ export function renderStatusLine(state: ZergState, options: RenderOptions = {}):
 }
 
 
-function readRenderPermissionQueueState(state: ZergState): ZergPermissionQueueState {
-  const candidate = state.extensions?.zergPermissions;
+function readRenderPermissionQueueState(state: ClankersState): ClankersPermissionQueueState {
+  const candidate = state.extensions?.clankersPermissions;
   const maxRequests = isPlainRecord(candidate) && typeof candidate.maxRequests === 'number' ? candidate.maxRequests : 50;
   const requests = isPlainRecord(candidate) && Array.isArray(candidate.requests)
     ? candidate.requests.filter(isRenderPermissionRequest).map(cloneRenderPermissionRequest)
@@ -202,8 +202,8 @@ function readRenderPermissionQueueState(state: ZergState): ZergPermissionQueueSt
   };
 }
 
-function readRenderLogState(state: ZergState): ZergLogState {
-  const candidate = state.extensions?.zergLogs;
+function readRenderLogState(state: ClankersState): ClankersLogState {
+  const candidate = state.extensions?.clankersLogs;
   const maxRecords = isPlainRecord(candidate) && typeof candidate.maxRecords === 'number' ? Math.max(1, Math.floor(candidate.maxRecords)) : 200;
   const records = isPlainRecord(candidate) && Array.isArray(candidate.records)
     ? candidate.records.filter(isRenderLogRecord).map(cloneRenderLogRecord).slice(-maxRecords)
@@ -216,19 +216,19 @@ function readRenderLogState(state: ZergState): ZergLogState {
   };
 }
 
-function renderLogRecordInline(record: ZergLogRecord): string {
+function renderLogRecordInline(record: ClankersLogRecord): string {
   const target = record.runId ? ` run:${sanitizeRuntimeActivity(record.runId)}` : record.agentId ? ` agent:${sanitizeRuntimeActivity(record.agentId)}` : '';
   return `${record.id} [${record.level}/${record.source}/${record.kind}]${target} ${sanitizeRuntimeActivity(record.message)}`;
 }
 
-function cloneRenderLogRecord(record: ZergLogRecord): ZergLogRecord {
+function cloneRenderLogRecord(record: ClankersLogRecord): ClankersLogRecord {
   return {
     ...record,
     data: isPlainRecord(record.data) ? { ...record.data } : undefined,
   };
 }
 
-function isRenderLogRecord(value: unknown): value is ZergLogRecord {
+function isRenderLogRecord(value: unknown): value is ClankersLogRecord {
   return isPlainRecord(value)
     && typeof value.id === 'string'
     && typeof value.source === 'string'
@@ -238,7 +238,7 @@ function isRenderLogRecord(value: unknown): value is ZergLogRecord {
     && typeof value.createdAt === 'string';
 }
 
-export function renderZergLogStatus(logState: ZergLogState, options: RenderOptions = {}): string {
+export function renderClankersLogStatus(logState: ClankersLogState, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const latest = logState.records.at(-1);
   const errors = logState.records.filter((record) => record.level === 'error').length;
@@ -255,7 +255,7 @@ export function renderZergLogStatus(logState: ZergLogState, options: RenderOptio
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderZergLogList(records: readonly ZergLogRecord[], options: RenderOptions = {}): string {
+export function renderClankersLogList(records: readonly ClankersLogRecord[], options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   if (records.length === 0) {
     return fit('clankers logs: no matching records', width);
@@ -269,7 +269,7 @@ export function renderZergLogList(records: readonly ZergLogRecord[], options: Re
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderZergLogSummary(record: ZergLogRecord, options: RenderOptions = {}): string {
+export function renderClankersLogSummary(record: ClankersLogRecord, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const lines = [
     `clankers log: ${record.id}`,
@@ -288,17 +288,17 @@ export function renderZergLogSummary(record: ZergLogRecord, options: RenderOptio
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-function renderPermissionRequestInline(request: ZergPermissionRequest): string {
+function renderPermissionRequestInline(request: ClankersPermissionRequest): string {
   const target = request.targetId ? ` target:${sanitizeRuntimeActivity(request.targetId)}` : '';
   const summary = sanitizeRuntimeActivity(request.summary);
   return `${request.id} [${request.status}/${request.kind}]${target} ${summary}`;
 }
 
-function cloneRenderPermissionRequest(request: ZergPermissionRequest): ZergPermissionRequest {
+function cloneRenderPermissionRequest(request: ClankersPermissionRequest): ClankersPermissionRequest {
   return { ...request };
 }
 
-function isRenderPermissionRequest(value: unknown): value is ZergPermissionRequest {
+function isRenderPermissionRequest(value: unknown): value is ClankersPermissionRequest {
   return isPlainRecord(value)
     && typeof value.id === 'string'
     && typeof value.kind === 'string'
@@ -308,7 +308,7 @@ function isRenderPermissionRequest(value: unknown): value is ZergPermissionReque
     && typeof value.createdAt === 'string';
 }
 
-function getInterventionTargetIds(mode: ZergState['mode'] = { automation: 'manual', interventionEnabled: true, controller: 'operator' } as ZergState['mode']): Set<string> {
+function getInterventionTargetIds(mode: ClankersState['mode'] = { automation: 'manual', interventionEnabled: true, controller: 'operator' } as ClankersState['mode']): Set<string> {
   const targetIds = new Set<string>();
   const targetId = mode.activeIntervention?.targetId;
 
@@ -336,9 +336,9 @@ function renderMonitorEventLine(event: HookLifecycleEvent, width: number): strin
   return fit(`  ${sequence}${event.type}${action}${substate} ${event.createdAt} ${details}${reason}`, width);
 }
 
-export function renderAgentTree(state: ZergState, options: RenderOptions = {}): string {
+export function renderAgentTree(state: ClankersState, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
-  const snapshot = state ?? ({} as ZergState);
+  const snapshot = state ?? ({} as ClankersState);
   const agents = recordValues(snapshot.agents).sort(byLabel);
   const tasks = recordValues(snapshot.tasks).sort(byTitle);
   const teams = recordValues(snapshot.teams).sort(byLabel);
@@ -534,16 +534,16 @@ export function renderAgentTree(state: ZergState, options: RenderOptions = {}): 
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderHelp(state: ZergState, options: RenderOptions = {}): string {
+export function renderHelp(state: ClankersState, options: RenderOptions = {}): string {
   return [
-    `clankers v${ZERG_EXTENSION_VERSION} command-surface scaffold`,
-    `Commands: ${ZERG_COMMAND_INVOCATIONS.join(', ')}`,
+    `clankers v${CLANKERS_EXTENSION_VERSION} command-surface scaffold`,
+    `Commands: ${CLANKERS_COMMAND_INVOCATIONS.join(', ')}`,
     renderStatusLine(state, options),
     '',
     'Lifecycle syntax: /clankers agent create|start|progress|stop|fail|reset <agent-id> [label|activity]',
     'Lifecycle syntax: /clankers team create|start|progress|stop|fail|reset <team-id> [label|activity]',
     'Control syntax: /clankers mode status|manual|assisted|automatic|revert [reason]',
-    'Control syntax: /clankers control status|controller pi|zerg|operator|readonly on|off|toggle|mode manual|assisted|automatic',
+    'Control syntax: /clankers control status|controller pi|clankers|operator|readonly on|off|toggle|mode manual|assisted|automatic',
     'Permission syntax: /clankers permission status|list [all|pending|resolved]|request <kind> <target> <summary>|approve <id> [reason]|deny <id> [reason]|cancel <id> [reason]',
     'Logs syntax: /clankers logs status|list [--run <id>] [--level debug|info|warn|error] [--limit <n>] | /clankers logs show <id|run-id> [--json] | /clankers logs json [--run <id>] [--limit <n>]',
     'Registry syntax: /clankers agents [list] | show <id> | create|update <id> --prompt <text> [--model <model>] [--tools a,b] | delete <id>',
@@ -559,7 +559,7 @@ export function renderHelp(state: ZergState, options: RenderOptions = {}): strin
   ].join('\n');
 }
 
-export function renderPermissionQueueStatus(queue: ZergPermissionQueueState, options: RenderOptions = {}): string {
+export function renderPermissionQueueStatus(queue: ClankersPermissionQueueState, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const pending = queue.requests.filter((request) => request.status === 'pending');
   const latest = pending.at(-1);
@@ -574,7 +574,7 @@ export function renderPermissionQueueStatus(queue: ZergPermissionQueueState, opt
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderPermissionQueueList(queue: ZergPermissionQueueState, filter: 'all' | 'pending' | 'resolved' = 'pending', options: RenderOptions = {}): string {
+export function renderPermissionQueueList(queue: ClankersPermissionQueueState, filter: 'all' | 'pending' | 'resolved' = 'pending', options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const requests = queue.requests.filter((request) => filter === 'all'
     ? true
@@ -594,7 +594,7 @@ export function renderPermissionQueueList(queue: ZergPermissionQueueState, filte
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderAgentDefinitionsList(definitions: ZergAgentDefinition[], options: RenderOptions = {}): string {
+export function renderAgentDefinitionsList(definitions: ClankersAgentDefinition[], options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
 
   if (definitions.length === 0) {
@@ -615,7 +615,7 @@ export function renderAgentDefinitionsList(definitions: ZergAgentDefinition[], o
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderAgentDefinitionSummary(definition: ZergAgentDefinition, options: RenderOptions = {}): string {
+export function renderAgentDefinitionSummary(definition: ClankersAgentDefinition, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const lines = [
     `agent definition: ${definition.id}`,
@@ -633,7 +633,7 @@ export function renderAgentDefinitionSummary(definition: ZergAgentDefinition, op
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderZergSubagentRunList(runs: readonly ZergSubagentRunSnapshot[], options: RenderOptions = {}): string {
+export function renderClankersSubagentRunList(runs: readonly ClankersSubagentRunSnapshot[], options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
 
   if (runs.length === 0) {
@@ -658,7 +658,7 @@ export function renderZergSubagentRunList(runs: readonly ZergSubagentRunSnapshot
   return lines.map((line) => fit(line, width)).join('\n');
 }
 
-export function renderZergSubagentRunSummary(run: ZergSubagentRunSnapshot, options: RenderOptions = {}): string {
+export function renderClankersSubagentRunSummary(run: ClankersSubagentRunSnapshot, options: RenderOptions = {}): string {
   const width = options.width ?? DEFAULT_WIDTH;
   const lines = [
     `subagent run: ${run.runId}`,
@@ -721,7 +721,7 @@ function renderTaskLine(task: TaskRecord, width: number, prefix: string, selecte
 }
 
 function renderExplicitTree(
-  nodes: ZergTreeNode[],
+  nodes: ClankersTreeNode[],
   width: number,
   selectedNodeId: string | undefined,
   agents: AgentIdentity[],
@@ -729,7 +729,7 @@ function renderExplicitTree(
   interventionTargetIds: Set<string>,
 ): string {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const childrenByParent = new Map<string, ZergTreeNode[]>();
+  const childrenByParent = new Map<string, ClankersTreeNode[]>();
   const missingChildrenByParent = new Map<string, string[]>();
   const referenced = new Set<string>();
   const visited = new Set<string>();
@@ -756,7 +756,7 @@ function renderExplicitTree(
     }
   }
 
-  const renderNode = (node: ZergTreeNode, depth: number, ancestry = new Set<string>()): void => {
+  const renderNode = (node: ClankersTreeNode, depth: number, ancestry = new Set<string>()): void => {
     const indent = '│  '.repeat(depth);
 
     if (ancestry.has(node.id)) {
@@ -823,7 +823,7 @@ function renderExplicitTree(
 }
 
 function renderTreeNodeLine(
-  node: ZergTreeNode,
+  node: ClankersTreeNode,
   width: number,
   prefix: string,
   selectedNodeId: string | undefined,
@@ -839,7 +839,7 @@ function renderTreeNodeLine(
 }
 
 function findExplicitTreeRuntimeRef(
-  node: ZergTreeNode,
+  node: ClankersTreeNode,
   agentById: Map<string, AgentIdentity>,
   teamById: Map<string, TeamIdentity>,
 ): AgentIdentity['runtime'] | TeamIdentity['runtime'] | undefined {
@@ -1093,7 +1093,7 @@ function byTitle(left: TaskRecord, right: TaskRecord): number {
   return safeLabel(left.title, '').localeCompare(safeLabel(right.title, ''));
 }
 
-export function renderNativeSessionReferences(references: ZergNativeSessionReference[], options: RenderOptions = {}): string {
+export function renderNativeSessionReferences(references: ClankersNativeSessionReference[], options: RenderOptions = {}): string {
   const lines = ['Native Pi sessions (attachment is not proof of a live observer or durable file):'];
   for (const ref of references.slice(0, 40)) {
     lines.push(`${ref.agentDefinitionId} | parent:${ref.parentRunId} | member:${ref.memberRunId} | pi:${ref.piSessionId} | ${ref.attachment}`);
@@ -1104,7 +1104,7 @@ export function renderNativeSessionReferences(references: ZergNativeSessionRefer
 }
 
 /** Width-bounded text fallback for the same typed read projection as the TUI. */
-export function renderZergTimeline(timeline: ZergTimelineSnapshot, options: RenderOptions = {}): string {
+export function renderClankersTimeline(timeline: ClankersTimelineSnapshot, options: RenderOptions = {}): string {
   const width = Number.isFinite(options.width) ? Math.max(1, Math.min(512, Math.floor(options.width!))) : DEFAULT_WIDTH;
   const clean = (value: string, maximum = 256) => sanitizeNativeTranscriptText(value.slice(0, maximum)).replace(/\s+/g, ' ').slice(0, maximum);
   const abbreviation = (value: string | undefined, maximum = 18) => {

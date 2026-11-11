@@ -12,11 +12,11 @@ const host=createJiti(sdk,{fsCache:false});
 const jiti=createJiti(import.meta.url,{fsCache:false,alias:{'@earendil-works/pi-coding-agent':sdk,'@earendil-works/pi-tui':host.esmResolve('@earendil-works/pi-tui')}});
 const {ProjectTrustStore}=await import(pathToFileURL(sdk).href);
 new ProjectTrustStore(path.join(root,'agent')).set(path.join(root,'workspace'),true);
-const {registerZergSwarmExtension}=await jiti.import('../../index.ts');
-const {createZergState,replaceSharedZergState}=await jiti.import('../../state.ts');
-replaceSharedZergState(createZergState({mode:{...createZergState().mode,automation:'automatic',readOnly:false}}));
+const {registerClankersExtension}=await jiti.import('../../index.ts');
+const {createClankersState,replaceSharedClankersState}=await jiti.import('../../state.ts');
+replaceSharedClankersState(createClankersState({mode:{...createClankersState().mode,automation:'automatic',readOnly:false}}));
 let nr=0,nt=0;const commands=new Map(),tools=new Map();
-const registration=registerZergSwarmExtension({registerCommand(name,def){commands.set(name,def);},registerTool(def){tools.set(def.name,def);}}, {cwd:path.join(root,'workspace'),idFactory:{runId:()=>`pub-run-${++nr}`,taskId:()=>`pub-task-${++nt}`},trustedTmux:{sdkModulePath:sdk,agentDir:path.join(root,'agent'),rootDir:path.join(root,'workers'),fixtureNodeImportPath:path.join(root,'no-network.mjs'),fixtureExtensionPaths:[path.join(root,'provider.ts')]}});
+const registration=registerClankersExtension({registerCommand(name,def){commands.set(name,def);},registerTool(def){tools.set(def.name,def);}}, {cwd:path.join(root,'workspace'),idFactory:{runId:()=>`pub-run-${++nr}`,taskId:()=>`pub-task-${++nt}`},trustedTmux:{sdkModulePath:sdk,agentDir:path.join(root,'agent'),rootDir:path.join(root,'workers'),fixtureNodeImportPath:path.join(root,'no-network.mjs'),fixtureExtensionPaths:[path.join(root,'provider.ts')]}});
 const control=registration.control;
 assert(commands.has('clankers')&&tools.has('clankers_control'));
 try {

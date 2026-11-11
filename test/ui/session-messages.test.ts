@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSessionMessageService, getSessionMessageReceipts, OPERATOR_CUSTOM_TYPE, validateSessionMessageInput } from '../../session-messages.js';
-import { createZergStateContainer } from '../../state.js';
-import { createZergPersistenceManager, recoverZergStateAfterRestart } from '../../persistence.js';
-import type { ZergSessionMessageInput, ZergSessionMessageKey, ZergState } from '../../types.js';
+import { createClankersStateContainer } from '../../state.js';
+import { createClankersPersistenceManager, recoverClankersStateAfterRestart } from '../../persistence.js';
+import type { ClankersSessionMessageInput, ClankersSessionMessageKey, ClankersState } from '../../types.js';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const key: ZergSessionMessageKey = { parentRunId: 'parent', memberRunId: 'member', piSessionId: 'pi' };
-const input = (messageId = 'm', overrides: Partial<ZergSessionMessageInput> = {}): ZergSessionMessageInput => ({ key: { ...key }, messageId, body: '  /literal\n\tcode  ', mode: 'followUp', ...overrides });
-function fixture(save?: (state: ZergState) => unknown) {
-  const container = createZergStateContainer(); let readonly = false, accepting = true;
-  const calls: ZergSessionMessageInput[] = []; let listener: (event: unknown) => void = () => undefined;
-  let enqueue: (message: ZergSessionMessageInput) => unknown = () => undefined;
+const key: ClankersSessionMessageKey = { parentRunId: 'parent', memberRunId: 'member', piSessionId: 'pi' };
+const input = (messageId = 'm', overrides: Partial<ClankersSessionMessageInput> = {}): ClankersSessionMessageInput => ({ key: { ...key }, messageId, body: '  /literal\n\tcode  ', mode: 'followUp', ...overrides });
+function fixture(save?: (state: ClankersState) => unknown) {
+  const container = createClankersStateContainer(); let readonly = false, accepting = true;
+  const calls: ClankersSessionMessageInput[] = []; let listener: (event: unknown) => void = () => undefined;
+  let enqueue: (message: ClankersSessionMessageInput) => unknown = () => undefined;
   const service = createSessionMessageService({ container, readOnly: () => readonly, save });
   const release = service.register(key, { accepting: () => accepting, subscribe(fn) { listener = fn; return () => { listener = () => undefined; }; }, enqueue(message) { calls.push(message); return enqueue(message); } });
   return { container, service, calls, release, emit: (event: unknown) => listener(event), readonly: (value: boolean) => { readonly = value; }, accepting: (value: boolean) => { accepting = value; }, enqueue: (fn: typeof enqueue) => { enqueue = fn; } };
@@ -117,27 +117,27 @@ test('bounded receipt capacity rejects rather than silently evicting IDs', async
 });
 
 test('opt-in snapshot recovery finalizes pending receipts without reconnect/replay even with no active run', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'zerg-receipt-'));
+  const dir = mkdtempSync(join(tmpdir(), 'clankers-receipt-'));
   try {
-    assert.equal(createZergPersistenceManager(undefined), undefined); assert.equal(createZergPersistenceManager({ enabled: false, rootDir: dir }), undefined);
-    const manager = createZergPersistenceManager({ enabled: true, rootDir: dir })!;
+    assert.equal(createClankersPersistenceManager(undefined), undefined); assert.equal(createClankersPersistenceManager({ enabled: false, rootDir: dir }), undefined);
+    const manager = createClankersPersistenceManager({ enabled: true, rootDir: dir })!;
     const f = fixture((state) => manager.save(state)); await f.service.send(input());
     assert(manager.info.snapshotFile);
-    const saved = JSON.parse(readFileSync(manager.info.snapshotFile, 'utf8')); assert.equal(saved.state.extensions.zergSessionMessages.receipts[0].status, 'queued');
-    const recovered = createZergStateContainer(); manager.hydrate(recovered);
+    const saved = JSON.parse(readFileSync(manager.info.snapshotFile, 'utf8')); assert.equal(saved.state.extensions.clankersSessionMessages.receipts[0].status, 'queued');
+    const recovered = createClankersStateContainer(); manager.hydrate(recovered);
     const receipts = getSessionMessageReceipts(recovered.read()); assert.equal(receipts[0]!.status, 'needs-attention');
     const isolated = createSessionMessageService({ container: recovered, readOnly: () => false });
     assert.equal(isolated.getState(key).canSend, false); assert.equal((await isolated.send(input())).receipt?.status, 'needs-attention');
-    assert.equal(f.calls.length, 1); assert.deepEqual(recoverZergStateAfterRestart(recovered.read()).recoveredRunIds, []);
+    assert.equal(f.calls.length, 1); assert.deepEqual(recoverClankersStateAfterRestart(recovered.read()).recoveredRunIds, []);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 
 test('unsupported ledgers are not silently rewritten or treated as empty', async () => {
   const f = fixture();
-  f.container.replace({ ...f.container.read(), extensions: { zergSessionMessages: { schemaVersion: 2, receipts: [{ messageId: 'existing' }] } } });
+  f.container.replace({ ...f.container.read(), extensions: { clankersSessionMessages: { schemaVersion: 2, receipts: [{ messageId: 'existing' }] } } });
   assert.equal((await f.service.send(input())).ok, false); assert.equal(f.calls.length, 0);
-  assert.equal((f.container.read().extensions.zergSessionMessages as { schemaVersion: number }).schemaVersion, 2);
+  assert.equal((f.container.read().extensions.clankersSessionMessages as { schemaVersion: number }).schemaVersion, 2);
 });
 
 test('recognized native operator history displays only whitelisted content', async () => {
@@ -157,19 +157,19 @@ test('global message IDs cannot be retargeted and unrecognized fields never ente
   f.service.register(other, { accepting: () => true, subscribe: () => () => undefined, enqueue: () => { otherCalls++; } });
   const hostile = { ...input(), unbounded: 'x'.repeat(1000000), key: { ...key, extra: 'unbounded' } };
   await f.service.send(hostile);
-  const ledger = f.container.read().extensions.zergSessionMessages as { receipts: Record<string, unknown>[] };
+  const ledger = f.container.read().extensions.clankersSessionMessages as { receipts: Record<string, unknown>[] };
   assert.equal(ledger.receipts[0]!.unbounded, undefined); assert.equal((ledger.receipts[0]!.key as Record<string, unknown>).extra, undefined);
   assert.equal((await f.service.send(input('m', { key: other }))).ok, false); assert.equal(otherCalls, 0);
   const candidate = { ...f.service.list(key)[0]!, unbounded: 'x'.repeat(1000000) };
-  f.container.replace({ ...f.container.read(), extensions: { zergSessionMessages: { schemaVersion: 1, receipts: [candidate] } } });
+  f.container.replace({ ...f.container.read(), extensions: { clankersSessionMessages: { schemaVersion: 1, receipts: [candidate] } } });
   assert.equal((getSessionMessageReceipts(f.container.read())[0] as unknown as Record<string, unknown>).unbounded, undefined);
   const malformed = { ...candidate, status: { toString: () => 'queued' } };
-  f.container.replace({ ...f.container.read(), extensions: { zergSessionMessages: { schemaVersion: 1, receipts: [malformed] } } });
+  f.container.replace({ ...f.container.read(), extensions: { clankersSessionMessages: { schemaVersion: 1, receipts: [malformed] } } });
   assert.deepEqual(getSessionMessageReceipts(f.container.read()), []); assert.equal((await f.service.send(input('new'))).ok, false);
 });
 
 test('retained native callbacks after release, shutdown or subscription failure cannot change receipts', async () => {
-  const container = createZergStateContainer(); const service = createSessionMessageService({ container, readOnly: () => false });
+  const container = createClankersStateContainer(); const service = createSessionMessageService({ container, readOnly: () => false });
   let retained!: (event: unknown) => void;
   const release = service.register(key, { accepting: () => true, subscribe(fn) { retained = fn; return () => undefined; }, enqueue() {} });
   await service.send(input()); release(); const after = service.list(key);
@@ -191,7 +191,7 @@ test('availability notices include native start and canonical readonly updates, 
 });
 
 test('reentrant submission during intent publication is rejected without losing saved intents', async () => {
-  const saved: ZergState[] = []; const f = fixture((state) => { saved.push(state); });
+  const saved: ClankersState[] = []; const f = fixture((state) => { saved.push(state); });
   const attempts: Promise<unknown>[] = [];
   const unsubscribe = f.container.subscribe?.(() => { attempts.push(f.service.send(input('reentrant'))); });
   assert.equal((await f.service.send(input())).ok, true); await Promise.all(attempts); unsubscribe?.();
@@ -203,8 +203,8 @@ test('reentrant submission during intent publication is rejected without losing 
 test('receipt recovery preserves prior uncertainty and repeated hydration timestamps', async () => {
   const f = fixture(); await f.service.send(input()); f.release();
   const before = f.service.list(key)[0]!;
-  const once = recoverZergStateAfterRestart(f.container.read(), { now: () => new Date('2030-01-01') }).state;
-  const twice = recoverZergStateAfterRestart(once, { now: () => new Date('2031-01-01') }).state;
+  const once = recoverClankersStateAfterRestart(f.container.read(), { now: () => new Date('2030-01-01') }).state;
+  const twice = recoverClankersStateAfterRestart(once, { now: () => new Date('2031-01-01') }).state;
   assert.deepEqual(getSessionMessageReceipts(once)[0], before); assert.deepEqual(getSessionMessageReceipts(twice), getSessionMessageReceipts(once));
 });
 

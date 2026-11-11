@@ -8,7 +8,7 @@ import { createJiti } from 'jiti';
 import { ProjectTrustStore } from '@earendil-works/pi-coding-agent';
 import { preflightTmuxWorkerPolicy, prepareTmuxContinuationPolicy } from '../tmux-worker-policy.js';
 import { guardedPiPackageMetadata } from '../internal-patch.js';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 
 // Fixed oracle from parent findings11879/11880: ordinary metadata is admitted;
 // readonly/aborted public close => 0 effects, internal dispose => exactly 1 close.
@@ -34,7 +34,7 @@ test('ordinary installed packages keep prior semantics while public close requir
   const sdkModulePath = fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'));
   const definition = { id: 'solo', label: 'Solo', source: 'user' as const, prompt: 'Synthetic only.', tools: [], model: 'synthetic/fixed' };
   const input = { cwd, agentDir, modelSpec: definition.model, definitionPrompt: definition.prompt, tools: [], disallowedTools: [] };
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   state.replace(upsertAgentDefinition(state.read(), definition));
   const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
   const jiti = createJiti(import.meta.url, { fsCache: false, alias: { './tmux-runner.js': fakePath } });

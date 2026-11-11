@@ -224,8 +224,8 @@ test('recorder stores only bounded observer primitives without freezing canonica
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
-import { createZergStateContainer, createZergState, replaceSharedZergState, } from '../state.js';
-import type { ZergSubagentControlAdapter } from '../types.js';
+import { createClankersStateContainer, createClankersState, replaceSharedClankersState, } from '../state.js';
+import type { ClankersSubagentControlAdapter } from '../types.js';
 const indexUrl = new URL('../index.ts', import.meta.url), indexRequire = createRequire(indexUrl);
 const indexCode = transpileModule(readFileSync(indexUrl, 'utf8').replaceAll('import.meta.url', JSON.stringify(indexUrl.href)), {
   compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022, esModuleInterop: true },
@@ -262,14 +262,14 @@ function indexHarness(extra: Record<string, unknown> = {}) {
         let dead = false; return () => { if (!dead) { dead = true; options.onTui(undefined); } }; },
         setVisible(v: boolean) { visibility.push(v); }, setActiveShortcut(v: unknown) { hints.push(v); }, dispose() {} };
     } };
-    if (id === './ui/management-overlay.js') return { openZergManagementOverlay(ctx: any, options: any) { overlayCalls++; return ctx.ui.custom(options); } };
+    if (id === './ui/management-overlay.js') return { openClankersManagementOverlay(ctx: any, options: any) { overlayCalls++; return ctx.ui.custom(options); } };
     if (id.startsWith('./ui/')) return {}; // unrelated viewers are not part of these offline wiring tests
     if (id === './workflow-runtime.js') return { ...indexModules.get(id), createWorkflowService(...args: any[]) { workflowCreated++; return indexModules.get(id).createWorkflowService(...args); } };
     return indexModules.get(id) ?? indexRequire(id);
   };
   const module = { exports: {} as any };
   const internals = new Function('require', 'module', 'exports', indexCode + `
-    return { createPiNativeAdapter, runSinglePiNativeAgent, runPiNativeZergRequest, createPiNativeActiveRun,
+    return { createPiNativeAdapter, runSinglePiNativeAgent, runPiNativeClankersRequest, createPiNativeActiveRun,
       workflowControlServices, managementOpeners, requestPiNativeAbort,
       setSessionFactory(factory) { createPiNativeSession = factory; },
       setHandoff() { ensurePiNativeHandoff = (_ctx, _run, _id, text) => text ?? 'fake'; }
@@ -284,14 +284,14 @@ function indexHarness(extra: Record<string, unknown> = {}) {
   return { api: module.exports, internals, context, emit, commands, backgroundOptions, attachments, shortcutOptions, shortcutEvents, hints, visibility,
     metrics: () => ({ preferencesCreated, shortcutsCreated, workflowCreated, overlayCalls }) };
 }
-function fakeAdapter(): ZergSubagentControlAdapter & { cancels: number } {
+function fakeAdapter(): ClankersSubagentControlAdapter & { cancels: number } {
   return { kind: 'fake', cancels: 0, launch() { throw new Error('Observation cannot launch'); }, interrupt() { this.cancels++; return { ok: true, message: 'fake' }; },
     dispose() { this.cancels++; }, listRuns() { throw new Error('Observer cannot scan runs'); }, getRun() { throw new Error('Observer cannot get runs'); } };
 }
 async function microtasks(n = 16) { for (let i = 0; i < n; i++) await Promise.resolve(); }
 test('registration is strict-TUI and lazy: noninteractive/legacy attach never creates prefs/components/ledger', async () => {
-  replaceSharedZergState(createZergState()); const h = indexHarness(), adapter = fakeAdapter();
-  const registration = h.api.registerZergSwarmExtension(h.context, { subagentAdapter: adapter });
+  replaceSharedClankersState(createClankersState()); const h = indexHarness(), adapter = fakeAdapter();
+  const registration = h.api.registerClankersExtension(h.context, { subagentAdapter: adapter });
   const before = registration.state;
   for (const ctx of [{ mode: 'print', hasUI: false }, { mode: 'json', hasUI: false }, { mode: 'rpc', hasUI: true }, { hasUI: true }, { mode: 'tui', hasUI: true }]) {
     await h.emit('session_start', { ...ctx, ui: {} });
@@ -305,8 +305,8 @@ test('registration is strict-TUI and lazy: noninteractive/legacy attach never cr
   remove(); registration.dispose();
 });
 test('real registration wires canonical cached permission count, effective hint, singleton shared opener and observer-only generation cleanup', async () => {
-  replaceSharedZergState(createZergState()); const h = indexHarness(), adapter = fakeAdapter();
-  const registration = h.api.registerZergSwarmExtension(h.context, { subagentAdapter: adapter });
+  replaceSharedClankersState(createClankersState()); const h = indexHarness(), adapter = fakeAdapter();
+  const registration = h.api.registerClankersExtension(h.context, { subagentAdapter: adapter });
   let release!: () => void; const ui = { setWidget() {}, onTerminalInput() { return () => {}; }, custom() { return new Promise<void>(resolve => { release = resolve; }); } };
   const ctx = { mode: 'tui', hasUI: true, ui, waitForIdle() { throw new Error('No background idle wait'); } };
   await h.emit('session_start', ctx); await h.emit('session_start', ctx);
@@ -315,10 +315,10 @@ test('real registration wires canonical cached permission count, effective hint,
   assert.equal(h.hints.at(-1), 'alt+g'); assert.equal(h.visibility.at(-1), true);
   const permissions = h.backgroundOptions[0].permissions, before = registration.state;
   assert.equal(permissions.snapshot(), 0);
-  await h.commands.get('zerg')('permission request tool worker Permission', { mode: 'print', hasUI: false }); await microtasks(); assert.equal(permissions.snapshot(), 1);
+  await h.commands.get('clankers')('permission request tool worker Permission', { mode: 'print', hasUI: false }); await microtasks(); assert.equal(permissions.snapshot(), 1);
   assert.equal(adapter.cancels, 0); assert.equal(h.metrics().workflowCreated, 0);
   const after = registration.state; for (let i = 0; i < 1000; i++) permissions.snapshot(); assert.deepEqual(registration.state, after);
-  const a = h.commands.get('zerg')('config', ctx), b = h.commands.get('swarm')('/swarm config', ctx);
+  const a = h.commands.get('clankers')('config', ctx), b = h.commands.get('clankers')('/clankers config', ctx);
   h.shortcutOptions[0].openManagement(ctx); await microtasks(); assert.equal(h.metrics().overlayCalls, 1);
   assert(h.shortcutOptions[0].isOpening()); release(); await a; await b; assert(!h.shortcutOptions[0].isOpening());
   assert.equal(adapter.cancels, 0); assert.deepEqual(registration.state, after);
@@ -332,8 +332,8 @@ test('real registration wires canonical cached permission count, effective hint,
   assert.equal(before.extensions.workflows, undefined);
 });
 test('lazy workflow proxy only attaches after NORMAL service initialization', async () => {
-  const h = indexHarness(), container = createZergStateContainer(), adapter = fakeAdapter();
-  const control = h.api.createZergControl(container, { subagentAdapter: adapter }), service = h.internals.workflowControlServices.get(control);
+  const h = indexHarness(), container = createClankersStateContainer(), adapter = fakeAdapter();
+  const control = h.api.createClankersControl(container, { subagentAdapter: adapter }), service = h.internals.workflowControlServices.get(control);
   let notices = 0; const remove = service.activity.subscribe(() => notices++);
   assert.equal(service.activity.snapshot().available, false); assert.equal(h.metrics().workflowCreated, 0);
   const reply = await service.execute({ action: 'workflows.list' }); assert(reply.ok); await microtasks();
@@ -344,7 +344,7 @@ test('lazy workflow proxy only attaches after NORMAL service initialization', as
 
 function nativeHarness(options: { failDispose?: boolean } = {}) {
   const h = indexHarness(), r = createNativeActivityRecorder(), active = h.internals.createPiNativeActiveRun('native', r);
-  const container = createZergStateContainer({ agents: { native: { id: 'native', label: 'Worker', kind: 'subagent', status: 'running', metadata: { taskId: 'task' } } },
+  const container = createClankersStateContainer({ agents: { native: { id: 'native', label: 'Worker', kind: 'subagent', status: 'running', metadata: { taskId: 'task' } } },
     tasks: { task: { id: 'task', title: 'not-an-activity-label', status: 'running', updatedAt: stamp } } });
   let listener: ((e: any) => void) | undefined, resolve!: () => void, disposeCalls = 0;
   const completion = new Promise<void>(done => { resolve = done; });
@@ -395,15 +395,15 @@ test('lazy proxy snapshot failures replace stale working data without invoking o
       subscribe(cb: () => void) { refresh = cb; return () => {}; } },
       execute: async () => ({ ok: true }), dispose() { disposals++; }, drain: async () => {} };
   } } });
-  const control = h.api.createZergControl(createZergStateContainer(), { subagentAdapter: fakeAdapter() });
+  const control = h.api.createClankersControl(createClankersStateContainer(), { subagentAdapter: fakeAdapter() });
   const service = h.internals.workflowControlServices.get(control); assert.equal(service.activity.snapshot().available, false);
   await service.execute({ action: 'workflows.list' }); assert.equal(service.activity.snapshot().available, true);
   broken = true; refresh(); assert.equal(service.activity.snapshot().available, false); assert.equal(service.activity.snapshot().uncertain, true);
   assert.equal(disposals, 0); control.dispose(); assert.equal(disposals, 1);
 });
 test('stale/throwing prompt contexts cannot change the current generation or escape observer handling', async () => {
-  replaceSharedZergState(createZergState()); const h = indexHarness(), adapter = fakeAdapter();
-  const registration = h.api.registerZergSwarmExtension(h.context, { subagentAdapter: adapter });
+  replaceSharedClankersState(createClankersState()); const h = indexHarness(), adapter = fakeAdapter();
+  const registration = h.api.registerClankersExtension(h.context, { subagentAdapter: adapter });
   const old = { mode: 'tui', hasUI: true, ui: { setWidget() {}, onTerminalInput() { return () => {}; } } };
   const current = { ...old, ui: { ...old.ui } };
   await h.emit('session_start', old); await h.emit('session_start', current);
@@ -431,7 +431,7 @@ test('team owner queues workers, never guesses an active leader; actual leader s
       getCwd: () => '/private', appendCustomEntry() {}, appendSessionInfo() {} } };
   });
   const request = { agent: 'leader', task: 'DO NOT INFER editing or testing', memberAgentIds: ['one', 'two'], concurrency: 1 };
-  const job = n.h.internals.runPiNativeZergRequest({}, n.run.container, n.run.options, request, 'native', 'task', 'fresh', n.run.activeRun);
+  const job = n.h.internals.runPiNativeClankersRequest({}, n.run.container, n.run.options, request, 'native', 'task', 'fresh', n.run.activeRun);
   await microtasks(40); assert.deepEqual(records.map(x => x.id), ['one']); assert.equal(n.p().counts.working, 1); assert.equal(n.p().counts.queuedAgents, 1);
   assert(!n.r.source.snapshot().runs[0].members.some(m => m.agentDefinitionId === 'leader'));
   records[0].finish(); await microtasks(40); assert.deepEqual(records.map(x => x.id), ['one', 'two']); assert.equal(n.p().counts.working, 1);
@@ -445,15 +445,15 @@ test('native terminal publication failure clears all useful-work proof even when
     if (['done', 'failed'].includes(state.agents.native?.status)) throw new Error('terminal publication poisoned');
     return replace(state);
   };
-  const job = n.h.internals.runPiNativeZergRequest({}, n.run.container, n.run.options, { agent: 'worker', task: 'literal' }, 'native', 'task', 'fresh', n.run.activeRun);
+  const job = n.h.internals.runPiNativeClankersRequest({}, n.run.container, n.run.options, { agent: 'worker', task: 'literal' }, 'native', 'task', 'fresh', n.run.activeRun);
   await microtasks(); n.emit('agent_start'); assert.equal(n.p().counts.working, 1); n.complete();
   await assert.rejects(job, /terminal publication poisoned/); assert.equal(n.p().counts.working, 0); assert.equal(n.p().focus?.phase, 'unknown');
   assert.equal(n.disposed(), 1);
 });
 test('view/widget initialization failure never disposes or interrupts the owner and cannot initialize workflows', async () => {
-  replaceSharedZergState(createZergState());
+  replaceSharedClankersState(createClankersState());
   const h = indexHarness({ './ui/background-activity.js': { createBackgroundActivityController() { throw new Error('widget failed'); } } });
-  const adapter = fakeAdapter(), registration = h.api.registerZergSwarmExtension(h.context, { subagentAdapter: adapter });
+  const adapter = fakeAdapter(), registration = h.api.registerClankersExtension(h.context, { subagentAdapter: adapter });
   await h.emit('session_start', { mode: 'tui', hasUI: true, ui: { setWidget() {}, onTerminalInput() { return () => {}; } } });
   assert.equal(adapter.cancels, 0); assert.equal(h.metrics().workflowCreated, 0); assert.equal(registration.state.extensions.workflows, undefined);
   await h.emit('session_start', { mode: 'tui', hasUI: true, ui: { setWidget() {}, onTerminalInput() { return () => {}; } } });

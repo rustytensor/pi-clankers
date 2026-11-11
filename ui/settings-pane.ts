@@ -1,11 +1,11 @@
 import type { ManagementUiPreferencesFacade } from './management-shortcut.js';
-import type { AutomationMode, ZergControlController, ZergManagementUiState, ZergPermissionRequest, ZergState } from '../types.js';
+import type { AutomationMode, ClankersControlController, ClankersManagementUiState, ClankersPermissionRequest, ClankersState } from '../types.js';
 import { renderPane, sanitizeUiText, styleText, type UiThemeLike } from './components.js';
 
 export interface SettingsPaneActions {
   toggleReadOnly(): string;
   setAutomation(mode: AutomationMode): string;
-  setController(controller: ZergControlController): string;
+  setController(controller: ClankersControlController): string;
   approvePermission(requestId: string): string;
   denyPermission(requestId: string): string;
 }
@@ -20,21 +20,21 @@ export function createSettingsPaneState(): SettingsPaneState {
   return { pendingCursor: 0 };
 }
 
-export function getPendingPermissionRows(state: ZergState): ZergPermissionRequest[] {
-  const candidate = state.extensions.zergPermissions;
+export function getPendingPermissionRows(state: ClankersState): ClankersPermissionRequest[] {
+  const candidate = state.extensions.clankersPermissions;
   const requests = candidate && typeof candidate === 'object' && Array.isArray((candidate as { requests?: unknown }).requests)
-    ? (candidate as { requests: ZergPermissionRequest[] }).requests
+    ? (candidate as { requests: ClankersPermissionRequest[] }).requests
     : [];
   return requests.filter((request) => request.status === 'pending').slice().reverse();
 }
 
-export function movePendingPermissionCursor(settingsState: SettingsPaneState, state: ZergState, direction: 1 | -1): void {
+export function movePendingPermissionCursor(settingsState: SettingsPaneState, state: ClankersState, direction: 1 | -1): void {
   const rows = getPendingPermissionRows(state);
   settingsState.pendingCursor = rows.length === 0 ? 0 : Math.max(0, Math.min(settingsState.pendingCursor + direction, rows.length - 1));
   settingsState.confirmation = undefined;
 }
 
-export function applyPermissionFromSettings(settingsState: SettingsPaneState, state: ZergState, action: 'approve' | 'deny', actions: SettingsPaneActions): string {
+export function applyPermissionFromSettings(settingsState: SettingsPaneState, state: ClankersState, action: 'approve' | 'deny', actions: SettingsPaneActions): string {
   const rows = getPendingPermissionRows(state);
   const request = rows[settingsState.pendingCursor];
   if (!request) {
@@ -49,13 +49,13 @@ export function applyPermissionFromSettings(settingsState: SettingsPaneState, st
   return `press ${action === 'approve' ? 'p' : 'd'} again to ${action} ${request.id}`;
 }
 
-export function cycleController(state: ZergState, actions: SettingsPaneActions): string {
+export function cycleController(state: ClankersState, actions: SettingsPaneActions): string {
   const current = getControlController(state);
-  const next: ZergControlController = current === 'operator' ? 'pi' : current === 'pi' ? 'zerg' : 'operator';
+  const next: ClankersControlController = current === 'operator' ? 'pi' : current === 'pi' ? 'clankers' : 'operator';
   return actions.setController(next);
 }
 
-export function renderSettingsPane(state: ZergState, uiState: ZergManagementUiState, settingsState: SettingsPaneState, adapterKind: string, width: number, height: number, theme?: UiThemeLike, preferences?: ManagementUiPreferencesFacade, inputLines: string[] = []): string[] {
+export function renderSettingsPane(state: ClankersState, uiState: ClankersManagementUiState, settingsState: SettingsPaneState, adapterKind: string, width: number, height: number, theme?: UiThemeLike, preferences?: ManagementUiPreferencesFacade, inputLines: string[] = []): string[] {
   if (settingsState.preferencesOpen && preferences) {
     const view = preferences.snapshot();
     const lines = [
@@ -103,9 +103,9 @@ export function renderSettingsPane(state: ZergState, uiState: ZergManagementUiSt
   return renderPane(lines, { title: '2 Settings', focused: uiState.focusedPane === 'settings', width, height, theme });
 }
 
-function getControlController(state: ZergState): ZergControlController {
-  const candidate = state.extensions.zergControl as { controller?: unknown } | undefined;
-  return candidate?.controller === 'pi' || candidate?.controller === 'zerg' || candidate?.controller === 'operator'
+function getControlController(state: ClankersState): ClankersControlController {
+  const candidate = state.extensions.clankersControl as { controller?: unknown } | undefined;
+  return candidate?.controller === 'pi' || candidate?.controller === 'clankers' || candidate?.controller === 'operator'
     ? candidate.controller
     : 'operator';
 }

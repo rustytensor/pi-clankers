@@ -1,5 +1,5 @@
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
-import type { AgentStatus, ZergRuntimeHealth } from '../types.js';
+import type { AgentStatus, ClankersRuntimeHealth } from '../types.js';
 
 export interface UiThemeLike {
   fg?(color: string, text: string): string;
@@ -105,7 +105,7 @@ export function statusGlyph(status?: AgentStatus | string): string {
   }
 }
 
-export function healthGlyph(health?: ZergRuntimeHealth): string {
+export function healthGlyph(health?: ClankersRuntimeHealth): string {
   switch (health) {
     case 'healthy': return 'healthy';
     case 'degraded': return 'degraded';

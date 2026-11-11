@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-const dir=mkdtempSync(join(tmpdir(),'zerg-phase1-host-'));
+const dir=mkdtempSync(join(tmpdir(),'clankers-phase1-host-'));
 const agentDir=join(dir,'agent');mkdirSync(agentDir);
 process.env.PI_CODING_AGENT_DIR=agentDir;process.env.PI_OFFLINE='1';process.chdir(dir);
 const requests=[];const gates=new Map();const seen=new Set();
@@ -34,9 +34,9 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 writeFileSync(join(agentDir,'models.json'),JSON.stringify({providers:{fixture:{api:'openai-completions',baseUrl:`http://127.0.0.1:${server.address().port}/v1`,apiKey:'dummy-local-only',models:['ok','error','length','a','b','lead','slowA','slowB','slowCancel'].map(id=>({id,reasoning:false,input:['text'],contextWindow:32768,maxTokens:128}))}}}));
 writeFileSync(join(agentDir,'settings.json'),JSON.stringify({defaultProvider:'fixture',defaultModel:'ok',packages:[]}));
 const deadline=setTimeout(()=>{console.error('Global smoke timeout');process.exit(1);},60000);
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
-const zerg=await import(new URL('../../index.ts', import.meta.url).href);
-const control=zerg.createZergControl();
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(await import('@earendil-works/pi-coding-agent'));
+const clankers=await import(new URL('../../index.ts', import.meta.url).href);
+const control=clankers.createClankersControl();
 let registration;let registeredTool;
 async function agent(id,model,extra={}){const result=await control.execute({action:'agents.create',id,model:'fixture/'+model,prompt:'Only return a concise status. Never execute tools or change files.',tools:[],...extra});assert(result.ok,JSON.stringify(result));}
 async function run(id){const result=await control.execute({action:'run',agent:id,task:'Return concise status. No edits.',background:false});assert(result.runId,JSON.stringify(result));if(['error','length','manual'].includes(id))assert.equal(result.ok,false,JSON.stringify(result));return (await control.execute({action:'runs.show',runId:result.runId})).data.run;}
@@ -119,7 +119,7 @@ try{
  assert.equal((await control.execute({action:'run',agent:'ok',task:'Do not launch after disposal.',background:true})).ok,false);
  console.log('PASS active native disposal aborts execution and rejects subsequent launches');
  const listeners=new Map();const events={on(name,fn){const set=listeners.get(name)??new Set();set.add(fn);listeners.set(name,set);return()=>set.delete(fn);},emit(name,data){for(const fn of listeners.get(name)??[])fn(data);}};
- registration=zerg.registerZergSwarmExtension({events,registerCommand(){},registerTool(tool){if(tool.name==='zerg_control')registeredTool=tool;}});
+ registration=clankers.registerClankersExtension({events,registerCommand(){},registerTool(tool){if(tool.name==='clankers_control')registeredTool=tool;}});
  assert((await registration.control.execute({action:'agents.create',id:'bridge',prompt:'No tools.',tools:[],model:'fixture/ok'})).ok);
  assert((await registration.control.execute({action:'agents.create',id:'bridge-error',prompt:'No tools.',tools:[],model:'fixture/error'})).ok);assert((await registration.control.execute({action:'agents.create',id:'bridge-ok',prompt:'No tools.',tools:[],model:'fixture/ok'})).ok);assert((await registration.control.execute({action:'team.create',id:'bridge-team',leader:'bridge',members:['bridge-error','bridge-ok']})).ok);
  start=requests.length;const bridgeAggregate=await registration.control.execute({action:'run',agent:'bridge-team',task:'Bridge native aggregate failure.',background:true});assert(bridgeAggregate.ok,JSON.stringify(bridgeAggregate));
@@ -133,7 +133,7 @@ try{
  const abortController=new AbortController();
  const foreground=registeredTool.execute('abort-smoke',{action:'run',agent:'bridge',task:'Cancel foreground before fallback.',background:false},abortController.signal);
  abortController.abort();const abortedToolResult=await foreground;assert.equal(abortedToolResult.details.ok,false,JSON.stringify(abortedToolResult));assert.equal(abortedToolResult.isError,true);await sleep(350);assert.equal(requests.length,start);
- console.log('PASS foreground zerg_control abort signal cancels queued child and resolves failed tool result');
+ console.log('PASS foreground clankers_control abort signal cancels queued child and resolves failed tool result');
  seen.delete('slowA');assert((await registration.control.execute({action:'agents.update',id:'bridge',model:'fixture/slowA'})).ok);
  const bridgeNative=await registration.control.execute({action:'run',agent:'bridge',task:'Wait for operator steering.',background:true});assert(bridgeNative.ok);
  await until(()=>gates.has('slowA'),'bridge native fallback stream');
@@ -154,7 +154,7 @@ try{
  assert.equal((await disposedRegistration.control.execute({action:'runs.show',runId:pending2.runId})).data.run.status,'cancelled');
  assert.equal((await disposedRegistration.control.execute({action:'run',agent:'bridge',task:'No launch after disposal.',background:true})).ok,false);
  const shutdownHooks=[];
- registration=zerg.registerZergSwarmExtension({events,on(event,handler){if(event==='session_shutdown')shutdownHooks.push(handler);},registerCommand(){},registerTool(){}});
+ registration=clankers.registerClankersExtension({events,on(event,handler){if(event==='session_shutdown')shutdownHooks.push(handler);},registerCommand(){},registerTool(){}});
  assert((await registration.control.execute({action:'agents.create',id:'shutdown',prompt:'No tools.',tools:[],model:'fixture/ok'})).ok);
  const shutdownRun=await registration.control.execute({action:'run',agent:'shutdown',task:'Do not start after shutdown.',background:true});assert(shutdownRun.ok);assert(shutdownHooks.length>0,'session_shutdown hook must be installed');
  for(const hook of shutdownHooks)await hook({},{});await sleep(500);assert.equal(requests.length,start);
@@ -162,19 +162,19 @@ try{
  console.log('PASS public bridge cancellation/disposal/shutdown: queued runs cancelled, no provider requests or post-dispose launch');
  const extensionDir=join(dir,'.pi','extensions');mkdirSync(extensionDir,{recursive:true});
  const startupExtension=join(extensionDir,'startup.js');
- writeFileSync(startupExtension,"export default function(pi) { pi.on('session_start', async () => { globalThis.__zergStartupEntered = true; await new Promise(resolve => { globalThis.__zergStartupRelease = resolve; }); }); }");
- const startupControl=zerg.createZergControl();
+ writeFileSync(startupExtension,"export default function(pi) { pi.on('session_start', async () => { globalThis.__clankersStartupEntered = true; await new Promise(resolve => { globalThis.__clankersStartupRelease = resolve; }); }); }");
+ const startupControl=clankers.createClankersControl();
  try {
   assert((await startupControl.execute({action:'agents.create',id:'startup-cancel',model:'fixture/ok',tools:[],prompt:'No tools.'})).ok);
   const startupRun=await startupControl.execute({action:'run',agent:'startup-cancel',task:'Cancel during startup.',background:true});assert(startupRun.ok);
-  await until(()=>globalThis.__zergStartupEntered,'session_start barrier');
-  assert((await startupControl.execute({action:'interrupt',runId:startupRun.runId})).ok);globalThis.__zergStartupRelease();
+  await until(()=>globalThis.__clankersStartupEntered,'session_start barrier');
+  assert((await startupControl.execute({action:'interrupt',runId:startupRun.runId})).ok);globalThis.__clankersStartupRelease();
   await until(async()=>(await startupControl.execute({action:'runs.show',runId:startupRun.runId})).data.run.status==='cancelled','startup cancellation');
   const stopped=(await startupControl.execute({action:'runs.show',runId:startupRun.runId})).data.run;
   assert(stopped.memberProgress.length>0);assert(stopped.memberProgress.every(member=>member.status==='cancelled'),JSON.stringify(stopped.memberProgress));
- } finally { globalThis.__zergStartupRelease?.();startupControl.dispose();rmSync(startupExtension,{force:true}); }
+ } finally { globalThis.__clankersStartupRelease?.();startupControl.dispose();rmSync(startupExtension,{force:true}); }
  console.log('PASS session-start cancellation also terminalizes member progress');
  console.log(`PASS all phase1 host checks (${requests.length} localhost model requests only)`);
 }finally{
- clearTimeout(deadline);globalThis.__zergStartupRelease?.();for(const release of gates.values())release();registration?.dispose();control.dispose();server.closeAllConnections();await new Promise(r=>server.close(r));rmSync(dir,{recursive:true,force:true});
+ clearTimeout(deadline);globalThis.__clankersStartupRelease?.();for(const release of gates.values())release();registration?.dispose();control.dispose();server.closeAllConnections();await new Promise(r=>server.close(r));rmSync(dir,{recursive:true,force:true});
 }

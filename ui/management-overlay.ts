@@ -1,7 +1,7 @@
 import { DEFAULT_MANAGEMENT_SHORTCUT } from './preferences.js';
 import type { ManagementUiPreferencesFacade } from './management-shortcut.js';
 import { Input, type Component, type Focusable } from '@earendil-works/pi-tui';
-import type { AutomationMode, StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ZergControlController, ZergManagementTargetKind, ZergManagementUiState, ZergOperatorMessageDeliveryStatus, ZergState } from '../types.js';
+import type { AutomationMode, StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ClankersControlController, ClankersManagementTargetKind, ClankersManagementUiState, ClankersOperatorMessageDeliveryStatus, ClankersState } from '../types.js';
 import { sanitizeTranscriptText } from './agent-overlay.js';
 import { boldText, columns, fitRawLine, sanitizeUiText, styleText, type UiThemeLike } from './components.js';
 import { ChatPaneActions, cancelChatDraft, renderChatPane, sendChatDraft } from './chat-pane.js';
@@ -20,37 +20,37 @@ function viewerError(error: unknown): string {
   catch { return 'Unknown failure (unreadable error).'; }
 }
 
-export interface ZergManagementOverlayActions extends SettingsPaneActions, ChatPaneActions {
-  selectTarget(target: { id: string; kind: ZergManagementTargetKind }): string;
-  interruptSelected(target: { id: string; kind: ZergManagementTargetKind } | undefined): string;
+export interface ClankersManagementOverlayActions extends SettingsPaneActions, ChatPaneActions {
+  selectTarget(target: { id: string; kind: ClankersManagementTargetKind }): string;
+  interruptSelected(target: { id: string; kind: ClankersManagementTargetKind } | undefined): string;
 }
 
-export interface ZergManagementOverlayOptions {
-  getSnapshot(): ZergState;
+export interface ClankersManagementOverlayOptions {
+  getSnapshot(): ClankersState;
   subscribe(listener: () => void): () => void;
   adapterKind: string;
   uiPreferences?: ManagementUiPreferencesFacade;
-  actions: ZergManagementOverlayActions;
-  viewTimeline?(target: { id: string; kind: ZergManagementTargetKind } | undefined): Promise<void>;
-  viewCoding?(target: { id: string; kind: ZergManagementTargetKind } | undefined): Promise<void>;
+  actions: ClankersManagementOverlayActions;
+  viewTimeline?(target: { id: string; kind: ClankersManagementTargetKind } | undefined): Promise<void>;
+  viewCoding?(target: { id: string; kind: ClankersManagementTargetKind } | undefined): Promise<void>;
 }
 
-export async function openZergManagementOverlay(context: Pick<StructuralPiCommandContext, 'ui'>, options: ZergManagementOverlayOptions): Promise<void> {
-  let component: ZergManagementOverlayComponent | undefined;
+export async function openClankersManagementOverlay(context: Pick<StructuralPiCommandContext, 'ui'>, options: ClankersManagementOverlayOptions): Promise<void> {
+  let component: ClankersManagementOverlayComponent | undefined;
   try {
     await Promise.resolve(context.ui?.custom?.(
       (tui?: StructuralPiTuiHandle, theme?: unknown, _keybindings?: unknown, done?: (result?: void) => void) => {
         component?.dispose();
-        return component = new ZergManagementOverlayComponent(tui, theme as UiThemeLike | undefined, () => done?.(undefined), options);
+        return component = new ClankersManagementOverlayComponent(tui, theme as UiThemeLike | undefined, () => done?.(undefined), options);
       },
       { overlay: true, overlayOptions: { title: 'clankers config', anchor: 'center', width: '78%', maxHeight: '82%', minWidth: 72 } },
     ));
   } finally { component?.dispose(); }
 }
 
-export class ZergManagementOverlayComponent implements StructuralPiCustomComponent, Component, Focusable {
+export class ClankersManagementOverlayComponent implements StructuralPiCustomComponent, Component, Focusable {
   focused = false;
-  private readonly uiState: ZergManagementUiState = createManagementUiState();
+  private readonly uiState: ClankersManagementUiState = createManagementUiState();
   private readonly treeState = createTreePaneState();
   private readonly settingsState = createSettingsPaneState();
   private readonly chatInput = new Input();
@@ -67,7 +67,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     private readonly tui: StructuralPiTuiHandle | undefined,
     private readonly theme: UiThemeLike | undefined,
     private readonly done: (() => void) | undefined,
-    private readonly options: ZergManagementOverlayOptions,
+    private readonly options: ClankersManagementOverlayOptions,
   ) {
     this.preferencesInput.onSubmit = (value) => {
       const shortcut = value.trim().toLowerCase() === 'off' ? null : value.trim().toLowerCase() === 'default' ? DEFAULT_MANAGEMENT_SHORTCUT : value;
@@ -221,7 +221,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     try { this.done?.(); } catch { /* Host completion is attempted once. */ }
   }
 
-  getStateForTests(): ZergManagementUiState {
+  getStateForTests(): ClankersManagementUiState {
     return {
       ...this.uiState,
       expandedNodeIds: [...this.uiState.expandedNodeIds],
@@ -240,7 +240,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     try { this.tui?.requestRender?.(); } catch { this.uiState.statusMessage = 'management redraw unavailable'; }
   }
 
-  private renderHeader(snapshot: ZergState, width: number): string[] {
+  private renderHeader(snapshot: ClankersState, width: number): string[] {
     const counts = `${Object.keys(snapshot.teams).length} teams · ${Object.keys(snapshot.agents).length} agents · ${Object.keys(snapshot.tasks).length} tasks`;
     const pendingPermissions = this.countPendingPermissions(snapshot);
     const readOnly = snapshot.mode.readOnly ? styleText(this.theme, 'warning', 'read-only on') : styleText(this.theme, 'success', 'edits allowed');
@@ -252,7 +252,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     ];
   }
 
-  private ensureDefaultTarget(snapshot: ZergState): void {
+  private ensureDefaultTarget(snapshot: ClankersState): void {
     if (this.uiState.selectedTargetId && this.uiState.selectedTargetKind) return;
     const rows = buildManagementTreeRows(snapshot, this.uiState);
     const existing = resolveSelectedTarget(snapshot, this.uiState);
@@ -269,15 +269,15 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
     setSelectedTarget(this.uiState, firstTarget.targetId, firstTarget.targetKind);
   }
 
-  private resolveControlController(snapshot: ZergState): string {
-    const candidate = snapshot.extensions.zergControl as { controller?: unknown } | undefined;
-    return candidate?.controller === 'pi' || candidate?.controller === 'zerg' || candidate?.controller === 'operator'
+  private resolveControlController(snapshot: ClankersState): string {
+    const candidate = snapshot.extensions.clankersControl as { controller?: unknown } | undefined;
+    return candidate?.controller === 'pi' || candidate?.controller === 'clankers' || candidate?.controller === 'operator'
       ? candidate.controller
       : 'operator';
   }
 
-  private countPendingPermissions(snapshot: ZergState): number {
-    const candidate = snapshot.extensions.zergPermissions;
+  private countPendingPermissions(snapshot: ClankersState): number {
+    const candidate = snapshot.extensions.clankersPermissions;
     if (!candidate || typeof candidate !== 'object' || !Array.isArray((candidate as { requests?: unknown }).requests)) {
       return 0;
     }
@@ -296,7 +296,7 @@ export class ZergManagementOverlayComponent implements StructuralPiCustomCompone
       this.requestRender();
       return;
     }
-    let target: { id: string; kind: ZergManagementTargetKind } | undefined;
+    let target: { id: string; kind: ClankersManagementTargetKind } | undefined;
     try {
       this.ensureDefaultTarget(this.options.getSnapshot());
       target = resolveSelectedTarget(this.options.getSnapshot(), this.uiState);

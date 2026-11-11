@@ -5,16 +5,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import test, { type TestContext } from 'node:test';
-import { createZergPersistenceManager } from '../persistence.js';
-import { createZergState, createZergStateContainer } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer } from '../state.js';
 
 const first = () => new Date('2026-10-03T00:00:00.000Z');
 const second = () => new Date('2026-10-03T00:00:01.000Z');
 function fixture(t: TestContext) {
-  const root = fs.mkdtempSync(join(tmpdir(), 'zerg-persistence-test-'));
+  const root = fs.mkdtempSync(join(tmpdir(), 'clankers-persistence-test-'));
   const path = join(root, 'state.json');
-  const manager = createZergPersistenceManager({ snapshotFile: path })!;
-  const state = createZergState({ extensions: { ownedFixture: 'saved' } });
+  const manager = createClankersPersistenceManager({ snapshotFile: path })!;
+  const state = createClankersState({ extensions: { ownedFixture: 'saved' } });
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); fs.rmSync(root, { recursive: true, force: true }); });
   return { root, path, manager, state, temps: () => fs.readdirSync(root).filter((name) => name.endsWith('.tmp')) };
 }
@@ -39,7 +39,7 @@ test('regular snapshot round-trip uses the verified descriptor and truthful save
   });
   t.mock.method(fs, 'readFileSync', () => { throw new Error('unbounded read forbidden'); });
   syncBuiltinESMExports();
-  const container = createZergStateContainer();
+  const container = createClankersStateContainer();
   const loaded = f.manager.hydrate(container, second);
   assert.ok(reads >= 2);
   assert.equal(loaded.lastLoadError, undefined);
@@ -50,7 +50,7 @@ test('regular snapshot round-trip uses the verified descriptor and truthful save
 });
 
 test('missing/corrupt/unsupported/directory snapshots preserve current state and report load failures honestly', (t) => {
-  const f = fixture(t), container = createZergStateContainer({ extensions: { ownedFixture: 'current' } });
+  const f = fixture(t), container = createClankersStateContainer({ extensions: { ownedFixture: 'current' } });
   const before = container.read();
   assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
   for (const bytes of ['{broken', JSON.stringify({ version: 2, state: {} })]) {
@@ -68,10 +68,10 @@ test('valid regular-target symlinks load; saving replaces link without altering 
   const f = fixture(t), target = join(f.root, 'target.json');
   f.manager.save(f.state, first); fs.renameSync(f.path, target);
   if (!link(t, target, f.path)) return;
-  const bytes = fs.readFileSync(target), container = createZergStateContainer();
+  const bytes = fs.readFileSync(target), container = createClankersStateContainer();
   assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
   assert.equal(container.read().extensions.ownedFixture, 'saved');
-  f.manager.save(createZergState({ extensions: { ownedFixture: 'new' } }), second);
+  f.manager.save(createClankersState({ extensions: { ownedFixture: 'new' } }), second);
   assert.ok(fs.lstatSync(f.path).isFile()); assert.deepEqual(fs.readFileSync(target), bytes);
   fs.unlinkSync(f.path); fs.unlinkSync(target); if (!link(t, target, f.path)) return;
   const before = container.read(), missing = f.manager.hydrate(container);
@@ -87,7 +87,7 @@ test('nonregular admission rejects a FIFO-shaped stat without opening or reading
   const open = t.mock.method(fs, 'openSync', () => { throw new Error('nonregular open must not occur'); });
   const read = t.mock.method(fs, 'readSync', () => { throw new Error('nonregular read must not occur'); });
   syncBuiltinESMExports();
-  assert.match(f.manager.hydrate(createZergStateContainer()).lastLoadError!, /regular file/);
+  assert.match(f.manager.hydrate(createClankersStateContainer()).lastLoadError!, /regular file/);
   assert.equal(open.mock.callCount(), 0); assert.equal(read.mock.callCount(), 0);
 });
 
@@ -110,7 +110,7 @@ test('open uses nonblocking where available; descriptor type or inode drift reje
   syncBuiltinESMExports();
   for (const drift of [true, false]) {
     nonregular = drift;
-    const container = createZergStateContainer(), before = container.read();
+    const container = createClankersStateContainer(), before = container.read();
     assert.match(f.manager.hydrate(container).lastLoadError!, /changed before reading/);
     assert.deepEqual(container.read(), before);
     assert.throws(() => originalStat(descriptor), { code: 'EBADF' });
@@ -124,7 +124,7 @@ test('read/parse errors close the snapshot descriptor without claiming successfu
   let descriptor = -1;
   t.mock.method(fs, 'openSync', (path: fs.PathLike, flags: string | number, mode?: fs.Mode) => descriptor = originalOpen(path, flags, mode));
   syncBuiltinESMExports();
-  const container = createZergStateContainer(), before = container.read();
+  const container = createClankersStateContainer(), before = container.read();
   assert.ok(f.manager.hydrate(container).lastLoadError);
   assert.throws(() => fs.fstatSync(descriptor), { code: 'EBADF' });
   t.mock.method(fs, 'readSync', () => { throw new Error('owned read fault'); }); syncBuiltinESMExports();
@@ -206,7 +206,7 @@ test('unavoidable cleanup failures expose both errors rather than reporting a sa
 
 test('mkdir failure does not create temps or touch the blocking sentinel', (t) => {
   const f = fixture(t), blocked = join(f.root, 'blocked'); fs.writeFileSync(blocked, 'owned sentinel');
-  const manager = createZergPersistenceManager({ snapshotFile: join(blocked, 'state.json') })!;
+  const manager = createClankersPersistenceManager({ snapshotFile: join(blocked, 'state.json') })!;
   assert.throws(() => manager.save(f.state, first));
   assert.equal(fs.readFileSync(blocked, 'utf8'), 'owned sentinel'); assert.deepEqual(f.temps(), []);
   assert.equal(manager.info.lastSavedAt, undefined);
@@ -218,10 +218,10 @@ test('recovery never disables current readOnly and also retains saved readOnly',
   const f = fixture(t);
   for (const saved of [undefined, false, true]) {
     for (const current of [undefined, false, true]) {
-      const state = createZergState(); state.mode.readOnly = saved;
+      const state = createClankersState(); state.mode.readOnly = saved;
       f.manager.save(state, first);
-      const seed = createZergState(); seed.mode.readOnly = current;
-      const container = createZergStateContainer(seed);
+      const seed = createClankersState(); seed.mode.readOnly = current;
+      const container = createClankersStateContainer(seed);
       assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
       assert.equal(container.read().mode.readOnly, current === true ? true : saved);
     }
@@ -231,7 +231,7 @@ test('recovery never disables current readOnly and also retains saved readOnly',
 test('symlinks to nonregular targets are rejected; regular-target swap is rejected and descriptor closed', (t) => {
   const f = fixture(t), target = join(f.root, 'target'); fs.mkdirSync(target);
   if (!link(t, target, f.path)) return;
-  const container = createZergStateContainer(), before = container.read();
+  const container = createClankersStateContainer(), before = container.read();
   assert.match(f.manager.hydrate(container).lastLoadError!, /regular file/);
   assert.deepEqual(container.read(), before);
   fs.rmdirSync(target); f.manager.save(f.state, first); fs.renameSync(f.path, target);
@@ -250,7 +250,7 @@ test('symlinks to nonregular targets are rejected; regular-target swap is reject
 test('oversized sparse snapshot is refused before open/read, preserving its bytes and current state', (t) => {
   const f = fixture(t), fd = fs.openSync(f.path, 'wx');
   fs.writeSync(fd, 'owned oversized sentinel'); fs.ftruncateSync(fd, limit + 1); fs.closeSync(fd);
-  const container = createZergStateContainer(), before = container.read();
+  const container = createClankersStateContainer(), before = container.read();
   const open = t.mock.method(fs, 'openSync', () => { throw new Error('oversized must not open'); });
   const read = t.mock.method(fs, 'readSync', () => { throw new Error('oversized must not read'); });
   syncBuiltinESMExports();
@@ -274,10 +274,10 @@ test('64 MiB stat boundary admits equality; descriptor growth before/after read 
   t.mock.method(fs, 'openSync', (path: fs.PathLike, flags: string | number, mode?: fs.Mode) => descriptor = open(path, flags, mode));
   t.mock.method(fs, 'fstatSync', (fd: number) => Object.assign(fstat(fd), { size: phase === 'after' && ++checks === 1 ? limit : size }));
   syncBuiltinESMExports();
-  assert.equal(f.manager.hydrate(createZergStateContainer()).lastLoadError, undefined);
+  assert.equal(f.manager.hydrate(createClankersStateContainer()).lastLoadError, undefined);
   for (const when of ['before', 'after']) {
     phase = when; size = limit + 1; checks = 0;
-    const container = createZergStateContainer(), before = container.read();
+    const container = createClankersStateContainer(), before = container.read();
     assert.match(f.manager.hydrate(container).lastLoadError!, /64 MiB/);
     assert.throws(() => fstat(descriptor), { code: 'EBADF' }); assert.deepEqual(container.read(), before);
   }
@@ -294,7 +294,7 @@ test('growth while reading consumes at most 64 MiB plus one sentinel byte withou
   // Virtual byte counts exercise the production loop; no 64 MiB text is allocated.
   t.mock.method(StringDecoder.prototype, 'write', () => { decodes++; return ''; });
   syncBuiltinESMExports();
-  const container = createZergStateContainer(), before = container.read();
+  const container = createClankersStateContainer(), before = container.read();
   assert.match(f.manager.hydrate(container).lastLoadError!, /64 MiB/);
   assert.equal(consumed, limit + 1); assert.equal(decodes, limit / (64 * 1024));
   assert.throws(() => fs.fstatSync(descriptor), { code: 'EBADF' }); assert.deepEqual(container.read(), before);
@@ -302,16 +302,16 @@ test('growth while reading consumes at most 64 MiB plus one sentinel byte withou
 
 test('UTF-8 decoding preserves multi-byte characters split across bounded reads', (t) => {
   const f = fixture(t), value = '🙂漢é'.repeat(8);
-  f.manager.save(createZergState({ extensions: { ownedFixture: value } }), first);
+  f.manager.save(createClankersState({ extensions: { ownedFixture: value } }), first);
   const read = fs.readSync;
   t.mock.method(fs, 'readSync', (fd: number, buffer: NodeJS.ArrayBufferView, offset: number, length: number, position: number | null) => read(fd, buffer, offset, Math.min(length, 1), position));
   syncBuiltinESMExports();
-  const container = createZergStateContainer(); assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
+  const container = createClankersStateContainer(); assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
   assert.equal(container.read().extensions.ownedFixture, value);
 });
 
 test('save uses serialized UTF-8 bytes including newline; equality allowed, oversize refused before mkdir/temp', (t) => {
-  const f = fixture(t), state = createZergState({ extensions: { ownedFixture: '🙂漢é' } });
+  const f = fixture(t), state = createClankersState({ extensions: { ownedFixture: '🙂漢é' } });
   const byteLength = Buffer.byteLength; let reported = limit, measured = 0, chars = 0;
   t.mock.method(Buffer, 'byteLength', (value: string, encoding?: BufferEncoding) => {
     assert.equal(encoding, 'utf8'); assert.ok(value.endsWith('\n')); assert.equal(JSON.parse(value).state.extensions.ownedFixture, '🙂漢é');

@@ -182,7 +182,7 @@ test('continuation rejects malformed retained lease path without deleting real l
   old.write('a.txt', 'b');
   const manifest = deaden(old.recoveryManifest());
   const realOwner = manifest.destinationLeases[0].ownerFile;
-  const bad = { ...manifest, destinationLeases: [{ ...manifest.destinationLeases[0], leaseDir: '/tmp/pi-zerg-swarm-bad-outside', ownerFile: '/tmp/pi-zerg-swarm-bad-outside/owner' }] };
+  const bad = { ...manifest, destinationLeases: [{ ...manifest.destinationLeases[0], leaseDir: '/tmp/pi-clankers-bad-outside', ownerFile: '/tmp/pi-clankers-bad-outside/owner' }] };
   const out = createContinuationCodingWorkspace({ rawRetainedManifest: bad, trustedScope: scope(manifest, staging), workflowRunId: 'new-badlease', recoveryWriterOwnerEvidence: ownerEvidence(), assertAuthority() {}, assertPreviousSettlement() {} });
   const blocked = expectBlocked(out);
   assert.match(blocked.error, /trusted root|lease path|outside/i);

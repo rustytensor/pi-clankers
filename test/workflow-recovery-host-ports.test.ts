@@ -5,8 +5,8 @@ import * as path from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import ts from 'typescript';
-import { createZergStateContainer } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersStateContainer } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash, workflowStepEntries } from '../workflow-model.js';
 import { profileHash as codingCheckProfileHash, runCodingCheck, inspectDurableCheckReceipt } from '../workflow-checks.js';
 
@@ -18,7 +18,7 @@ const statements = parsed.statements.filter(node => (ts.isFunctionDeclaration(no
 const code = ts.transpileModule(statements.map(node => node.getText(parsed)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const bindings = Object.fromEntries(Object.entries({ ...fs, ...path, fsConstants: fs.constants, resolvePath: path.resolve, randomBytes, randomUUID, workflowHash, workflowStepEntries, codingCheckProfileHash, WORKFLOW_EXTENSION_KEY }).filter(([key]) => key !== 'default'));
 const helpers = new Function(...Object.keys(bindings), code + '\nreturn { allocate: createDefaultWorkflowCheckAllocator, inspect: inspectPreviousWorkflowOwner };')(...Object.values(bindings)) as {
-  allocate: (container: ReturnType<typeof createZergStateContainer>, manager: NonNullable<ReturnType<typeof createZergPersistenceManager>>, config: any, owner: () => any) => (request: any) => import('../workflow-checks.js').DurableCheckReceiptConfig;
+  allocate: (container: ReturnType<typeof createClankersStateContainer>, manager: NonNullable<ReturnType<typeof createClankersPersistenceManager>>, config: any, owner: () => any) => (request: any) => import('../workflow-checks.js').DurableCheckReceiptConfig;
   inspect: (owner: any) => 'live' | 'dead' | 'unknown';
 };
 
@@ -29,8 +29,8 @@ function fixture(t: import('node:test').TestContext) {
   const profile = { id: 'check', executable: process.execPath, argv: ['-e', 'process.exit(0)'], cwd: '.', env: {}, timeoutMs: 2000, outputBytes: 1024 };
   const spec = { id: 'check', kind: 'coding', coding: { operation: 'check', checkProfileId: 'check', policy: {} } };
   const candidateHash = createHash('sha256').update('candidate').digest('hex');
-  const container = createZergStateContainer({ extensions: { workflows: { version: 1, definitions: [], runs: [{ workflowRunId: 'run', status: 'running', definition: { version: 3, steps: [{ id: 'stage', kind: 'coding', coding: { operation: 'stage-write' } }, spec] }, steps: [{ id: 'stage', status: 'completed', units: [{ id: 'stage:0', status: 'completed', cleanupSettled: true, coding: { candidateHash } }] }, { id: 'check', status: 'running', units: [{ id: 'check:0', status: 'running', cleanupSettled: false, inputHash: 'a'.repeat(64), coding: { phase: 'check' } }] }], recovery: { operations: [{ kind: 'check', unitId: 'check:0', inputHash: 'a'.repeat(64), policyHash: workflowHash({ kind: spec.kind, coding: spec.coding, agentId: null }) }] } }] } } });
-  const manager = createZergPersistenceManager({ snapshotFile: path.join(root, 'state.json') })!;
+  const container = createClankersStateContainer({ extensions: { workflows: { version: 1, definitions: [], runs: [{ workflowRunId: 'run', status: 'running', definition: { version: 3, steps: [{ id: 'stage', kind: 'coding', coding: { operation: 'stage-write' } }, spec] }, steps: [{ id: 'stage', status: 'completed', units: [{ id: 'stage:0', status: 'completed', cleanupSettled: true, coding: { candidateHash } }] }, { id: 'check', status: 'running', units: [{ id: 'check:0', status: 'running', cleanupSettled: false, inputHash: 'a'.repeat(64), coding: { phase: 'check' } }] }], recovery: { operations: [{ kind: 'check', unitId: 'check:0', inputHash: 'a'.repeat(64), policyHash: workflowHash({ kind: spec.kind, coding: spec.coding, agentId: null }) }] } }] } } });
+  const manager = createClankersPersistenceManager({ snapshotFile: path.join(root, 'state.json') })!;
   manager.save(container.snapshot());
   const ownership = manager.acquireRecoveryOwnership!();
   t.after(() => { manager.releaseRecoveryOwnership!(ownership.owner); fs.rmSync(root, { recursive: true, force: true }); });
@@ -62,11 +62,11 @@ test('host allocation rejects readonly state and wrong check profile before mkdi
 test('existing unmarked managed receipt root is never adopted or repaired', t => {
   const f = fixture(t);
   const artifact = f.allocate(f.request), familyRoot = path.dirname(artifact.receiptDir);
-  fs.unlinkSync(path.join(familyRoot, 'zerg-managed-root.json'));
+  fs.unlinkSync(path.join(familyRoot, 'clankers-managed-root.json'));
   const before = fs.readdirSync(familyRoot);
   assert.throws(() => f.allocate(f.request), /ENOENT/);
   assert.deepEqual(fs.readdirSync(familyRoot), before);
-  assert.equal(fs.existsSync(path.join(familyRoot, 'zerg-managed-root.json')), false);
+  assert.equal(fs.existsSync(path.join(familyRoot, 'clankers-managed-root.json')), false);
 });
 
 test('receipt generation is rejected before path traversal can reach another file', t => {

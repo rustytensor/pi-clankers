@@ -1,9 +1,9 @@
 import { decodeKittyPrintable, matchesKey as matchesPiKey, type KeyId } from '@earendil-works/pi-tui';
-import type { ZergManagementPaneId, ZergManagementTargetKind, ZergManagementUiState, ZergOperatorMessageDeliveryStatus, ZergOperatorMessageRecord } from '../types.js';
+import type { ClankersManagementPaneId, ClankersManagementTargetKind, ClankersManagementUiState, ClankersOperatorMessageDeliveryStatus, ClankersOperatorMessageRecord } from '../types.js';
 
-export const MANAGEMENT_PANES: ZergManagementPaneId[] = ['tree', 'settings', 'chat', 'detail'];
+export const MANAGEMENT_PANES: ClankersManagementPaneId[] = ['tree', 'settings', 'chat', 'detail'];
 
-export function createManagementUiState(): ZergManagementUiState {
+export function createManagementUiState(): ClankersManagementUiState {
   return {
     focusedPane: 'tree',
     expandedNodeIds: ['root:teams', 'root:agents', 'root:tasks'],
@@ -12,22 +12,22 @@ export function createManagementUiState(): ZergManagementUiState {
   };
 }
 
-export function movePaneFocus(state: ZergManagementUiState, direction: 1 | -1): void {
+export function movePaneFocus(state: ClankersManagementUiState, direction: 1 | -1): void {
   const current = MANAGEMENT_PANES.indexOf(state.focusedPane);
   const next = (current + direction + MANAGEMENT_PANES.length) % MANAGEMENT_PANES.length;
   state.focusedPane = MANAGEMENT_PANES[next]!;
 }
 
-export function setSelectedTarget(state: ZergManagementUiState, targetId: string | undefined, targetKind: ZergManagementTargetKind | undefined): void {
+export function setSelectedTarget(state: ClankersManagementUiState, targetId: string | undefined, targetKind: ClankersManagementTargetKind | undefined): void {
   state.selectedTargetId = targetId;
   state.selectedTargetKind = targetKind;
 }
 
-export function isExpanded(state: ZergManagementUiState, nodeId: string): boolean {
+export function isExpanded(state: ClankersManagementUiState, nodeId: string): boolean {
   return state.expandedNodeIds.includes(nodeId);
 }
 
-export function setExpanded(state: ZergManagementUiState, nodeId: string, expanded: boolean): void {
+export function setExpanded(state: ClankersManagementUiState, nodeId: string, expanded: boolean): void {
   if (expanded) {
     if (!state.expandedNodeIds.includes(nodeId)) {
       state.expandedNodeIds = [...state.expandedNodeIds, nodeId].sort();
@@ -37,35 +37,35 @@ export function setExpanded(state: ZergManagementUiState, nodeId: string, expand
   state.expandedNodeIds = state.expandedNodeIds.filter((candidate) => candidate !== nodeId);
 }
 
-export function toggleExpanded(state: ZergManagementUiState, nodeId: string): void {
+export function toggleExpanded(state: ClankersManagementUiState, nodeId: string): void {
   setExpanded(state, nodeId, !isExpanded(state, nodeId));
 }
 
-export function appendDraftText(state: ZergManagementUiState, input: string): void {
+export function appendDraftText(state: ClankersManagementUiState, input: string): void {
   state.chatDraft = `${state.chatDraft}${input}`.slice(0, 500);
 }
 
-export function backspaceDraft(state: ZergManagementUiState): void {
+export function backspaceDraft(state: ClankersManagementUiState): void {
   state.chatDraft = state.chatDraft.slice(0, -1);
 }
 
-export function clearDraft(state: ZergManagementUiState): void {
+export function clearDraft(state: ClankersManagementUiState): void {
   state.chatDraft = '';
 }
 
 export function addOperatorMessage(
-  state: ZergManagementUiState,
+  state: ClankersManagementUiState,
   input: {
     targetId: string;
-    targetKind: ZergManagementTargetKind;
+    targetKind: ClankersManagementTargetKind;
     routedTargetId?: string;
     body: string;
-    status: ZergOperatorMessageDeliveryStatus;
+    status: ClankersOperatorMessageDeliveryStatus;
     statusDetail: string;
     now: Date;
   },
-): ZergOperatorMessageRecord {
-  const message: ZergOperatorMessageRecord = {
+): ClankersOperatorMessageRecord {
+  const message: ClankersOperatorMessageRecord = {
     id: `ui-msg-${input.now.getTime().toString(36)}-${state.messages.length + 1}`,
     targetId: input.targetId,
     targetKind: input.targetKind,

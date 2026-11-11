@@ -1,24 +1,24 @@
 import { Input, Text, truncateToWidth, type Focusable } from '@earendil-works/pi-tui';
-import type { StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ZergSessionMessageKey, ZergTimelineEntry, ZergTimelineFilter, ZergTimelineSnapshot } from '../types.js';
+import type { StructuralPiCommandContext, StructuralPiCustomComponent, StructuralPiTuiHandle, ClankersSessionMessageKey, ClankersTimelineEntry, ClankersTimelineFilter, ClankersTimelineSnapshot } from '../types.js';
 import { sanitizeTranscriptText } from './agent-overlay.js';
 import { styleText, type UiThemeLike } from './components.js';
 import { matchesKey, printableInput } from './state.js';
 
-export interface ZergTeamTimelineOptions {
-  getSnapshot(filter: ZergTimelineFilter): ZergTimelineSnapshot;
+export interface ClankersTeamTimelineOptions {
+  getSnapshot(filter: ClankersTimelineFilter): ClankersTimelineSnapshot;
   subscribe(listener: () => void): () => void;
-  initialFilter?: ZergTimelineFilter;
-  viewCoding?(key: ZergSessionMessageKey): Promise<void>;
+  initialFilter?: ClankersTimelineFilter;
+  viewCoding?(key: ClankersSessionMessageKey): Promise<void>;
 }
 interface TimelineViewState {
-  filter: ZergTimelineFilter;
+  filter: ClankersTimelineFilter;
   selectedId?: string;
   follow: boolean;
   detail: boolean;
   detailScroll: number;
 }
-type TimelineProof = Pick<ZergTimelineEntry, 'id' | 'kind' | 'teamId' | 'parentRunId' | 'memberRunId' | 'piSessionId' | 'exactKey'> & { messageId?: string };
-interface TimelineResult { key: ZergSessionMessageKey; state: TimelineViewState }
+type TimelineProof = Pick<ClankersTimelineEntry, 'id' | 'kind' | 'teamId' | 'parentRunId' | 'memberRunId' | 'piSessionId' | 'exactKey'> & { messageId?: string };
+interface TimelineResult { key: ClankersSessionMessageKey; state: TimelineViewState }
 const FIELDS = ['teamId', 'parentRunId', 'memberRunId', 'piSessionId'] as const;
 const MAX_ROWS = 256;
 const MAX_TEXT = 256 * 1024;
@@ -27,16 +27,16 @@ const PASTE_START = '\x1b[200~';
 const PASTE_END = '\x1b[201~';
 const safeId = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 256 && !/[\s\x00-\x1f\x7f-\x9f]/u.test(value);
 const stableId = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 4096 && !/[\x00-\x1f\x7f-\x9f]/u.test(value);
-const sameKey = (a: ZergSessionMessageKey, b: ZergSessionMessageKey) => FIELDS.slice(1).every((field) => a[field as keyof ZergSessionMessageKey] === b[field as keyof ZergSessionMessageKey]);
-function validKey(key: ZergSessionMessageKey | undefined): key is ZergSessionMessageKey {
+const sameKey = (a: ClankersSessionMessageKey, b: ClankersSessionMessageKey) => FIELDS.slice(1).every((field) => a[field as keyof ClankersSessionMessageKey] === b[field as keyof ClankersSessionMessageKey]);
+function validKey(key: ClankersSessionMessageKey | undefined): key is ClankersSessionMessageKey {
   return Boolean(key && safeId(key.parentRunId) && safeId(key.memberRunId) && safeId(key.piSessionId));
 }
-function filterCopy(filter: ZergTimelineFilter): ZergTimelineFilter {
+function filterCopy(filter: ClankersTimelineFilter): ClankersTimelineFilter {
   if (!filter || typeof filter !== 'object' || Array.isArray(filter)) throw new Error('Invalid timeline filter object.');
   for (const name of Object.keys(filter)) {
     if (![...FIELDS, 'limit'].includes(name) && (filter as Record<string, unknown>)[name] !== undefined) throw new Error('Unsupported timeline filter field.');
   }
-  const copy: ZergTimelineFilter = {};
+  const copy: ClankersTimelineFilter = {};
   for (const field of FIELDS) {
     if (filter[field] !== undefined) {
       if (!safeId(filter[field])) throw new Error(`Invalid exact ${field}: maximum 256 characters, no whitespace/control.`);
@@ -54,7 +54,7 @@ function errorText(error: unknown): string {
   try { return clean(error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown failure (non-text error).', 256).replace(/\n/g, ' '); }
   catch { return 'Unknown failure (unreadable error).'; }
 }
-function copyKey(key: ZergSessionMessageKey): ZergSessionMessageKey {
+function copyKey(key: ClankersSessionMessageKey): ClankersSessionMessageKey {
   return { parentRunId: key.parentRunId, memberRunId: key.memberRunId, piSessionId: key.piSessionId };
 }
 const oneLine = (value: unknown, max = 1024) => clean(value, max).replace(/\n/g, ' ');
@@ -65,7 +65,7 @@ function keyPacket(data: string): boolean {
     || /^\x1b\[[0-9;:]*[A-Za-z~]$/.test(data) || /^\x1bO[A-Za-z]$/.test(data)
     || !/[\x00-\x1f\x7f-\x9f]/u.test(data));
 }
-function label(entry: ZergTimelineEntry): string {
+function label(entry: ClankersTimelineEntry): string {
   switch (entry.kind) {
     case 'operator-receipt': return `operator receipt/current status: ${entry.status} · ${entry.persistence}`;
     case 'native-output': return 'native output/handoff: NOT addressed reply';
@@ -75,7 +75,7 @@ function label(entry: ZergTimelineEntry): string {
 }
 
 /** Abbreviations are display-only; keys and filters always retain untouched identities. */
-function scanRow(entry: ZergTimelineEntry): string {
+function scanRow(entry: ClankersTimelineEntry): string {
   const short = (value: string | undefined, max = 12) => value === undefined ? '?' : value.length <= max ? value : `${value.slice(0, 6)}…${value.slice(-5)}`;
   const actor = `${short(entry.agentDefinitionId)} r:${short(entry.parentRunId)} m:${short(entry.memberRunId)}`;
   const kind = entry.kind === 'operator-receipt' ? `receipt ${entry.status}/${entry.persistence}`
@@ -87,16 +87,16 @@ function scanRow(entry: ZergTimelineEntry): string {
 }
 
 /** Each custom interaction is fresh; no timeline watcher survives the coding drilldown. */
-export async function openZergTeamTimeline(context: StructuralPiCommandContext, options: ZergTeamTimelineOptions): Promise<void> {
+export async function openClankersTeamTimeline(context: StructuralPiCommandContext, options: ClankersTeamTimelineOptions): Promise<void> {
   if (context.hasUI === false || (context.mode !== undefined && context.mode !== 'tui') || !context.ui?.custom) throw new Error('Timeline requires an interactive Pi TUI.');
   let state: TimelineViewState | undefined;
   let notice = '';
   while (true) {
-    let component: ZergTeamTimelineComponent | undefined;
+    let component: ClankersTeamTimelineComponent | undefined;
     let result: TimelineResult | undefined;
     try {
       await Promise.resolve(context.ui.custom((tui, theme, _keys, done) => {
-        component = new ZergTeamTimelineComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
+        component = new ClankersTeamTimelineComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
         return component;
       }, { overlay: true, overlayOptions: { title: 'clankers team timeline', anchor: 'center', width: '90%', maxHeight: '82%' } }));
     } finally { component?.dispose(); }
@@ -109,13 +109,13 @@ export async function openZergTeamTimeline(context: StructuralPiCommandContext, 
 }
 
 /** Bounded read projection and plain view state only; never owns native lifetimes. */
-export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, Focusable {
+export class ClankersTeamTimelineComponent implements StructuralPiCustomComponent, Focusable {
   private disposed = false;
   private unsubscribe?: () => void;
   private dirty = true;
   private invalidFilter = false;
   private state: TimelineViewState;
-  private entries: ZergTimelineEntry[] = [];
+  private entries: ClankersTimelineEntry[] = [];
   private renderedSelected?: TimelineProof;
   private limitations: string[] = [];
   private counts = '';
@@ -134,7 +134,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
   set focused(value: boolean) { this._focused = value; this.form?.forEach((input, index) => { input.focused = value && index === this.field; }); }
 
   constructor(private readonly tui: StructuralPiTuiHandle | undefined, private readonly theme: UiThemeLike | undefined,
-    private readonly done: ((result?: TimelineResult) => void) | undefined, private readonly options: ZergTeamTimelineOptions,
+    private readonly done: ((result?: TimelineResult) => void) | undefined, private readonly options: ClankersTeamTimelineOptions,
     restored?: TimelineViewState, notice = '') {
     this.state = restored ? { ...restored, filter: { ...restored.filter } } : { filter: {}, follow: true, detail: false, detailScroll: 0 };
     this.notice = notice;
@@ -174,7 +174,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
           || FIELDS.some((field) => (row[field] !== undefined && !safeId(row[field])) || (this.state.filter[field] !== undefined && row[field] !== this.state.filter[field]))) { rejected++; continue; }
         const base = { id: row.id, kind: row.kind, timestamp: text(row.timestamp, 64) || undefined,
           timestampMeaning: ['created', 'recorded', 'current-update'].includes(row.timestampMeaning) ? row.timestampMeaning : 'recorded', summary: text(row.summary, 256), bodyPreview: text(row.bodyPreview, 1024), clipped: Boolean(row.clipped) };
-        const entry = base as ZergTimelineEntry;
+        const entry = base as ClankersTimelineEntry;
         for (const field of FIELDS) if (row[field] !== undefined) entry[field] = row[field];
         if (safeId(row.agentDefinitionId)) entry.agentDefinitionId = row.agentDefinitionId;
         if (validKey(row.exactKey) && row.parentRunId === row.exactKey.parentRunId && row.memberRunId === row.exactKey.memberRunId && row.piSessionId === row.exactKey.piSessionId) entry.exactKey = copyKey(row.exactKey);
@@ -218,7 +218,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
     const capacity = Math.max(1, h - headerCount - footerCount);
     this.viewport = capacity;
     let body: string[];
-    let shown: ZergTimelineEntry[] | undefined;
+    let shown: ClankersTimelineEntry[] | undefined;
     if (this.form) {
       this.focused = this._focused;
       const rows = this.form.map((input, index) => `${index === this.field ? '›' : ' '} ${FIELDS[index]}: ${input.render(Math.max(1, w - FIELDS[index]!.length - 5))[0] ?? ''}`);
@@ -244,7 +244,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
     }
     return output;
   }
-  private selected(): ZergTimelineEntry | undefined { return this.entries.find((entry) => entry.id === this.state.selectedId); }
+  private selected(): ClankersTimelineEntry | undefined { return this.entries.find((entry) => entry.id === this.state.selectedId); }
   private detailLines(width: number): string[] {
     const entry = this.selected()!;
     if (this.cache?.width === width && this.cache.id === entry.id) return this.cache.lines;
@@ -331,7 +331,7 @@ export class ZergTeamTimelineComponent implements StructuralPiCustomComponent, F
     if (matchesKey(data, 'tab', 'shift-tab')) { this.field = (this.field + (matchesKey(data, 'shift-tab') ? 3 : 1)) % 4; this.focused = this._focused; return; }
     if (matchesKey(data, 'enter')) {
       try {
-        const filter: ZergTimelineFilter = { limit: this.state.filter.limit };
+        const filter: ClankersTimelineFilter = { limit: this.state.filter.limit };
         FIELDS.forEach((field, index) => { const value = this.form![index]!.getValue(); if (value) filter[field] = value; });
         const applied = filterCopy(filter);
         // Confirm projection accepts it before replacing the old explicit scope.

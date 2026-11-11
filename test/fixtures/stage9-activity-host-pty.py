@@ -34,7 +34,7 @@ def evidence_stat(path):
 
 def evidence_path(name):
     assert name in EVIDENCE_NAMES or name == EVIDENCE_PENDING, 'Unowned evidence path'
-    assert root.startswith('/tmp/zerg-stage9-') and os.path.abspath(root) == root
+    assert root.startswith('/tmp/clankers-stage9-') and os.path.abspath(root) == root
     owner = os.lstat(root)
     assert __import__('stat').S_ISDIR(owner.st_mode) and owner.st_uid == os.getuid() and owner.st_mode & 0o077 == 0
     path = root + '/evidence/' + name
@@ -371,10 +371,10 @@ def live_ui():
     value = 'S9 DRAFT 一\nsecond line'
     key(b'\x1b[200~' + value.encode() + b'\x1b[201~', 'unsubmitted multiline Unicode draft')
     draft(value)
-    # BOTH actual entries: explicit public /zerg config and effective hotkey.
+    # BOTH actual entries: explicit public /clankers config and effective hotkey.
     clear_draft('clear synthetic draft ONLY for config command submission')
     command_opens = observed().get('opens', 0)
-    key(b'/zerg config\r', 'actual canonical configuration TUI command (no run automation)')
+    key(b'/clankers config\r', 'actual canonical configuration TUI command (no run automation)')
     until(lambda: observed().get('opens') == command_opens + 1, 'actual config command component')
     close_manage()
     key(b'\x1b[200~' + value.encode() + b'\x1b[201~', 'restore unsubmitted draft after command')
@@ -421,7 +421,7 @@ def settings_ui():
     until(lambda: emitted('2 UI preferences', offset) and emitted('Active: alt+g', offset)
           and emitted('Desired: alt+g', offset)
           and emitted('Shortcut: type key, off, or default; Enter saves', offset), 'fresh editable preference UI')
-    path = root + '/agent/zerg-swarm/ui.json'
+    path = root + '/agent/clankers/ui.json'
     def desired():
         try:
             return json.load(open(path))['managementShortcut']
@@ -461,7 +461,7 @@ def reload_ui():
     # the draft continues across this intentional command submission. Restore it
     # by actual paste after reload; test new focus and unsent content separately.
     clear_draft('intentionally clear synthetic draft to submit Pi /reload')
-    key(b'/reload\r', 'actual Pi built-in reload; no zerg execution automation')
+    key(b'/reload\r', 'actual Pi built-in reload; no clankers execution automation')
     until(lambda: observed().get('generation', 0) > old and load('stage.json').get('stage') == 'reload', 'same-process new Pi generation')
     steady()
     key(b'\x1b[200~' + value.encode() + b'\x1b[201~', 'restore unsent draft via actual new-generation editor')

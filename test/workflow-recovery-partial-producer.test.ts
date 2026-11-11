@@ -6,8 +6,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergStateContainer } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersStateContainer } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import { workflowHash } from '../workflow-model.js';
 import { inspectPartialWorkspaceArtifacts } from '../workflow-workspace.js';
@@ -20,7 +20,7 @@ const inventory = (p: string): unknown => { const st = lstatSync(p); return [st.
 
 type Mode = 'initial' | 'copy2' | 'mutation' | 'two' | 'root-fail' | 'intent-fail' | 'receipt-fail' | 'cancel-root' | 'cancel-intent' | 'cancel-mutation' | 'cancel-preflight' | 'cancel-owner' | 'reserve-mutation';
 async function producer(mode: Mode, inspect: (f: { root: string; project: string; staging: string; snapshotFile: string; ready: any; raw: any }) => Promise<void>) {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-partial-service-')), oldTmp = process.env.TMPDIR;
+  const root = mkdtempSync(join(tmpdir(), 'clankers-partial-service-')), oldTmp = process.env.TMPDIR;
   process.env.TMPDIR = root;
   const project = join(root, 'project'), staging = join(root, 'stage'), snapshotFile = join(root, 'state.json');
   mkdirSync(join(project, 'src'), { recursive: true, mode: 0o700 }); mkdirSync(staging, { mode: 0o700 });
@@ -32,8 +32,8 @@ async function producer(mode: Mode, inspect: (f: { root: string; project: string
     import { createHash } from 'node:crypto';
     import { existsSync, readFileSync } from 'node:fs';
     import { createWorkflowService } from ${url('workflow-runtime')};
-    import { createZergStateContainer, updateZergState, createZergState } from ${url('state')};
-    import { createZergPersistenceManager } from ${url('persistence')};
+    import { createClankersStateContainer, updateClankersState, createClankersState } from ${url('state')};
+    import { createClankersPersistenceManager } from ${url('persistence')};
     import { workflowJson, WORKFLOW_LIMITS } from ${url('workflow-model')};
     const [mode,projectRoot,stagingParent,snapshotFile]=process.argv.slice(1);
     const paths=${JSON.stringify(fixturePaths)}, inputs=${JSON.stringify(fixtureInputs)};
@@ -41,8 +41,8 @@ async function producer(mode: Mode, inspect: (f: { root: string; project: string
     const str={type:'string',maxLength:256}, obj=p=>({type:'object',properties:p,required:Object.keys(p),additionalProperties:false});
     const policy={version:3,capabilities:['stage-write'],identity:{parentRunId:'fixture',taskId:'task',attemptNo:1,workerAgentId:'worker',rootAgentId:'worker',model:'fake/model'},scope:{task:'Edit both fixture files',writablePaths:paths,readonlyPaths:['src/ro.txt'],baseline:{projectRootId:projectRoot,stateHash:sha('baseline')},manifest:paths.map(path=>{const text=readFileSync(projectRoot+'/'+path,'utf8');return {path,text,bytes:Buffer.byteLength(text),sha256:sha(text)};})}};
     const definition={id:'partial-service',version:3,label:'Partial service',inputSchema:obj({}),steps:[{id:'stage',kind:'coding',dependsOn:[],inputs:{},outputSchema:obj({candidateHash:str,changedPaths:{type:'array',maxItems:8,items:str}}),coding:{operation:'stage-write',policy}}]};
-    const base=createZergStateContainer({agentDefinitions:{worker:{id:'worker',label:'Worker',source:'runtime',prompt:'writer',model:'fake/model',permissionMode:'inherit'}}});
-    const store=createZergPersistenceManager({snapshotFile});store.hydrate(base);
+    const base=createClankersStateContainer({agentDefinitions:{worker:{id:'worker',label:'Worker',source:'runtime',prompt:'writer',model:'fake/model',permissionMode:'inherit'}}});
+    const store=createClankersPersistenceManager({snapshotFile});store.hydrate(base);
     let acquired=false, nativeCalls=0, failed=false, faultCount=0, expectedHash=null, cancelled=false, reserveDiagnostic=null;
     const nodes=x=>1+(x&&typeof x==='object'?Object.values(x).reduce((n,v)=>n+nodes(v),0):0);
     function stop(){process.stdout.write(JSON.stringify({runId:'partial-run',nativeCalls,faultCount,expectedHash,cancelled,reserveDiagnostic,owner:store.inspectRecoveryOwnership().owner})+'\\n');Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0);}
@@ -59,7 +59,7 @@ async function producer(mode: Mode, inspect: (f: { root: string; project: string
       if(!failed && ((mode==='root-fail'&&ws?.rootReady&&!ws.latestIntent)||(mode==='intent-fail'&&initial&&ws?.latestIntent?.sequence===1))){failed=true;faultCount++;throw Error('publication fault after save');}
       return base.replace(next);
     }
-    const container={...base,replace(next){return publish(createZergState(next));},update(patch,options){return publish(updateZergState(base.read(),patch,options));}};
+    const container={...base,replace(next){return publish(createClankersState(next));},update(patch,options){return publish(updateClankersState(base.read(),patch,options));}};
     let service, armedPreflight=false;
     function cancel(){if(!cancelled){cancelled=true;service.execute({action:'workflows.cancel',workflowRunId:'partial-run'}).then(r=>{if(!r.ok)throw Error(r.error);});}}
     const port={preflight(){if(mode==='cancel-preflight' && armedPreflight)cancel();},async execute(req){nativeCalls++;req.onIdentity({runId:'native-writer',taskId:'native-task'});if(mode==='two')req.coding.write('src/b.txt','b-new\\n');
@@ -145,7 +145,7 @@ for (const mode of ['initial', 'copy2', 'mutation', 'two'] as const) test(`actua
     assert.equal(raw.runs[0].steps[0].units[0].result, undefined);
     assert.equal(raw.runs[0].recovery.operations.find((o: any) => o.kind === 'native').result, undefined);
     assert.ok(ws.rootReady.destinationLeases.every((l: any) => l.leaseDir.startsWith(root + '/')));
-    const before = inventory(root), store = createZergPersistenceManager({ snapshotFile })!, container = createZergStateContainer(); store.hydrate(container);
+    const before = inventory(root), store = createClankersPersistenceManager({ snapshotFile })!, container = createClankersStateContainer(); store.hydrate(container);
     let forbiddenCalls = 0, hook = () => {};
     const forbidden = () => { forbiddenCalls++; throw Error('prepare invoked effect'); };
     const previous = (owner: any): 'dead' | 'unknown' | 'live' => { hook(); if (workflowHash(owner) !== workflowHash(ready.owner)) return 'unknown'; try { const st = readFileSync(`/proc/${owner.pid}/stat`, 'utf8'); return st.slice(st.lastIndexOf(')') + 2).trim().split(/\s+/)[19] === owner.startTimeTicks ? 'live' : 'dead'; } catch (e) { return (e as NodeJS.ErrnoException).code === 'ENOENT' ? 'dead' : 'unknown'; } };
@@ -167,7 +167,7 @@ for (const mode of ['initial', 'copy2', 'mutation', 'two'] as const) test(`actua
       const defaultReply = await service.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId });
       assert.equal((defaultReply.assessment as any).plan.status, 'blocked');
       assert.deepEqual((defaultReply.assessment as any).blocked, ['unselected-required-execution-address']);
-      const unknownService = createWorkflowService(createZergStateContainer(container.snapshot()), { preflight: forbidden, execute: async () => forbidden() }, { ...options, recovery: { ...options.recovery, inspectNativeSettlement: undefined } });
+      const unknownService = createWorkflowService(createClankersStateContainer(container.snapshot()), { preflight: forbidden, execute: async () => forbidden() }, { ...options, recovery: { ...options.recovery, inspectNativeSettlement: undefined } });
       try {
         const unknown = await unknownService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections });
         assert.equal((unknown.assessment as any).plan.status, 'blocked');
@@ -186,7 +186,7 @@ for (const mode of ['initial', 'copy2', 'mutation', 'two'] as const) test(`actua
       ]) {
         const snapshot = structuredClone(container.snapshot());
         corrupt((snapshot.extensions.workflows as any).runs[0].steps[0].units[0]);
-        const corruptService = createWorkflowService(createZergStateContainer(snapshot), { preflight: forbidden, execute: async () => forbidden() }, options);
+        const corruptService = createWorkflowService(createClankersStateContainer(snapshot), { preflight: forbidden, execute: async () => forbidden() }, options);
         try { const bad = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections }); assert.equal(bad.ok, true, bad.error); assert.equal((bad.assessment as any).plan.status, 'blocked'); assert.ok(!(bad.assessment as any).blocked.includes('unselected-required-execution-address')); }
         finally { corruptService.dispose(); }
       }
@@ -204,7 +204,7 @@ for (const mode of ['initial', 'copy2', 'mutation', 'two'] as const) test(`actua
         const snapshot = structuredClone(container.snapshot());
         corrupt((snapshot.extensions.workflows as any).runs[0]);
         let corruptService: ReturnType<typeof createWorkflowService>;
-        try { corruptService = createWorkflowService(createZergStateContainer(snapshot), { preflight: forbidden, execute: async () => forbidden() }, options); }
+        try { corruptService = createWorkflowService(createClankersStateContainer(snapshot), { preflight: forbidden, execute: async () => forbidden() }, options); }
         catch (error) { assert.match(String(error), /Recovery checkpoint|Invalid.*recovery/, label); continue; }
         try { const bad = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections }); assert.equal(bad.ok, true, `${label}: ${bad.error}`); assert.equal((bad.assessment as any).plan.status, 'blocked', label); assert.ok(!(bad.assessment as any).blocked.includes('unselected-required-execution-address'), label); }
         finally { corruptService.dispose(); }

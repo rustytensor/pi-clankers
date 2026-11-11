@@ -10,7 +10,7 @@ const last = () => {};
 type Shortcut = { handler: Function; extensionPath: string };
 type Extension = { path: string; shortcuts: Map<string, Shortcut>; commands: Map<string, { handler: Function }> };
 function ext(entries: Array<[string, Function]>, own = false): Extension {
-  return { path: own ? 'ours' : 'other', shortcuts: new Map(entries.map(([key, handler]) => [key, { handler, extensionPath: handler.name }])), commands: new Map(own ? [['zerg', { handler: anchor }]] : []) };
+  return { path: own ? 'ours' : 'other', shortcuts: new Map(entries.map(([key, handler]) => [key, { handler, extensionPath: handler.name }])), commands: new Map(own ? [['clankers', { handler: anchor }]] : []) };
 }
 function fixture(extensions: Extension[], candidate = 'alt+g', BaseRunner = ExtensionRunner, validateOverride?: () => { ok: boolean; reason?: string }) {
   // Private class prototype only, copied public method. Never patches installed/live class.
@@ -22,7 +22,7 @@ function fixture(extensions: Extension[], candidate = 'alt+g', BaseRunner = Exte
   let registrations = 0;
   const guard = installManagementShortcutCatalogGuard({
     handler: ours, ownerCommandHandler: anchor, candidate, enabled: () => true,
-    register() { registrations++; const owner = extensions.find((e) => e.commands.get('zerg')?.handler === anchor)!; owner.shortcuts.set(candidate, { handler: ours, extensionPath: 'ours' }); },
+    register() { registrations++; const owner = extensions.find((e) => e.commands.get('clankers')?.handler === anchor)!; owner.shortcuts.set(candidate, { handler: ours, extensionPath: 'ours' }); },
     validate: (bindings, entries) => validateOverride ? validateOverride() : validateManagementShortcut(candidate, bindings, entries, ours),
     onCatalog: (observation) => { observations.push(observation); }, runnerClass: PrivateRunner,
   });
@@ -30,7 +30,7 @@ function fixture(extensions: Extension[], candidate = 'alt+g', BaseRunner = Exte
 }
 test('deferred registration filters conflict in both extension orders without touching other actions', () => {
   for (const reverse of [false, true]) {
-    const owner = ext([], true); owner.commands.set('swarm', { handler: anchor }); owner.commands.set('zerg-swarm', { handler: anchor }); const competitor = ext([['Alt+G', other], ['alt+j', other]]);
+    const owner = ext([], true); owner.commands.set('clankers', { handler: anchor }); owner.commands.set('clankers', { handler: anchor }); const competitor = ext([['Alt+G', other], ['alt+j', other]]);
     const extensions = reverse ? [competitor, owner] : [owner, competitor];
     const f = fixture(extensions);
     try {
@@ -105,7 +105,7 @@ test('unowned runner leaves original catalog and diagnostics unchanged', () => {
 test('root/bundled current SDK private classes share supported guard semantics, aliases anchor same owner', async () => {
   const { ExtensionRunner: BundledRunner } = await import(new URL('bundle/index.js', import.meta.resolve('@earendil-works/pi-coding-agent')).href);
   for (const Runner of [ExtensionRunner, BundledRunner]) {
-    const owner = ext([], true); owner.commands.set('swarm', { handler: anchor });
+    const owner = ext([], true); owner.commands.set('clankers', { handler: anchor });
     const f = fixture([owner], 'alt+g', Runner);
     try { assert.equal(f.guard.installed, true); const map = f.runner.getShortcuts({}); assert.equal(map.get('alt+g')?.handler, ours); assert.equal(f.registrations(), 1); }
     finally { f.guard.dispose(); }

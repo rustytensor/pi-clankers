@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { ExtensionRunner, type ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { createUiPreferences } from '../../ui/preferences.js';
 import { createManagementShortcutController, isManagementShortcutPacket, validateManagementShortcut } from '../../ui/management-shortcut.js';
-import { ZergManagementOverlayComponent, type ZergManagementOverlayActions } from '../../ui/management-overlay.js';
-import { createZergState } from '../../state.js';
+import { ClankersManagementOverlayComponent, type ClankersManagementOverlayActions } from '../../ui/management-overlay.js';
+import { createClankersState } from '../../state.js';
 const other = () => {};
 test('effective builtins and extension normalization/terminal equivalence, not merely shared letters', async () => {
   const { KeybindingsManager } = await import(new URL('core/keybindings.js', import.meta.resolve('@earendil-works/pi-coding-agent')).href);
@@ -42,7 +42,7 @@ function fixture(initial?: string | null) {
   Object.defineProperty(PrivateRunner.prototype, 'getShortcuts', Object.getOwnPropertyDescriptor(ExtensionRunner.prototype, 'getShortcuts')!);
   const anchor = () => {};
   type Shortcut = { handler: (ctx: ExtensionContext) => void; extensionPath: string };
-  const owner = { path: 'ours', commands: new Map([['zerg', { handler: anchor }]]), shortcuts: new Map<string, Shortcut>() };
+  const owner = { path: 'ours', commands: new Map([['clankers', { handler: anchor }]]), shortcuts: new Map<string, Shortcut>() };
   const runner = new (PrivateRunner as unknown as new (...args: unknown[]) => { getShortcuts(bindings: unknown): Map<string, Shortcut>; setUIContext(...args: unknown[]): void })([owner], {}, '.', {}, {});
   runner.setUIContext({}, 'tui');
   let listener: ((data: string) => undefined) | undefined;
@@ -62,7 +62,7 @@ function fixture(initial?: string | null) {
   const tui = { hasOverlay: () => overlay, getFocusedComponent: () => focused };
   return {
     controller, runner, owner, preferences, context, tui,
-    saved() { const path = join(dir, 'zerg-swarm/ui.json'); const stat = statSync(path); return { bytes: readFileSync(path), inode: stat.ino, mtime: stat.mtimeMs, files: readdirSync(dirname(path)) }; },
+    saved() { const path = join(dir, 'clankers/ui.json'); const stat = statSync(path); return { bytes: readFileSync(path), inode: stat.ino, mtime: stat.mtimeMs, files: readdirSync(dirname(path)) }; },
     input(packet: string) { assert.equal(listener?.(packet), undefined); },
     fire(handler = owner.shortcuts.get('alt+g')?.handler) { handler?.({ mode: 'tui', hasUI: true } as ExtensionContext); },
     counts: () => ({ opens, registrations, removed, warnings }),
@@ -121,12 +121,12 @@ test('nonTUI/unsupported/no public safety surface never register, fallback remai
 });
 test('optional settings Input owns authority-key text; old controls and chat draft remain intact outside subview', () => {
   const f = fixture(); let actionsCalled = 0; let completed = 0;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date(), toggleReadOnly: () => { actionsCalled++; return 'toggled'; }, setAutomation: () => { actionsCalled++; return 'mode'; }, setController: () => { actionsCalled++; return 'controller'; }, approvePermission: () => { actionsCalled++; return 'approve'; }, denyPermission: () => { actionsCalled++; return 'deny'; }, selectTarget: () => 'selected', interruptSelected: () => { actionsCalled++; return 'interrupt'; }, sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'unavailable' }),
   };
   try {
     f.controller.attach(f.context); f.controller.setTui(f.tui); f.runner.getShortcuts({});
-    const component = new ZergManagementOverlayComponent({ requestRender() {} }, undefined, () => { completed++; }, { getSnapshot: () => createZergState(), subscribe: () => () => {}, adapterKind: 'native', actions, uiPreferences: f.controller.settings });
+    const component = new ClankersManagementOverlayComponent({ requestRender() {} }, undefined, () => { completed++; }, { getSnapshot: () => createClankersState(), subscribe: () => () => {}, adapterKind: 'native', actions, uiPreferences: f.controller.settings });
     component.handleInput('\t'); component.handleInput('\t'); component.handleInput('draft'); assert.equal(component.getStateForTests().chatDraft, 'draft');
     component.handleInput('\x1b[Z'); component.handleInput('o');
     assert.match(component.render(140, 36).join('\n'), /UI preferences/);

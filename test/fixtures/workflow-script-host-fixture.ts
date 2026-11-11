@@ -14,7 +14,7 @@ const { createJiti } = await import(pathToFileURL(require.resolve('jiti')).href)
 // Public Jiti aliases pin both the library's imports and our SDK observer to
 // the explicit physical installed/copied host closure; no resolver fallback.
 const jiti = createJiti(import.meta.url, { moduleCache: true, fsCache: false, alias: config.hostModuleAliases });
-const zerg = await jiti.import(join(config.moduleRoot, 'index.ts'));
+const clankers = await jiti.import(join(config.moduleRoot, 'index.ts'));
 const model = await jiti.import(join(config.moduleRoot, 'workflow-model.ts'));
 const runtime = await jiti.import(join(config.moduleRoot, 'workflow-runtime.ts'));
 const persistence = await jiti.import(join(config.moduleRoot, 'persistence.ts'));
@@ -113,7 +113,7 @@ async function identities(control: any, run: any) {
     if (entry.blockId) { assert.equal(n.metadata.workflow.iterationId, entry.iterationId); assert.equal(n.metadata.workflow.iterationNo, entry.iterationNo); }
     assert.equal(n.nativeSessions.length, 1); const session = n.nativeSessions[0];
     assert.equal(session.attachment, 'disposed'); assert(session.piSessionId && session.sessionFile);
-    assert(readFileSync(session.sessionFile, 'utf8').includes('pi-zerg-swarm/native-session/v1'));
+    assert(readFileSync(session.sessionFile, 'utf8').includes('pi-clankers/native-session/v1'));
   }
 }
 
@@ -190,9 +190,9 @@ async function inertRecovery(prepared: any) {
   // Use a distinct owned snapshot: never overwrite the live writer's fenced head.
   // This is inert restart evidence, NOT a crash/transport-closure certification.
   assert(!existsSync(recoverySnapshot));
-  persistence.createZergPersistenceManager({ enabled: true, snapshotFile: recoverySnapshot }).save(prepared.checkpoint);
+  persistence.createClankersPersistenceManager({ enabled: true, snapshotFile: recoverySnapshot }).save(prepared.checkpoint);
   const before = { effects: effects(), requests: httpCount(), starts: nativeStarts };
-  const fresh = zerg.createZergControl(undefined, options(recoverySnapshot));
+  const fresh = clankers.createClankersControl(undefined, options(recoverySnapshot));
   try {
     const recovered = runOf(fresh, prepared.id); assert.equal(recovered.status, 'needs-attention'); assert.equal(recovered.recovered, true);
     assert.equal(recovered.cleanupSettled, false); assert(units(recovered).some((u: any) => u.status === 'unverified'));
@@ -218,15 +218,15 @@ async function inertRecovery(prepared: any) {
   put('result.json', { ok: true, mode: config.mode, actualNative: nativeStarts, disposed: nativeDisposals, requests: httpCount(), sourceHash: prepared.frozen.sourceHash, graphHash: prepared.frozen.graphHash, frozenProvenance: true, inertRecovery: true, limitations: ['scripted loopback not real-model quality', 'restored in-flight checkpoint after natural settlement, not real crash', 'not OS sandbox/manual visual acceptance', 'no coding grants made'] });
 }
 export async function runSDK() {
-  await watchSDK(); const control = zerg.createZergControl(undefined, options());
+  await watchSDK(); const control = clankers.createClankersControl(undefined, options());
   try { const prepared = await journey(control); control.dispose(); await control.drain(); await inertRecovery(prepared); }
   catch (error) { put('failure.json', { error: String((error as Error).stack ?? error).slice(-16000) }); throw error; }
   finally { control.dispose(); await control.drain(); }
 }
 export default async function scriptHostFixture(pi: any) {
   await watchSDK(); let handler: any, started = false;
-  const proxy = new Proxy(pi, { get(target, key) { if (key === 'registerCommand') return (name: string, value: any) => { if (name === 'zerg') handler = value.handler; return target.registerCommand(name, value); }; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value; } });
-  const registration = zerg.registerZergSwarmExtension(proxy, options());
+  const proxy = new Proxy(pi, { get(target, key) { if (key === 'registerCommand') return (name: string, value: any) => { if (name === 'clankers') handler = value.handler; return target.registerCommand(name, value); }; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value; } });
+  const registration = clankers.registerClankersExtension(proxy, options());
   pi.on('session_shutdown', () => registration.dispose());
   pi.on('session_start', (_: unknown, ctx: any) => { if (started) return; started = true; setTimeout(() => void (async () => {
     assert.equal(ctx.mode, 'tui'); assert.equal(typeof handler, 'function');

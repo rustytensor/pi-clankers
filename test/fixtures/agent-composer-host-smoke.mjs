@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 // Standalone: node test/fixtures/agent-composer-host-smoke.mjs
 // Requires installed Pi 1.0 and Python 3's stdlib, never installs anything.
 // Two actual PTYs; command-looking text only inside composer. Never terminal
-// drive /zerg; no private SDK hooks or external model/provider TEST calls.
+// drive /clankers; no private SDK hooks or external model/provider TEST calls.
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi CLI required');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-composer-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-composer-pty-'));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const results = [];
 const operatorBody = '/not-a-command q s b\n  OPERATOR_LITERAL: keep indentation; !not-shell';
@@ -24,7 +24,7 @@ function extensionSource(root) {
   return `import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
 const root = ${JSON.stringify(root)};
 const operatorBody = ${JSON.stringify(operatorBody)};
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -39,13 +39,13 @@ export default function (pi) {
   let registrations = 0;
   const proxy = new Proxy(pi, { get(target, key) {
     if (key === 'registerCommand') return (name, options) => {
-      if (name === 'zerg') { handler = options.handler; registrations++; }
+      if (name === 'clankers') { handler = options.handler; registrations++; }
       return target.registerCommand(name, options);
     };
     const value = Reflect.get(target, key);
     return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const registration = registerZergSwarmExtension(proxy);
+  const registration = registerClankersExtension(proxy);
   const control = registration.control;
   let cleaned = false;
   function cleanup() {
@@ -147,7 +147,7 @@ export default function (pi) {
     const bytes = readFileSync(ref.sessionFile);
     const entries = bytes.toString('utf8').trim().split('\\n').map(line => JSON.parse(line));
     assert(entries.some(e => e.type === 'message' && e.message.role === 'toolResult' && e.message.toolName === 'read'));
-    const operators = entries.filter(e => e.type === 'custom_message' && e.customType === 'pi-zerg-swarm/operator/v1');
+    const operators = entries.filter(e => e.type === 'custom_message' && e.customType === 'pi-clankers/operator/v1');
     assert.equal(operators.length, 1, 'Exactly one native operator history entry');
     assert.equal(operators[0].content, operatorBody);
     assert.equal(operators[0].details.messageId, receipt.messageId);
@@ -350,7 +350,7 @@ async function runMode(mode) {
         assert.equal(literal.length, 1, 'Provider receives exactly one literal multiline operator body');
         const receipt = JSON.parse(readFileSync(join(root, 'receipt.json'), 'utf8'));
         assert(!JSON.stringify(input.messages).includes(receipt.messageId), 'Receipt ID leaked into model context');
-        assert(!JSON.stringify(input.messages).includes('pi-zerg-swarm/operator/v1'), 'Custom metadata leaked into model context');
+        assert(!JSON.stringify(input.messages).includes('pi-clankers/operator/v1'), 'Custom metadata leaked into model context');
         assert(!JSON.stringify(input.messages).includes('DO_NOT_DELIVER'), 'Wrong-target input delivered');
         emit({ content: 'AGENT_REPLY_TO_OPERATOR: received literal multiline input.\n' });
         writeFileSync(join(root, 'reply-streaming'), 'native follow-up consumed');

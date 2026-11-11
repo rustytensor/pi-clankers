@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
-import type { ZergAgentDefinition, ZergStateContainer } from './types.js';
+import type { ClankersAgentDefinition, ClankersStateContainer } from './types.js';
 import { WORKFLOW_EXTENSION_KEY, WORKFLOW_LIMITS, assertWorkflowAuthoringCompatibility, aggregateWorkflow, createReadOnlyReviewDefinition,
   freezeWorkflowData, normalizeWorkflowAgent, resolveWorkflowRef, validateReviewInputs, validateWorkflowDefinition, validateWorkflowValue,
   workflowRecoveryAddresses, workflowUnavailableEnvelope, evaluateWorkflowCondition, workflowStepEntries, workflowStepContext, qualifyWorkflowStep, workflowAssert, workflowHash, workflowJson, workflowRecoveryDependencyHash, workflowRecoverySourceContract, workflowUnitHash, workflowUnitEnvelope, workflowView } from './workflow-model.js';
@@ -47,7 +47,7 @@ const readAuthorityArtifact = (path: string, maxBytes: number) => {
 };
 const recoveryResultStatus = (status: WorkflowNativeOutcome['status'] | 'failed'): RecoveryResultStatus => status === 'completed' ? 'completed' : status === 'cancelled' ? 'cancelled' : status === 'unverified' ? 'uncertain' : 'failed';
 type RuntimeCodingWorkspace = { stageRoot: string; read(path: string): string; write(path: string, text: string): void; inspect(): { hash: string; changedPaths: string[]; files: Array<{ path: string; before: Buffer | null; after: Buffer | null; beforeHash: string | null; afterHash: string | null; preview?: string; clippedBytes?: number }>; totalBytes?: number; clippedBytes?: number }; assertFreshDestination(): void; apply(candidateHash: string): { status: 'applied' | 'partial' | 'rejected'; appliedPaths: string[]; error?: string }; recoveryManifest?(): import('./workflow-workspace.js').WorkspaceRecoveryManifest; cleanup?(): void; settle?(): void };
-const owners = new WeakMap<ZergStateContainer, symbol>();
+const owners = new WeakMap<ClankersStateContainer, symbol>();
 /** Non-executing recovery. Unknown/corrupt ledgers are errors, never an empty replacement. */
 export function recoverWorkflowState(value: unknown): WorkflowState {
   const state = copy(value) as WorkflowState;
@@ -316,7 +316,7 @@ function validateV2Ledger(run: WorkflowRun): void {
 }
 
 /** One owned scheduler; no SDK, tools, files, eval, arbitrary loops or automatic retries. */
-export function createWorkflowService(container: ZergStateContainer, port: WorkflowNativePort, options: WorkflowServiceOptions = {}): WorkflowService {
+export function createWorkflowService(container: ClankersStateContainer, port: WorkflowNativePort, options: WorkflowServiceOptions = {}): WorkflowService {
   const onStartReservation = options.onStartReservation;
   const hostAdmission = options.assertAdmission;
   const maxAdmissions = options.maxAdmissions ?? WORKFLOW_LIMITS.admissions;
@@ -758,8 +758,8 @@ export function createWorkflowService(container: ZergStateContainer, port: Workf
   const freshId = () => {
     const id = idFactory(); workflowAssert(typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$/.test(id) && !state.runs.some(r => r.workflowRunId === id), 'Workflow ID collision/invalid ID'); return id;
   };
-  const freezeAgents = (def: WorkflowDefinition): Record<string, ZergAgentDefinition> => {
-    const agents: Record<string, ZergAgentDefinition> = {};
+  const freezeAgents = (def: WorkflowDefinition): Record<string, ClankersAgentDefinition> => {
+    const agents: Record<string, ClankersAgentDefinition> = {};
     const agentIds = new Set<string>();
     for (const step of def.steps.flatMap(s => s.body ?? [s])) {
       if (step.kind === 'native') agentIds.add(step.agentId!);
@@ -1437,7 +1437,7 @@ export function createWorkflowService(container: ZergStateContainer, port: Workf
   const currentRecoverySnapshot = (run: WorkflowRun) => {
     const current = container.read();
     const requiredAgentIds = Object.keys(run.agents).sort();
-    const agents: Record<string, ZergAgentDefinition | null> = {};
+    const agents: Record<string, ClankersAgentDefinition | null> = {};
     const mismatches: string[] = [];
     for (const id of requiredAgentIds) {
       const source = current.agentDefinitions?.[id];

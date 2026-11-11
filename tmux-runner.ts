@@ -144,7 +144,7 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
   };
   if (process.platform !== 'linux' || !process.getuid) throw new Error('Tmux worker requires Linux /proc supervision');
   if (options.fallbackModels !== undefined && !options.modelSelection) throw new Error('Fallback selection must be frozen before launch');
-  const base = options.rootDir ?? join(options.agentDir, 'zerg-swarm', 'tmux');
+  const base = options.rootDir ?? join(options.agentDir, 'clankers', 'tmux');
   if (!isAbsolute(base) || /[\0\r\n]/.test(base)) throw new Error('Invalid tmux root');
   await admitted(() => mkdir(base, { recursive: true, mode: 0o700 }));
   if (await admitted(() => realpath(base)) !== base) throw new Error('Tmux root must be canonical');

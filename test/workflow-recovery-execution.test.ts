@@ -6,8 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readdirSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergState, createZergStateContainer, updateZergState } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer, updateClankersState } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash, workflowRecoveryAddresses, workflowStepEntries } from '../workflow-model.js';
 import { recoveryWriterUsage, validateRecoveryCheckpoint } from '../workflow-recovery.js';
@@ -29,7 +29,7 @@ async function waitFor<T>(get: () => T | undefined, label: string): Promise<T> {
   throw new Error(`deadline: ${label}`);
 }
 async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: boolean; nativeSettlement?: boolean; failAfterCommit?: boolean; cancelOnPublish?: boolean; priorAttempts?: number; writerLimit?: number; fanout?: boolean; failAfterCanonical?: boolean; unrelated?: boolean; repeatHistory?: boolean; cancelBoundary?: 'preflight' | 'effect-intent'; mutationPhase?: 'acquire' | 'id' | 'clock'; mutate?: (f: any) => void } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-selected-execution-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-selected-execution-'));
   const previousTmpdir = process.env.TMPDIR; process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage'), snapshotFile = join(root, 'state.json');
   mkdirSync(projectRoot, { mode: 0o700 }); mkdirSync(stagingParent, { mode: 0o700 }); mkdirSync(join(projectRoot, 'src'));
@@ -45,8 +45,8 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
     import { syncBuiltinESMExports } from 'node:module';
     import { join } from 'node:path';
     import { createWorkflowService } from ${JSON.stringify(runtimeUrl)};
-    import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(stateUrl)};
-    import { createZergPersistenceManager } from ${JSON.stringify(persistUrl)};
+    import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(stateUrl)};
+    import { createClankersPersistenceManager } from ${JSON.stringify(persistUrl)};
     import { workflowHash } from ${JSON.stringify(modelUrl)};
     const projectRoot=process.argv[1], stagingParent=process.argv[2], snapshotFile=process.argv[3];
     const boundary='after-write'; const interruptWriter=${JSON.stringify(options.interruptWriter ?? false)};
@@ -63,9 +63,9 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
       {id:'apply',kind:'coding',dependsOn:['review'],inputs:{},outputSchema:object({status:str,candidateHash:str,appliedPaths:array(str),rejectedPaths:array(str),diagnostics:array(str),outcomeHash:str}),coding:{operation:'apply',policy}}
     ]};
     const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-    const base=createZergStateContainer({agentDefinitions:agents});
-    const store=createZergPersistenceManager({snapshotFile}); store.hydrate(base);
-    const container={...base, replace(next){const value=createZergState(next);store.save(value);if(boundary==='before-write' && value.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(value);}, update(patch,options){const next=updateZergState(base.read(),patch,options);store.save(next);if(boundary==='before-write' && next.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(next);}};
+    const base=createClankersStateContainer({agentDefinitions:agents});
+    const store=createClankersPersistenceManager({snapshotFile}); store.hydrate(base);
+    const container={...base, replace(next){const value=createClankersState(next);store.save(value);if(boundary==='before-write' && value.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(value);}, update(patch,options){const next=updateClankersState(base.read(),patch,options);store.save(next);if(boundary==='before-write' && next.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && !r.recovery.operations.at(-1).result))pause();return base.replace(next);}};
     let runId='', approval;
     const keepAlive=setInterval(()=>{},1000);
     const native={preflight(){},async execute(req){
@@ -121,13 +121,13 @@ async function fixture(t: any, options: { interruptWriter?: boolean; repeat?: bo
       .replace(/    const d=await service.execute[\s\S]*?runId=r.view.workflowRunId;/, `    const source=service.get(${JSON.stringify(oldReady.runId)});const ids=source.definition.steps.flatMap(s=>s.kind==='repeat'?Array.from({length:s.maxIterations},(_,i)=>s.body.map(b=>s.id+'@'+i+'/'+b.id+':0')).flat():[s.id+':0']);const selections={rerunUnitIds:ids};const p=await service.recovery.prepare(source.workflowRunId,selections);if(p.assessment.plan.status!=='prepared')throw Error(JSON.stringify(p.assessment.blocked));const r=await service.recovery.authorize({workflowRunId:source.workflowRunId,assessmentFingerprint:p.assessment.fingerprint,selections});if(!r.ok)throw Error(r.error);runId=r.view.workflowRunId;`);
     processFixture = launch(continuationDriver); ready = await killProducer(); ancestorIds.push(ready.runId); ancestorOwners.push(ready.owner);
   }
-  const store = createZergPersistenceManager({ snapshotFile })!;
-  const base = createZergStateContainer(); store.hydrate(base);
+  const store = createClankersPersistenceManager({ snapshotFile })!;
+  const base = createClankersStateContainer(); store.hydrate(base);
   const originalSnapshot = readFileSync(snapshotFile); const originalStageEntries = readdirSync(stagingParent).sort();
   let publications = 0, nativeCalls = 0, freshWriter = '', freshReviewer = ''; let f: any, armed = false;
   const mutate = (phase: string) => { if (options.mutationPhase === phase) options.mutate?.(f); };
   const cancelBoundary = (phase: string) => { if (armed && options.cancelBoundary === phase) { armed = false; controller.abort(); } };
-  const container = { ...base, replace(next: ReturnType<typeof base.read>) { const value = createZergState(next); store.save(value); return base.replace(value); }, update(patch: any, opts: any) { const value = updateZergState(base.read(), patch, opts); store.save(value); const result = base.replace(value); const child = (value.extensions[WORKFLOW_EXTENSION_KEY] as any)?.runs?.find((r:any)=>r.workflowRunId==='selected-child'); if (child?.recovery?.operations.at(-1)?.kind==='stage-write' && !child.recovery.operations.at(-1).result) cancelBoundary('effect-intent'); return result; } };
+  const container = { ...base, replace(next: ReturnType<typeof base.read>) { const value = createClankersState(next); store.save(value); return base.replace(value); }, update(patch: any, opts: any) { const value = updateClankersState(base.read(), patch, opts); store.save(value); const result = base.replace(value); const child = (value.extensions[WORKFLOW_EXTENSION_KEY] as any)?.runs?.find((r:any)=>r.workflowRunId==='selected-child'); if (child?.recovery?.operations.at(-1)?.kind==='stage-write' && !child.recovery.operations.at(-1).result) cancelBoundary('effect-intent'); return result; } };
   const controller = new AbortController();
   const settledRequests: WorkflowRecoveryNativeSettlementRequest[] = [];
   const config: WorkflowServiceOptions = {
@@ -301,7 +301,7 @@ for (const label of ['empty', 'unselected', 'stale', 'cancel', 'unknown-native',
     const canonical = recoverWorkflowState(f.base.read().extensions[WORKFLOW_EXTENSION_KEY]);
     // Persisted selection cannot install authority in a new runtime, regardless of whether
     // the host published to its container before throwing.
-    const restored = createZergStateContainer(); const persistence = createZergPersistenceManager({snapshotFile:f.snapshotFile})!; persistence.hydrate(restored);
+    const restored = createClankersStateContainer(); const persistence = createClankersPersistenceManager({snapshotFile:f.snapshotFile})!; persistence.hydrate(restored);
     const fresh = createWorkflowService(restored,f.native,f.config);
     await Promise.resolve(); assert.equal(fresh.approvals.inspect().length,0); assert.equal(f.nativeCalls,0); assert.equal(fresh.list().filter(r=>r.recoveryOf===f.ready.runId).length,1); fresh.dispose(); void canonical;
     return;
@@ -317,7 +317,7 @@ test('SIGKILL interrupted writer requires exact positive local settlement then n
   const impl = await pendingApproval(f,'implementation'); assert.equal(f.nativeCalls,0); assert.ok(f.settledRequests.length > 0);
   for (const req of f.settledRequests) { assert.equal(req.workflowRunId,f.ready.runId); assert.equal(req.unitId,'stage:0'); assert.equal(req.native!.runId,'native-stage-write'); assert.match(req.dependencyHash,/^[a-f0-9]{64}$/); }
   // Startup restores statuses/receipts only, no live plan or inherited approvals.
-  const restored = createZergStateContainer(); const store = createZergPersistenceManager({snapshotFile:f.snapshotFile})!; store.hydrate(restored);
+  const restored = createClankersStateContainer(); const store = createClankersPersistenceManager({snapshotFile:f.snapshotFile})!; store.hydrate(restored);
   const fresh = createWorkflowService(restored,f.native,f.config); assert.equal(fresh.get(childId)!.recovered,true); assert.equal(fresh.get(childId)!.status,'needs-attention'); assert.equal(fresh.approvals.inspect().length,0); fresh.dispose();
   f.service.approvals.grantFingerprint(impl.id,impl.requestHash); const app = await pendingApproval(f,'application'); f.service.approvals.grantFingerprint(app.id,app.requestHash); await f.service.drain(); assert.equal(f.service.get(childId)!.status,'completed');
 });
@@ -399,7 +399,7 @@ for (const outcome of ['cancelled','failed','restarted'] as const) test(`linked 
   await f.service.drain(); const source=f.service.get(f.ready.runId)!, child=f.service.get(childId)!; assert.equal(child.status,outcome==='failed'?'failed':'cancelled'); assert.equal(child.cleanupSettled,true);assert.equal(child.recovered,false);assert.ok(child.recovery!.origin);
   const budget=structuredClone(child.recovery!.budget);const reply=await f.service.execute({action:'workflows.retry',workflowRunId:childId});assert.equal(reply.ok,false);assert.match(reply.error!,/Linked recovery.*fresh trusted recovery authorization/);assert.equal(f.service.list().length,2);assert.equal(f.nativeCalls,0);assert.deepEqual(f.service.get(childId)!.recovery!.budget,budget);assert.deepEqual(f.service.get(f.ready.runId)!.steps,source.steps);
   if (outcome==='restarted') {
-    const restored=createZergStateContainer();const persistence=createZergPersistenceManager({snapshotFile:f.snapshotFile})!;persistence.hydrate(restored);const fresh=createWorkflowService(restored,f.native,f.config);
+    const restored=createClankersStateContainer();const persistence=createClankersPersistenceManager({snapshotFile:f.snapshotFile})!;persistence.hydrate(restored);const fresh=createWorkflowService(restored,f.native,f.config);
     const again=await fresh.execute({action:'workflows.retry',workflowRunId:childId});assert.equal(again.ok,false);assert.match(again.error!,/Linked recovery.*fresh trusted recovery authorization/);assert.equal(fresh.list().length,2);assert.equal(fresh.approvals.inspect().length,0);fresh.dispose();
   }
 });

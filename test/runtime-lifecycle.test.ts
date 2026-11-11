@@ -5,21 +5,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
-import { createZergControl, registerZergSwarmExtension } from '../index.js';
-import { createZergPersistenceManager } from '../persistence.js';
-import { applyRuntimeTransition, createZergState, createZergStateContainer, getZergLogs, readSharedZergState, replaceSharedZergState, snapshotZergState, updateZergState, upsertTask } from '../state.js';
-import type { ZergState, ZergStateContainer, ZergSubagentControlAdapter } from '../types.js';
+import { createClankersControl, registerClankersExtension } from '../index.js';
+import { createClankersPersistenceManager } from '../persistence.js';
+import { applyRuntimeTransition, createClankersState, createClankersStateContainer, getClankersLogs, readSharedClankersState, replaceSharedClankersState, snapshotClankersState, updateClankersState, upsertTask } from '../state.js';
+import type { ClankersState, ClankersStateContainer, ClankersSubagentControlAdapter } from '../types.js';
 
-const ids = { runId: () => 'zerg-runtime-test', taskId: () => 'task-runtime-test' };
-const seed = () => createZergState({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', prompt: 'Literal task only.', source: 'runtime' } } });
-const fakeAdapter = (launch: ZergSubagentControlAdapter['launch'] = () => ({ ok: true, message: 'accepted' })): ZergSubagentControlAdapter => ({ kind: 'fake', launch });
+const ids = { runId: () => 'clankers-runtime-test', taskId: () => 'task-runtime-test' };
+const seed = () => createClankersState({ agentDefinitions: { worker: { id: 'worker', label: 'Worker', prompt: 'Literal task only.', source: 'runtime' } } });
+const fakeAdapter = (launch: ClankersSubagentControlAdapter['launch'] = () => ({ ok: true, message: 'accepted' })): ClankersSubagentControlAdapter => ({ kind: 'fake', launch });
 
 for (const method of ['replace', 'update'] as const) {
   test(`control persistence saves canonical state after reentrant ${method}`, async () => {
-    const root = mkdtempSync(join(tmpdir(), 'zerg-runtime-persist-'));
-    const container = createZergStateContainer(seed());
+    const root = mkdtempSync(join(tmpdir(), 'clankers-runtime-persist-'));
+    const container = createClankersStateContainer(seed());
     const snapshotFile = join(root, 'state.json');
-    const control = createZergControl(container, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
+    const control = createClankersControl(container, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
     let reentered = false;
     const unsubscribe = container.subscribe!(() => {
       if (reentered) return;
@@ -35,7 +35,7 @@ for (const method of ['replace', 'update'] as const) {
         const wrapped = extractControlPersistenceWrapper(container, snapshotFile);
         wrapped.update({ mode: { ...container.read().mode, readOnly: false } });
       }
-      const saved = JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ZergState };
+      const saved = JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ClankersState };
       assert.equal(container.read().mode.readOnly, true);
       assert.equal(saved.state.mode.readOnly, true);
     } finally {
@@ -49,9 +49,9 @@ for (const method of ['replace', 'update'] as const) {
 // Pure exact-source extraction avoids adding public test seams or starting SDKs.
 const indexSource = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
 const parsed = ts.createSourceFile('index.ts', indexSource, ts.ScriptTarget.ES2022, true);
-function extractControlPersistenceWrapper(container: ZergStateContainer, snapshotFile: string): ZergStateContainer {
-  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'createZergControl');
-  assert.ok(owner, 'createZergControl source missing');
+function extractControlPersistenceWrapper(container: ClankersStateContainer, snapshotFile: string): ClankersStateContainer {
+  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'createClankersControl');
+  assert.ok(owner, 'createClankersControl source missing');
   const statements = owner.body?.statements ?? [];
   const start = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'committingPersistentState'));
   const end = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'container'));
@@ -62,28 +62,28 @@ function extractControlPersistenceWrapper(container: ZergStateContainer, snapsho
   const source = `${[...statements.slice(preparedStart, preparedEnd + 1), ...statements.slice(start, end + 1)].map((node) => node.getText(parsed)).join('\n')}\nreturn container;`;
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   // Use the actual persistence implementation, not a handwritten save stand-in.
-  return new Function('startupRecoveryBlock', 'baseContainer', 'persistenceManager', 'options', 'createZergState', 'updateZergState', 'snapshotZergState', 'isDeepStrictEqual', 'associatedPersistenceManager', js)(undefined, container, createPersistence(snapshotFile), {}, createZergState, updateZergState, snapshotZergState, isDeepStrictEqual, undefined) as ZergStateContainer;
+  return new Function('startupRecoveryBlock', 'baseContainer', 'persistenceManager', 'options', 'createClankersState', 'updateClankersState', 'snapshotClankersState', 'isDeepStrictEqual', 'associatedPersistenceManager', js)(undefined, container, createPersistence(snapshotFile), {}, createClankersState, updateClankersState, snapshotClankersState, isDeepStrictEqual, undefined) as ClankersStateContainer;
 }
-function createPersistence(snapshotFile: string) { return createZergPersistenceManager({ snapshotFile }); }
+function createPersistence(snapshotFile: string) { return createClankersPersistenceManager({ snapshotFile }); }
 
-function extractRegistrationPersistenceWrapper(container: ZergStateContainer, persistenceManager: ReturnType<typeof createZergPersistenceManager>, syncSharedStateFromContainer: () => void): ZergStateContainer {
-  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'registerZergSwarmExtension');
-  assert.ok(owner, 'registerZergSwarmExtension source missing');
+function extractRegistrationPersistenceWrapper(container: ClankersStateContainer, persistenceManager: ReturnType<typeof createClankersPersistenceManager>, syncSharedStateFromContainer: () => void): ClankersStateContainer {
+  const owner = parsed.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'registerClankersExtension');
+  assert.ok(owner, 'registerClankersExtension source missing');
   const statements = owner.body?.statements ?? [];
   const start = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'committingPersistentState'));
   const end = statements.findIndex((node) => ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'syncedStateContainer'));
   assert.ok(start >= 0 && end >= start, 'registration persistence wrapper source block missing');
   const source = `${statements.slice(start, end + 1).map((node) => node.getText(parsed)).join('\n')}\nreturn syncedStateContainer;`;
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-  return new Function('startupRecoveryBlock', 'stateContainer', 'persistenceManager', 'options', 'syncSharedStateFromContainer', 'createZergState', 'updateZergState', 'snapshotZergState', 'isDeepStrictEqual', 'ownedPersistenceManagers', js)(undefined, container, persistenceManager, {}, syncSharedStateFromContainer, createZergState, updateZergState, snapshotZergState, isDeepStrictEqual, new WeakMap()) as ZergStateContainer;
+  return new Function('startupRecoveryBlock', 'stateContainer', 'persistenceManager', 'options', 'syncSharedStateFromContainer', 'createClankersState', 'updateClankersState', 'snapshotClankersState', 'isDeepStrictEqual', 'ownedPersistenceManagers', js)(undefined, container, persistenceManager, {}, syncSharedStateFromContainer, createClankersState, updateClankersState, snapshotClankersState, isDeepStrictEqual, new WeakMap()) as ClankersStateContainer;
 }
 
 for (const method of ['replace', 'update'] as const) {
   test(`registration persistence wrapper saves canonical reentrant ${method}`, () => {
-    const root = mkdtempSync(join(tmpdir(), 'zerg-runtime-registration-'));
-    const container = createZergStateContainer(seed());
+    const root = mkdtempSync(join(tmpdir(), 'clankers-runtime-registration-'));
+    const container = createClankersStateContainer(seed());
     const snapshotFile = join(root, 'state.json');
-    let shared: ZergState | undefined;
+    let shared: ClankersState | undefined;
     const wrapped = extractRegistrationPersistenceWrapper(container, createPersistence(snapshotFile), () => { shared = container.snapshot(); });
     let reentered = false;
     const unsubscribe = container.subscribe!(() => {
@@ -96,16 +96,16 @@ for (const method of ['replace', 'update'] as const) {
       const result = wrapped[method](container.snapshot());
       assert.equal(result.mode.readOnly, true);
       assert.equal(shared?.mode.readOnly, true);
-      assert.equal((JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ZergState }).state.mode.readOnly, true);
+      assert.equal((JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ClankersState }).state.mode.readOnly, true);
     } finally { unsubscribe(); rmSync(root, { recursive: true, force: true }); }
   });
 }
 
 for (const revoke of ['readonly', 'disposed', 'cancelled', 'cancelling'] as const) {
   test(`run rechecks canonical ${revoke} after observable publication`, async () => {
-    const container = createZergStateContainer(seed());
+    const container = createClankersStateContainer(seed());
     let launches = 0;
-    const control = createZergControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => { launches++; return { ok: true, message: 'accepted' }; }) });
+    const control = createClankersControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => { launches++; return { ok: true, message: 'accepted' }; }) });
     let reentered = false;
     const unsubscribe = container.subscribe!((state) => {
       if (reentered || !state.tasks[ids.taskId()]) return;
@@ -131,7 +131,7 @@ for (const revoke of ['readonly', 'disposed', 'cancelled', 'cancelling'] as cons
 
 for (const outcome of ['reject', 'throw', 'cancel-reject', 'cancel-throw'] as const) {
   test(`launch ${outcome} terminalizes without reviving cancelled authority`, async () => {
-    const container = createZergStateContainer(seed());
+    const container = createClankersStateContainer(seed());
     const adapter = fakeAdapter(() => {
       if (outcome.startsWith('cancel')) {
         const state = container.read();
@@ -140,7 +140,7 @@ for (const outcome of ['reject', 'throw', 'cancel-reject', 'cancel-throw'] as co
       if (outcome.endsWith('throw')) throw new Error('original startup fault');
       return { ok: false, message: 'original rejected launch' };
     });
-    const control = createZergControl(container, { idFactory: ids, subagentAdapter: adapter });
+    const control = createClankersControl(container, { idFactory: ids, subagentAdapter: adapter });
     try {
       const result = await control.execute({ action: 'run', agent: 'worker', task: 'Fail deterministically.', background: true });
       assert.equal(result.ok, false);
@@ -158,8 +158,8 @@ for (const outcome of ['reject', 'throw', 'cancel-reject', 'cancel-throw'] as co
 }
 
 test('throw after observed completion preserves done and task identity without claiming launch never executed', async () => {
-  const container = createZergStateContainer(seed());
-  const control = createZergControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => {
+  const container = createClankersStateContainer(seed());
+  const control = createClankersControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => {
     const state = container.read();
     container.replace(upsertTask(applyRuntimeTransition(state, { entity: 'agent', action: 'stop', id: ids.runId(), kind: 'subagent', status: 'done', substate: 'completed', substateReason: 'observed completion' }), { ...state.tasks[ids.taskId()]!, status: 'done', substate: 'completed' }));
     throw new Error('post-completion adapter fault');
@@ -176,11 +176,11 @@ test('throw after observed completion preserves done and task identity without c
   } finally { control.dispose(); }
 });
 test('legacy messages obey readonly and pre-aborted signals, preserving literal supported delivery', async () => {
-  const container = createZergStateContainer(seed());
+  const container = createClankersStateContainer(seed());
   const deliveries: unknown[][] = [];
   const adapter = fakeAdapter();
   adapter.sendMessage = (...args) => { deliveries.push(args); return { ok: true, targetId: args[0], runId: args[2], status: 'queued', message: 'queued' }; };
-  const control = createZergControl(container, { subagentAdapter: adapter });
+  const control = createClankersControl(container, { subagentAdapter: adapter });
   const action = { action: 'message' as const, targetId: 'worker', runId: 'legacy-run', body: ' literal\nbody ', mode: 'followUp' as const };
   try {
     const state = container.read();
@@ -214,60 +214,60 @@ function eventBus(throwFirst = false) {
 
 for (const failAt of ['command', 'shutdown-hook'] as const) {
   test(`startup rollback cleans created adapter on ${failAt} failure and preserves original error`, () => {
-    const shared = readSharedZergState();
+    const shared = readSharedClankersState();
     const bus = eventBus();
     const fault = new Error('original registration fault');
     try {
-      assert.throws(() => registerZergSwarmExtension({
+      assert.throws(() => registerClankersExtension({
         events: bus,
         ...(failAt === 'shutdown-hook' ? { on() { throw fault; } } : {}),
         registerCommand() { throw fault; },
       }), (error) => error === fault);
       for (const name of ['subagent:slash:started', 'subagent:slash:update', 'subagent:slash:response']) assert.equal(bus.listeners.get(name)?.size, 0);
       assert.equal(bus.attempts.length, 3);
-    } finally { replaceSharedZergState(shared); }
+    } finally { replaceSharedClankersState(shared); }
   });
 }
 
 test('registered control shares owner persistence after startup publication and workflow reads', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-runtime-owner-persist-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-runtime-owner-persist-'));
   const snapshotFile = join(root, 'state.json');
-  const shared = readSharedZergState();
+  const shared = readSharedClankersState();
   const bus = eventBus();
-  replaceSharedZergState(seed());
-  const registration = registerZergSwarmExtension({ events: bus, registerCommand() { return { dispose() {} }; } }, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
+  replaceSharedClankersState(seed());
+  const registration = registerClankersExtension({ events: bus, registerCommand() { return { dispose() {} }; } }, { persistence: { snapshotFile }, subagentAdapter: fakeAdapter() });
   try {
     bus.emit('startup:observed');
     const created = await registration.control.execute({ action: 'agents.create', id: 'extra', prompt: 'Extra.' });
     assert.equal(created.ok, true);
     const listed = await registration.control.execute({ action: 'workflows.list' });
     assert.equal(listed.ok, true);
-    const saved = JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ZergState };
+    const saved = JSON.parse(readFileSync(snapshotFile, 'utf8')) as { state: ClankersState };
     assert.equal(saved.state.agentDefinitions.extra?.prompt, 'Extra.');
     assert.equal(registration.control.getState().agentDefinitions.extra?.prompt, 'Extra.');
   } finally {
     registration.dispose();
-    replaceSharedZergState(shared);
+    replaceSharedClankersState(shared);
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test('startup rollback attempts supplied adapter disposal even when it throws', () => {
-  const shared = readSharedZergState();
+  const shared = readSharedClankersState();
   const fault = new Error('startup fault');
   let disposed = 0;
   const adapter = fakeAdapter();
   adapter.dispose = () => { disposed++; throw new Error('rollback fault'); };
   try {
-    assert.throws(() => registerZergSwarmExtension({ registerCommand() { throw fault; } }, { subagentAdapter: adapter }), (error) => error === fault);
+    assert.throws(() => registerClankersExtension({ registerCommand() { throw fault; } }, { subagentAdapter: adapter }), (error) => error === fault);
     assert.equal(disposed, 1);
-  } finally { replaceSharedZergState(shared); }
+  } finally { replaceSharedClankersState(shared); }
 });
 
 test('throwing bridge unsubscriber does not block other cleanup; fault remains truthful and disposal idempotent', () => {
-  const shared = readSharedZergState();
+  const shared = readSharedClankersState();
   const bus = eventBus(true);
-  const registration = registerZergSwarmExtension({ events: bus, registerCommand() { return { dispose() {} }; } });
+  const registration = registerClankersExtension({ events: bus, registerCommand() { return { dispose() {} }; } });
   try {
     assert.throws(() => registration.dispose(), /external unsubscribe fault/);
     assert.deepEqual(bus.attempts, ['subagent:slash:started', 'subagent:slash:update', 'subagent:slash:response']);
@@ -276,7 +276,7 @@ test('throwing bridge unsubscriber does not block other cleanup; fault remains t
     assert.equal(bus.listeners.get('subagent:slash:response')?.size, 0);
     assert.doesNotThrow(() => registration.dispose());
     assert.equal(bus.attempts.length, 3);
-  } finally { registration.dispose(); replaceSharedZergState(shared); }
+  } finally { registration.dispose(); replaceSharedClankersState(shared); }
 });
 
 test('native abort isolates sync throws and async rejections and still signals siblings without SDK startup', async () => {
@@ -314,10 +314,10 @@ test('native abort isolates sync throws and async rejections and still signals s
 
 for (const revoke of ['signal', 'owner-dispose'] as const) {
   test(`dispatch publication rechecks private ${revoke} before injected launch`, async () => {
-    const container = createZergStateContainer(seed());
+    const container = createClankersStateContainer(seed());
     const abort = new AbortController();
     let launches = 0;
-    const control = createZergControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => { launches++; return { ok: true, message: 'accepted' }; }) });
+    const control = createClankersControl(container, { idFactory: ids, subagentAdapter: fakeAdapter(() => { launches++; return { ok: true, message: 'accepted' }; }) });
     let fired = false;
     const unsubscribe = container.subscribe!((state) => {
       if (fired || !state.tasks[ids.taskId()]) return;
@@ -342,24 +342,24 @@ for (const lane of ['native', 'bridge', 'fallback'] as const) {
   for (const revoke of ['readonly', 'signal', 'owner-dispose', 'cancelled', 'cancelling'] as const) {
     if (lane !== 'native' && revoke === 'cancelling') continue; // Public bridge interrupt is immediately cancelled.
     test(`${lane} publication rechecks ${revoke} before request delivery/native runner`, { timeout: 5_000 }, async () => {
-      const shared = readSharedZergState();
-      const container = createZergStateContainer(seed());
+      const shared = readSharedClankersState();
+      const container = createClankersStateContainer(seed());
       const abort = new AbortController();
       const bus = eventBus();
       let requests = 0;
       let fired = false;
       let component: { dispose?(): void } | undefined;
       let handler: ((input: string, context: any) => unknown) | undefined;
-      let registration: ReturnType<typeof registerZergSwarmExtension> | undefined;
-      let control: ReturnType<typeof createZergControl>;
-      const observe = (state: ZergState) => {
+      let registration: ReturnType<typeof registerClankersExtension> | undefined;
+      let control: ReturnType<typeof createClankersControl>;
+      const observe = (state: ClankersState) => {
         const target = lane === 'bridge' ? `bridge request emitted for ${ids.runId()}` : `pi native launch started ${ids.runId()}`;
-        if (fired || !getZergLogs(state).some((record) => record.message === target)) return;
+        if (fired || !getClankersLogs(state).some((record) => record.message === target)) return;
         fired = true;
         if (revoke === 'signal') abort.abort();
         else if (revoke === 'owner-dispose') { if (registration) registration.dispose(); else control.dispose(); }
         else if (registration) {
-          if (revoke === 'readonly') void handler!('/zerg control readonly on', { ui: { notify() {} } });
+          if (revoke === 'readonly') void handler!('/clankers control readonly on', { ui: { notify() {} } });
           else void control.execute({ action: 'interrupt', runId: ids.runId() });
         } else if (revoke === 'readonly') container.replace({ ...state, mode: { ...state.mode, readOnly: true } });
         else {
@@ -370,14 +370,14 @@ for (const lane of ['native', 'bridge', 'fallback'] as const) {
       let unsubscribe: (() => void) | undefined;
       try {
         if (lane === 'native') {
-          control = createZergControl(container, { idFactory: ids });
+          control = createClankersControl(container, { idFactory: ids });
           unsubscribe = container.subscribe!(observe);
         } else {
-          replaceSharedZergState(seed());
+          replaceSharedClankersState(seed());
           bus.on('subagent:slash:request', () => { requests++; });
-          registration = registerZergSwarmExtension({ events: bus, registerCommand(_name, options) { handler = options.handler; return { dispose() {} }; } }, { idFactory: ids });
+          registration = registerClankersExtension({ events: bus, registerCommand(_name, options) { handler = options.handler; return { dispose() {} }; } }, { idFactory: ids });
           control = registration.control;
-          await handler!('/zerg monitor', { ui: { custom(factory: any) {
+          await handler!('/clankers monitor', { ui: { custom(factory: any) {
             component = factory({ requestRender() { observe(registration!.state); } }, undefined, undefined, () => undefined);
             return Promise.resolve();
           } } });
@@ -401,7 +401,7 @@ for (const lane of ['native', 'bridge', 'fallback'] as const) {
       } finally {
         unsubscribe?.(); component?.dispose?.(); registration?.dispose();
         if (!registration) control!.dispose();
-        replaceSharedZergState(shared);
+        replaceSharedClankersState(shared);
       }
     });
   }
@@ -409,17 +409,17 @@ for (const lane of ['native', 'bridge', 'fallback'] as const) {
 
 for (const publication of ['control', 'lifecycle', 'log'] as const) {
   test(`public native interrupt owns cancellation before ${publication} publication returns`, async () => {
-    const container = createZergStateContainer(seed());
-    const control = createZergControl(container, { idFactory: ids });
+    const container = createClankersStateContainer(seed());
+    const control = createClankersControl(container, { idFactory: ids });
     let interrupted: ReturnType<typeof control.execute> | undefined;
     let fired = false;
     const unsubscribe = container.subscribe!((state) => {
       if (fired) return;
       const visible = publication === 'control'
-        ? (state.extensions.zergControl as { activeRunId?: string } | undefined)?.activeRunId === ids.runId()
+        ? (state.extensions.clankersControl as { activeRunId?: string } | undefined)?.activeRunId === ids.runId()
         : publication === 'lifecycle'
           ? state.agents[ids.runId()]?.runtime?.substateReason === 'pi native runner started'
-          : getZergLogs(state).some((record) => record.message === `pi native launch started ${ids.runId()}`);
+          : getClankersLogs(state).some((record) => record.message === `pi native launch started ${ids.runId()}`);
       if (!visible) return;
       fired = true;
       interrupted = control.execute({ action: 'interrupt', runId: ids.runId() });

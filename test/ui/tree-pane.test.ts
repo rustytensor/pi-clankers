@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createZergState } from '../../state.js';
+import { createClankersState } from '../../state.js';
 import { createManagementUiState } from '../../ui/state.js';
 import { activateTreeSelection, buildManagementTreeRows, collapseTreeSelection, createTreePaneState, expandTreeSelection, moveTreeCursor } from '../../ui/tree-pane.js';
 
 test('M9 tree pane builds live hierarchy, expands, clamps, and does not churn confirmed selection on cursor moves', () => {
-  const state = createZergState({
+  const state = createClankersState({
     agents: Object.fromEntries(Array.from({ length: 25 }, (_, index) => [`agent-${index}`, { id: `agent-${index}`, label: `Agent ${index}`, kind: 'subagent' as const, status: 'idle' as const }])),
     teams: {
       alpha: { id: 'alpha', label: 'Alpha', kind: 'team', status: 'running', leaderAgentId: 'agent-0', memberAgentIds: ['agent-1'], taskIds: ['task-1'] },

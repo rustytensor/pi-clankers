@@ -8,7 +8,7 @@ import test from 'node:test';
 
 // Default npm test MUST NOT launch new SDK/model/PTY acceptance. The integrating
 // parent grants this separately, after independently reading the staged harnesses.
-const approved = process.env.ZERG_WORKFLOW_ACCEPTANCE === 'parent-approved';
+const approved = process.env.CLANKERS_WORKFLOW_ACCEPTANCE === 'parent-approved';
 const safetyUrl = new URL('./fixtures/host-fixture-safety.mjs', import.meta.url).href;
 const loader = createRequire(import.meta.url).resolve('tsx');
 
@@ -22,7 +22,7 @@ for (const [fixture, deadline, marker] of [
   }, async () => {
     // Dynamic helper import only after opt-in; never import either heavy fixture.
     const safety = await import(safetyUrl);
-    const root = mkdtempSync(join(tmpdir(), 'zerg-workflow-acceptance-'));
+    const root = mkdtempSync(join(tmpdir(), 'clankers-workflow-acceptance-'));
     safety.assertAncestorIsolation(root);
     mkdirSync(join(root, 'work'));
     const controllerPath = join(root, 'controller.py');

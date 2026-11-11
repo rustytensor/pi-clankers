@@ -1,11 +1,11 @@
-// Test-only host. No injected WorkflowNativePort: createZergControl and the
+// Test-only host. No injected WorkflowNativePort: createClankersControl and the
 // registered extension own their real, sealed native SDK runner.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createZergControl, registerZergSwarmExtension } from '../../index.js';
-import { createZergStateContainer } from '../../state.js';
+import { createClankersControl, registerClankersExtension } from '../../index.js';
+import { createClankersStateContainer } from '../../state.js';
 import { workflowHash, workflowStepEntries } from '../../workflow-model.js';
 import type { WorkflowRecoveryNativeSettlementRequest } from '../../workflow-model.js';
 
@@ -111,7 +111,7 @@ async function approval(control: any, kind: string) {
   return control.workflowApprovals.inspect().find((r: any) => r.kind === kind && r.status === 'pending');
 }
 async function oldPhase(control: any) {
-  for (const [id, model] of [['writer', 'fixture/writer'], ['reviewer', 'fixture/reviewer']]) await exec(control, { action: 'agents.create', id, model, tools: ['read', 'write', 'bash', 'zerg_control'], prompt: 'Use controlled workflow stage tools only.' });
+  for (const [id, model] of [['writer', 'fixture/writer'], ['reviewer', 'fixture/reviewer']]) await exec(control, { action: 'agents.create', id, model, tools: ['read', 'write', 'bash', 'clankers_control'], prompt: 'Use controlled workflow stage tools only.' });
   const def = definition(); await exec(control, { action: 'workflows.define', definition: def });
   const runId = (await exec(control, { action: 'workflows.start', definitionId: def.id, inputs: {}, concurrency: 1 })).data.view.workflowRunId;
   const impl = await approval(control, 'implementation'); control.workflowApprovals.grantFingerprint(impl.id, impl.requestHash);
@@ -141,7 +141,7 @@ async function freshAssessment(control: any) {
   const before = effects();
   assert.equal(nativeSessions.length, 0);
   assert.deepEqual(control.workflowApprovals.inspect(), [], 'no old live grants');
-  const missingCallback = createZergControl(undefined, { ...options(), recovery: { enabled: true } });
+  const missingCallback = createClankersControl(undefined, { ...options(), recovery: { enabled: true } });
   try { const denied = (await exec(missingCallback, { action: 'workflows.recovery.prepare', workflowRunId: old.runId })).data.assessment; assert(denied.blocked.some((b: string) => b.includes('native-settlement-unknown')), 'missing callback defaults to UNKNOWN'); } finally { missingCallback.dispose(); }
   settlementEnabled = false;
   const unknown = (await exec(control, { action: 'workflows.recovery.prepare', workflowRunId: old.runId })).data.assessment;
@@ -167,7 +167,7 @@ async function freshAssessment(control: any) {
   assert.equal((await control.execute({ action: 'workflows.recovery.prepare', workflowRunId: old.runId, selections, inspectNativeSettlement: 'settled', grant: true })).ok, false, 'model flags cannot turn prepare into authority');
   // A separate real hydrated host, temporarily in read-only caller mode. No
   // persistence write and no recovery record modification.
-  const base = createZergStateContainer(); const ro = createZergControl(base, options());
+  const base = createClankersStateContainer(); const ro = createClankersControl(base, options());
   const state = base.read(); base.replace({ ...state, mode: { ...state.mode, readOnly: true } });
   try { assert.equal((await ro.workflowRecovery!.authorize(request)).ok, false); } finally { ro.dispose(); }
   assert.deepEqual(effects(), before, 'startup + inspect/prepare/negatives zero project/artifact/snapshot writes');
@@ -231,24 +231,24 @@ async function finish(control: any, context: Awaited<ReturnType<typeof freshAsse
 
 export default async function recoveryHostFixture(pi: any) {
   await watchSDK();
-  let zergCommand: any;
-  const proxy = new Proxy(pi, { get(target, key) { if (key === 'registerCommand') return (name: string, value: any) => { if (name === 'zerg') zergCommand = value.handler; return target.registerCommand(name, value); }; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value; } });
-  const registration = registerZergSwarmExtension(proxy, options());
+  let clankersCommand: any;
+  const proxy = new Proxy(pi, { get(target, key) { if (key === 'registerCommand') return (name: string, value: any) => { if (name === 'clankers') clankersCommand = value.handler; return target.registerCommand(name, value); }; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value; } });
+  const registration = registerClankersExtension(proxy, options());
   pi.on('session_shutdown', () => registration.dispose());
   pi.on('session_start', (_: unknown, ctx: any) => {
     setTimeout(() => { void (async () => {
       if (phase === 'old') return oldPhase(registration.control);
       const prepared = await freshAssessment(registration.control);
-      // PTY drives REAL registered /zerg monitor. No handleInput injection and
+      // PTY drives REAL registered /clankers monitor. No handleInput injection and
       // no host authorize call outside the real recovery UI.
-      await zergCommand('workflows monitor ' + prepared.old.runId, ctx);
+      await clankersCommand('workflows monitor ' + prepared.old.runId, ctx);
       put('closed-first.json', { count: (registration.control.getState().extensions.workflows as any).runs.length, sessions: nativeSessions.length });
       assert.equal((registration.control.getState().extensions.workflows as any).runs.length, 1, 'close/navigation did not cancel or authorize');
       const afterClose = runOf(registration.control, prepared.old.runId); assert.equal(afterClose.status, 'needs-attention');
       assert.equal(workflowHash({ steps: afterClose.steps, original: afterClose.recoveryOriginal, operations: afterClose.recovery.operations }), prepared.sourceHistory, 'UI close/navigation preserved unverified source history');
       assert.equal(workflowHash(effects()), read('ready.json').effectsHash, 'UI inspect/navigation/close remains read-only');
       const selected = (async () => { await until(() => (registration.control.getState().extensions.workflows as any).runs.some((r: any) => r.recoveryOf === prepared.old.runId), 'UI trusted confirmation'); put('selected.json', { selected: true }); })().then(() => ({ error: undefined }), error => ({ error }));
-      await zergCommand('workflows monitor ' + prepared.old.runId, ctx);
+      await clankersCommand('workflows monitor ' + prepared.old.runId, ctx);
       const selectedResult = await selected; if (selectedResult.error) throw selectedResult.error;
       await finish(registration.control, prepared, ctx);
       registration.dispose(); ctx.shutdown();
@@ -258,7 +258,7 @@ export default async function recoveryHostFixture(pi: any) {
 
 if (process.argv.includes('--sdk')) {
   await watchSDK();
-  const control = createZergControl(undefined, options());
+  const control = createClankersControl(undefined, options());
   try {
     if (phase === 'old') await oldPhase(control);
     else { const prepared = await freshAssessment(control); const result = await control.workflowRecovery!.authorize!(prepared.request); assert(result.ok, JSON.stringify(result)); await finish(control, prepared); }

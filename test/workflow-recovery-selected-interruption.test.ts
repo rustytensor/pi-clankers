@@ -104,8 +104,8 @@ function launch(root: string, label: string, source: string): OwnedProcess {
 const common = `
 import assert from 'node:assert/strict';import fs from 'node:fs';import {join} from 'node:path';import {createHash} from 'node:crypto';
 import {createWorkflowService,recoverWorkflowState} from ${JSON.stringify(urls['workflow-runtime'])};
-import {createZergStateContainer,createZergState,updateZergState} from ${JSON.stringify(urls.state)};
-import {createZergPersistenceManager} from ${JSON.stringify(urls.persistence)};
+import {createClankersStateContainer,createClankersState,updateClankersState} from ${JSON.stringify(urls.state)};
+import {createClankersPersistenceManager} from ${JSON.stringify(urls.persistence)};
 import {workflowHash} from ${JSON.stringify(urls['workflow-model'])};
 const root=process.argv[1],projectRoot=join(root,'project'),stagingParent=join(root,'stage'),snapshotFile=join(root,'state.json');
 const boundedRead=p=>{assert(fs.lstatSync(p).size<=1024*1024,'bounded fixture JSON');return JSON.parse(fs.readFileSync(p,'utf8'));};
@@ -119,7 +119,7 @@ function previous(owner){
 const profile={id:'node',executable:process.execPath,argv:['-e','process.exit(0)'],cwd:'src',env:{},timeoutMs:2000,outputBytes:65536,generatedOutputs:[]};
 const coding={enabled:true,projectRoot,stagingParent,writablePaths:['src/a.txt'],checkProfiles:{node:profile}};
 const snapshot=()=>boundedRead(snapshotFile).state.extensions.workflows;
-const base=createZergStateContainer(),store=createZergPersistenceManager({snapshotFile});store.hydrate(base);
+const base=createClankersStateContainer(),store=createClankersPersistenceManager({snapshotFile});store.hydrate(base);
 `;
 
 function producerSource(): string {
@@ -136,7 +136,7 @@ const definition={id:'selected-interruption',version:3,label:'Selected interrupt
 ]};
 base.update({agentDefinitions:Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]))});
 const save=next=>{store.save(next);return base.replace(next);};
-const container={...base,replace:next=>save(createZergState(next)),update:(patch,options)=>save(updateZergState(base.read(),patch,options))};
+const container={...base,replace:next=>save(createClankersState(next)),update:(patch,options)=>save(updateClankersState(base.read(),patch,options))};
 let runId='',approval;
 // CLOSED OWNED PORT: the only effect is synchronous coding.write in THIS process.
 // It does not spawn, dispatch, detach or return completed; then awaits forever.
@@ -194,7 +194,7 @@ function save(next){
  }
  return value;
 }
-const container={...base,replace:next=>save(createZergState(next)),update:(patch,options)=>save(updateZergState(base.read(),patch,options))};
+const container={...base,replace:next=>save(createClankersState(next)),update:(patch,options)=>save(updateClankersState(base.read(),patch,options))};
 const durable={ensureWriter:()=>store.acquireRecoveryOwnership().owner,inspectOwner:()=>store.inspectRecoveryOwnership(),inspectPreviousOwner:previous,
  acquireWriter:opts=>{effects.acquire++;assert.deepEqual(opts.verifiedDeadOwner,old.owner);assert.equal(opts.expectedSnapshotHash,store.inspectRecoveryOwnership().actualSnapshotHash);const owner=store.acquireRecoveryOwnership(opts).owner;assert.equal(owner.pid,process.pid);assert.equal(previous(owner),'live');return owner;},
  publishSnapshot:(next,opts)=>{effects.publish++;assert.equal(opts.expectedSnapshotHash,store.inspectRecoveryOwnership().actualSnapshotHash);store.save(next);return base.replace(next);}
@@ -297,13 +297,13 @@ function inventory(root: string): string {
     }
   };
   visit('project'); visit('stage');
-  const leases = 'pi-zerg-swarm-coding-leases-' + process.getuid!();
+  const leases = 'pi-clankers-coding-leases-' + process.getuid!();
   if (existsSync(join(root, leases))) visit(leases);
   return JSON.stringify(entries);
 }
 
 test('seventh workflow SIGKILL boundary: selected child pending new grant BEFORE admission; third fresh process returns SAME child after lost acknowledgment', { skip: process.platform !== 'linux', timeout: 90000 }, async t => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-workflow-selected-interruption-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-workflow-selected-interruption-'));
   const previousTmpdir = process.env.TMPDIR; process.env.TMPDIR = root;
   const processes: Array<{ label: string; proc: OwnedProcess }> = [];
   let succeeded = false;

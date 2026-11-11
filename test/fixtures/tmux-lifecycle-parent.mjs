@@ -31,9 +31,9 @@ if (scenario === 'PARENTLOSS') {
   emit({ ready: true, coordinatorPid: process.pid, workerId: worker.workerId, sessionId: worker.sessionId });
   setInterval(() => {}, 1000); // SIGKILL must bypass the runner's normal exit hook.
 } else {
-  const { createZergControl } = await jiti.import(path.join(repo, 'index.ts'));
+  const { createClankersControl } = await jiti.import(path.join(repo, 'index.ts'));
   if (scenario === 'SETUPREFUSAL') trusted.sdkModulePath = path.join(root, 'nonexistent-sdk.mjs');
-  const control = createZergControl({ mode: { automation: 'automatic', readOnly: false } }, {
+  const control = createClankersControl({ mode: { automation: 'automatic', readOnly: false } }, {
     cwd: path.join(root, 'workspace'), trustedTmux: trusted,
   }); // Omitted subagentAdapter deliberately selects the genuine owned native adapter.
   const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });

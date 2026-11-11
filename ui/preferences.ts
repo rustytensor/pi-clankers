@@ -1,4 +1,5 @@
 import { constants, closeSync, fstatSync, fsyncSync, mkdirSync, openSync, readSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { LEGACY_AGENT_STATE_DIRECTORY, convertLegacyPreferencesFile } from './../legacy-names.js';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getAgentDir } from '@earendil-works/pi-coding-agent';
@@ -42,19 +43,23 @@ function readBounded(path: string): string | undefined {
 function decode(text: string): UiPreferences {
   const value = JSON.parse(text) as UiPreferences;
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'activityStrip,managementShortcut,version' || value.version !== 1 || typeof value.activityStrip !== 'boolean') {
-    throw new Error('Invalid version 1 Zerg UI preferences.');
+    throw new Error('Invalid version 1 Clankers UI preferences.');
   }
   return { version: 1, activityStrip: value.activityStrip, managementShortcut: normalizeManagementShortcut(value.managementShortcut) };
 }
 function reason(error: unknown): string { return error instanceof Error ? error.message.slice(0, 240) : 'UI preferences unavailable.'; }
 /** Only the human management settings view calls saveHuman; no load migration/autowrite. */
 export function createUiPreferences(options: { agentDir?: string } = {}): UiPreferencesStore {
-  const directory = join(options.agentDir ?? getAgentDir(), 'zerg-swarm');
+  const agentDir = options.agentDir ?? getAgentDir();
+  const directory = join(agentDir, 'clankers');
   const path = join(directory, 'ui.json');
   let desired = defaults();
   let original: string | undefined;
   let loadError: string | undefined;
-  try { original = readBounded(path); if (original !== undefined) desired = decode(original); }
+  try {
+    // One-time conversion of the old preferences file; the old file is left as it was.
+    convertLegacyPreferencesFile(join(agentDir, LEGACY_AGENT_STATE_DIRECTORY, 'ui.json'), path);
+    original = readBounded(path); if (original !== undefined) desired = decode(original); }
   catch (error) { loadError = reason(error); desired.managementShortcut = null; }
   const listeners = new Set<() => void>();
   return {

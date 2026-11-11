@@ -9,7 +9,7 @@ import test from 'node:test';
 // Parent-only Stage8B acceptance. These tests intentionally do not run in the
 // ordinary suite: they launch real SDK sessions / Pi TUI hosts and require an
 // integrating-parent fixture review before opt-in.
-const approved = process.env.ZERG_WORKFLOW_ACCEPTANCE === 'parent-approved';
+const approved = process.env.CLANKERS_WORKFLOW_ACCEPTANCE === 'parent-approved';
 const safetyUrl = new URL('./fixtures/host-fixture-safety.mjs', import.meta.url).href;
 const loader = createRequire(import.meta.url).resolve('tsx');
 
@@ -25,7 +25,7 @@ for (const [fixture, deadline, marker] of fixtures) {
     timeout: deadline + 25_000,
   }, async () => {
     const safety = await import(safetyUrl);
-    const root = mkdtempSync(join(tmpdir(), 'zerg-workflow-coding-acceptance-'));
+    const root = mkdtempSync(join(tmpdir(), 'clankers-workflow-coding-acceptance-'));
     safety.assertAncestorIsolation(root);
     mkdirSync(join(root, 'work'));
     const controllerPath = join(root, 'controller.py');

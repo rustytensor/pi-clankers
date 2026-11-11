@@ -6,42 +6,43 @@ import { AGENT_RESULTS_KEY, restoreAgentResults } from './agent-results.js';
 import { recoverWorkflowState } from './workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY } from './workflow-model.js';
 import { recoverSessionMessages } from './session-messages.js';
+import { CURRENT_SNAPSHOT_RELATIVE_PATH, LEGACY_SNAPSHOT_RELATIVE_PATH, convertLegacySnapshotFile, convertLegacyState } from './legacy-names.js';
 import {
-  appendZergLogRecord,
+  appendClankersLogRecord,
   applyRuntimeTransition,
-  createZergState,
+  createClankersState,
   getSubagentRunSnapshots,
-  getZergLogState,
+  getClankersLogState,
 } from './state.js';
 import {
-  ZERG_EXTENSION_VERSION,
-  ZERG_STATE_SCHEMA_VERSION,
+  CLANKERS_EXTENSION_VERSION,
+  CLANKERS_STATE_SCHEMA_VERSION,
   type AgentStatus,
-  type ZergExtensionFields,
-  type ZergLifecycleSubstate,
-  type ZergPersistenceInfo,
-  type ZergPersistenceOptions,
-  type ZergRunRecoveryInfo,
-  type ZergState,
-  type ZergStateContainer,
+  type ClankersExtensionFields,
+  type ClankersLifecycleSubstate,
+  type ClankersPersistenceInfo,
+  type ClankersPersistenceOptions,
+  type ClankersRunRecoveryInfo,
+  type ClankersState,
+  type ClankersStateContainer,
 } from './types.js';
 
-const DEFAULT_PERSISTENCE_RELATIVE_PATH = '.pi/zerg-swarm/v1/state.json';
-const ZERG_CONTROL_EXTENSION_KEY = 'zergControl';
+const DEFAULT_PERSISTENCE_RELATIVE_PATH = CURRENT_SNAPSHOT_RELATIVE_PATH;
+const CLANKERS_CONTROL_EXTENSION_KEY = 'clankersControl';
 const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
-const SNAPSHOT_SIZE_ERROR = 'Zerg persistence snapshot exceeds the 64 MiB UTF-8 byte limit.';
-const ZERG_PERSISTENCE_EXTENSION_KEY = 'zergPersistence';
+const SNAPSHOT_SIZE_ERROR = 'Clankers persistence snapshot exceeds the 64 MiB UTF-8 byte limit.';
+const CLANKERS_PERSISTENCE_EXTENSION_KEY = 'clankersPersistence';
 const RECOVERY_OWNER_MARKER = 'owner.json';
 const RECOVERY_OWNER_MAX_BYTES = 16 * 1024;
 const EMPTY_SNAPSHOT_SHA256 = createHash('sha256').update('').digest('hex');
 
-interface ZergPersistenceEnvelope {
+interface ClankersPersistenceEnvelope {
   version: 1;
   packageVersion: string;
   stateSchemaVersion: string;
   writerSessionId: string;
   savedAt: string;
-  state: ZergState;
+  state: ClankersState;
 }
 
 export interface RecoveryWriterOwnerEvidence {
@@ -84,17 +85,17 @@ export interface RecoverySnapshotCommitOptions {
   readonly now?: () => Date;
 }
 
-export interface ZergPersistenceManager {
-  readonly info: ZergPersistenceInfo;
-  hydrate(container: ZergStateContainer, now?: () => Date): ZergPersistenceInfo;
-  save(state: ZergState, now?: () => Date): ZergPersistenceInfo;
+export interface ClankersPersistenceManager {
+  readonly info: ClankersPersistenceInfo;
+  hydrate(container: ClankersStateContainer, now?: () => Date): ClankersPersistenceInfo;
+  save(state: ClankersState, now?: () => Date): ClankersPersistenceInfo;
   inspectRecoveryOwnership?(): RecoveryOwnershipInspection;
   acquireRecoveryOwnership?(options?: RecoveryOwnershipAcquireOptions): RecoveryOwnershipInfo;
   releaseRecoveryOwnership?(owner: RecoveryWriterOwnerEvidence): void;
-  commitRecoverySnapshot?(state: ZergState, options?: RecoverySnapshotCommitOptions): ZergPersistenceInfo;
+  commitRecoverySnapshot?(state: ClankersState, options?: RecoverySnapshotCommitOptions): ClankersPersistenceInfo;
 }
 
-export function createZergPersistenceManager(options: ZergPersistenceOptions | undefined): ZergPersistenceManager | undefined {
+export function createClankersPersistenceManager(options: ClankersPersistenceOptions | undefined): ClankersPersistenceManager | undefined {
   if (!options?.enabled && !options?.rootDir && !options?.snapshotFile) {
     return undefined;
   }
@@ -104,8 +105,10 @@ export function createZergPersistenceManager(options: ZergPersistenceOptions | u
   const snapshotFile = options.snapshotFile
     ? resolvePath(options.snapshotFile)
     : resolvePath(options.rootDir ?? process.cwd(), DEFAULT_PERSISTENCE_RELATIVE_PATH);
-  const writerSessionId = `zerg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  let info: ZergPersistenceInfo = { enabled: true, snapshotFile, writerSessionId };
+  // Only the default location has an old counterpart; an explicit snapshotFile is converted in memory on load.
+  const legacySnapshotFile = options.snapshotFile ? undefined : resolvePath(options.rootDir ?? process.cwd(), LEGACY_SNAPSHOT_RELATIVE_PATH);
+  const writerSessionId = `clankers-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  let info: ClankersPersistenceInfo = { enabled: true, snapshotFile, writerSessionId };
   const recoveryWriter = createRecoveryWriter(snapshotFile, writerSessionId);
 
   return {
@@ -113,7 +116,7 @@ export function createZergPersistenceManager(options: ZergPersistenceOptions | u
       return { ...info, recoveredRunIds: info.recoveredRunIds ? [...info.recoveredRunIds] : undefined };
     },
     hydrate(container, now) {
-      const hydrated = hydrateZergState(container.read(), snapshotFile, writerSessionId, now);
+      const hydrated = hydrateClankersState(container.read(), snapshotFile, writerSessionId, now, legacySnapshotFile);
       recoveryWriter.noteHydratedHead(hydrated.head);
       info = hydrated.info;
       if (hydrated.state) {
@@ -146,8 +149,8 @@ interface RecoveryWriterController {
   noteHydratedHead(result: HydratedSnapshotHead): void;
   acquire(options?: RecoveryOwnershipAcquireOptions): RecoveryOwnershipInfo;
   release(owner: RecoveryWriterOwnerEvidence): void;
-  commit(state: ZergState, previousInfo: ZergPersistenceInfo, options?: RecoverySnapshotCommitOptions): ZergPersistenceInfo;
-  saveGeneric(state: ZergState, previousInfo: ZergPersistenceInfo, now?: () => Date): ZergPersistenceInfo;
+  commit(state: ClankersState, previousInfo: ClankersPersistenceInfo, options?: RecoverySnapshotCommitOptions): ClankersPersistenceInfo;
+  saveGeneric(state: ClankersState, previousInfo: ClankersPersistenceInfo, now?: () => Date): ClankersPersistenceInfo;
 }
 
 interface SnapshotHeadCache {
@@ -185,7 +188,7 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
     throw new Error(message);
   }
   function assertUsable(): void {
-    if (poisoned) throw new Error(`Zerg recovery persistence manager is poisoned: ${poisoned}`);
+    if (poisoned) throw new Error(`Clankers recovery persistence manager is poisoned: ${poisoned}`);
   }
   function makeOwner(): RecoveryWriterOwnerEvidence {
     const identity = getCurrentLinuxProcessIdentity();
@@ -217,7 +220,7 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
       if (bodyError !== undefined) {
         throw new AggregateError([bodyError, cleanupError], `Recovery writer operation failed and claim cleanup failed or is uncertain: ${message}`);
       }
-      throw new Error(`Zerg recovery persistence manager is poisoned: ${poisoned}`);
+      throw new Error(`Clankers recovery persistence manager is poisoned: ${poisoned}`);
     }
     if (bodyError !== undefined) throw bodyError;
     return result!;
@@ -239,11 +242,11 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
   function requireObservedGenericAdmission(currentHead: SnapshotHeadCache): void {
     if (observedLoadError) {
       if (!observedHead || observedHead.kind !== 'nonregular-link' || currentHead.kind !== 'nonregular-link' || !snapshotHeadsMatch(observedHead, currentHead)) {
-        throw new Error(`Generic zerg snapshot save blocked by prior persistence load error: ${observedLoadError}`);
+        throw new Error(`Generic clankers snapshot save blocked by prior persistence load error: ${observedLoadError}`);
       }
     }
     if (observedHead && !snapshotHeadsMatch(observedHead, currentHead)) {
-      throw new Error('Generic zerg snapshot save blocked by stale observed snapshot head.');
+      throw new Error('Generic clankers snapshot save blocked by stale observed snapshot head.');
     }
     if (!observedHead) observedHead = currentHead;
   }
@@ -383,7 +386,7 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
       return withClaim(() => {
         const verified = verifyOwned(options.expectedSnapshotHash);
         try {
-          const nextInfo = saveZergStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, options.now, true);
+          const nextInfo = saveClankersStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, options.now, true);
           const publishedHash = hashExistingSnapshot(snapshotFile);
           owned = freezeOwnershipInfo({ ...verified, expectedSnapshotHash: publishedHash });
           rememberSnapshotPublication(publishedHash);
@@ -396,11 +399,11 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
     },
     saveGeneric(state, previousInfo, now) {
       assertUsable();
-      const prepared = prepareZergStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, now);
+      const prepared = prepareClankersStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, now);
       return withClaim(() => {
         const evidence = readRecoveryOwnerIfPresent(lockDir);
         if (evidence && (!owned || !ownersEqual(evidence.owner, owned.owner))) {
-          throw new Error('Generic zerg snapshot save blocked by outstanding recovery writer ownership.');
+          throw new Error('Generic clankers snapshot save blocked by outstanding recovery writer ownership.');
         }
         const sourceHead = currentGenericSnapshotHead();
         const poisonOnUncertain = owned !== undefined;
@@ -408,7 +411,7 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
           const verified = verifyOwned();
           requireObservedGenericAdmission(sourceHead);
           try {
-            const next = savePreparedZergStateSnapshot(snapshotFile, prepared, poisonOnUncertain);
+            const next = savePreparedClankersStateSnapshot(snapshotFile, prepared, poisonOnUncertain);
             const current = readRecoveryOwner(lockDir);
             if (!ownersEqual(current.owner, owned.owner)) poison('Recovery writer ownership changed during generic save.');
             const publishedHash = hashExistingSnapshot(snapshotFile);
@@ -420,7 +423,7 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
           }
         }
         requireObservedGenericAdmission(sourceHead);
-        const next = savePreparedZergStateSnapshot(snapshotFile, prepared, false);
+        const next = savePreparedClankersStateSnapshot(snapshotFile, prepared, false);
         rememberSnapshotPublication(hashExistingSnapshot(snapshotFile));
         return next;
       });
@@ -428,15 +431,18 @@ function createRecoveryWriter(snapshotFile: string, writerSessionId: string): Re
   };
 }
 
-function hydrateZergState(
-  current: ZergState,
+function hydrateClankersState(
+  current: ClankersState,
   snapshotFile: string,
   writerSessionId: string,
   now: (() => Date) | undefined,
-): { state?: ZergState; info: ZergPersistenceInfo; head: HydratedSnapshotHead } {
-  const baseInfo: ZergPersistenceInfo = { enabled: true, snapshotFile, writerSessionId };
+  legacySnapshotFile?: string,
+): { state?: ClankersState; info: ClankersPersistenceInfo; head: HydratedSnapshotHead } {
+  const baseInfo: ClankersPersistenceInfo = { enabled: true, snapshotFile, writerSessionId };
   let readHead: HydratedSnapshotHead | undefined;
   try {
+    // One-time conversion: an old default snapshot is read and written once under the new path.
+    if (legacySnapshotFile) convertLegacySnapshotFile(legacySnapshotFile, snapshotFile);
     // Follow legitimate final symlinks; missing paths start empty, invalid final links remain replaceable legacy evidence.
     // This is file admission, not ancestor confinement or a filesystem sandbox.
     const expected = statSync(snapshotFile, { throwIfNoEntry: false });
@@ -448,21 +454,21 @@ function hydrateZergState(
         // Remember the link itself only to guard a later explicit generic save.
         return { info: baseInfo, head: hashFinalSymlinkIdentity(snapshotFile, link) };
       }
-      throw new Error('Zerg persistence snapshot must be a regular file.');
+      throw new Error('Clankers persistence snapshot must be a regular file.');
     }
     if (!expected.isFile()) {
       const link = lstatSync(snapshotFile, { throwIfNoEntry: false });
       if (link?.isSymbolicLink()) readHead = hashFinalSymlinkIdentity(snapshotFile, link);
-      throw new Error('Zerg persistence snapshot must be a regular file.');
+      throw new Error('Clankers persistence snapshot must be a regular file.');
     }
     if (expected.size > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
     // Nonblocking admission prevents a file/target swapped for a FIFO from hanging open.
     const descriptor = openSync(snapshotFile, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
-    let envelope: Partial<ZergPersistenceEnvelope>;
+    let envelope: Partial<ClankersPersistenceEnvelope>;
     try {
       const opened = fstatSync(descriptor);
       if (!opened.isFile() || opened.dev !== expected.dev || opened.ino !== expected.ino) {
-        throw new Error('Zerg persistence snapshot changed before reading.');
+        throw new Error('Clankers persistence snapshot changed before reading.');
       }
       if (opened.size > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
       // Size admission alone cannot bound a file that grows during reading.
@@ -483,31 +489,31 @@ function hydrateZergState(
       }
       const finished = fstatSync(descriptor);
       if (!finished.isFile() || finished.dev !== opened.dev || finished.ino !== opened.ino) {
-        throw new Error('Zerg persistence snapshot changed while reading.');
+        throw new Error('Clankers persistence snapshot changed while reading.');
       }
       if (finished.size > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
       text.push(decoder.end());
       const headHash = hash.digest('hex');
       readHead = { kind: 'regular', hash: headHash, dev: opened.dev, ino: opened.ino, size: opened.size, mtimeMs: opened.mtimeMs, ctimeMs: opened.ctimeMs };
-      envelope = JSON.parse(text.join('')) as Partial<ZergPersistenceEnvelope>;
+      envelope = JSON.parse(text.join('')) as Partial<ClankersPersistenceEnvelope>;
     } finally {
       closeSync(descriptor);
     }
     if (envelope.version !== 1 || !isPlainRecord(envelope.state)) {
-      const message = 'Unsupported zerg persistence snapshot format.';
+      const message = 'Unsupported clankers persistence snapshot format.';
       return { info: { ...baseInfo, lastLoadError: message }, head: { ...readHead, loadError: message } };
     }
-    const rawState = envelope.state as Partial<ZergState>;
+    const rawState = convertLegacyState(envelope.state as Partial<ClankersState> & Record<string, unknown>) as Partial<ClankersState>;
     const preparedState = rawState.extensions?.[AGENT_RESULTS_KEY] === undefined ? rawState : { ...rawState,
       extensions: { ...rawState.extensions, [AGENT_RESULTS_KEY]: restoreAgentResults(rawState.extensions[AGENT_RESULTS_KEY]) } };
-    const loaded = createZergState(preparedState);
+    const loaded = createClankersState(preparedState);
     // Recovery may retain saved readOnly, but must never revoke current authority.
     if (current.mode.readOnly === true) loaded.mode.readOnly = true;
-    const recovered = recoverZergStateAfterRestart(loaded, {
+    const recovered = recoverClankersStateAfterRestart(loaded, {
       now,
       previousWriterSessionId: typeof envelope.writerSessionId === 'string' ? envelope.writerSessionId : undefined,
     });
-    const info: ZergPersistenceInfo = {
+    const info: ClankersPersistenceInfo = {
       ...baseInfo,
       lastLoadedAt: new Date().toISOString(),
       recoveredRunIds: recovered.recoveredRunIds,
@@ -519,50 +525,50 @@ function hydrateZergState(
   }
 }
 
-interface PreparedZergStateSnapshot {
-  readonly info: ZergPersistenceInfo;
+interface PreparedClankersStateSnapshot {
+  readonly info: ClankersPersistenceInfo;
   readonly serialized: string;
 }
 
-function prepareZergStateSnapshot(
-  state: ZergState,
+function prepareClankersStateSnapshot(
+  state: ClankersState,
   snapshotFile: string,
   writerSessionId: string,
-  previousInfo: ZergPersistenceInfo,
+  previousInfo: ClankersPersistenceInfo,
   now: (() => Date) | undefined,
-): PreparedZergStateSnapshot {
+): PreparedClankersStateSnapshot {
   const savedAt = (now ?? (() => new Date()))().toISOString();
-  const info: ZergPersistenceInfo = { ...previousInfo, enabled: true, snapshotFile, writerSessionId, lastSavedAt: savedAt };
+  const info: ClankersPersistenceInfo = { ...previousInfo, enabled: true, snapshotFile, writerSessionId, lastSavedAt: savedAt };
   const stateToSave = writePersistenceInfo(state, info);
-  const envelope: ZergPersistenceEnvelope = {
+  const envelope: ClankersPersistenceEnvelope = {
     version: 1,
-    packageVersion: ZERG_EXTENSION_VERSION,
-    stateSchemaVersion: ZERG_STATE_SCHEMA_VERSION,
+    packageVersion: CLANKERS_EXTENSION_VERSION,
+    stateSchemaVersion: CLANKERS_STATE_SCHEMA_VERSION,
     writerSessionId,
     savedAt,
-    state: sanitizeJsonValue(stateToSave) as ZergState,
+    state: sanitizeJsonValue(stateToSave) as ClankersState,
   };
   const serialized = `${JSON.stringify(envelope, null, 2)}\n`;
   if (Buffer.byteLength(serialized, 'utf8') > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
   return { info, serialized };
 }
 
-function saveZergStateSnapshot(
-  state: ZergState,
+function saveClankersStateSnapshot(
+  state: ClankersState,
   snapshotFile: string,
   writerSessionId: string,
-  previousInfo: ZergPersistenceInfo,
+  previousInfo: ClankersPersistenceInfo,
   now: (() => Date) | undefined,
   poisonOnUncertain = false,
-): ZergPersistenceInfo {
-  return savePreparedZergStateSnapshot(snapshotFile, prepareZergStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, now), poisonOnUncertain);
+): ClankersPersistenceInfo {
+  return savePreparedClankersStateSnapshot(snapshotFile, prepareClankersStateSnapshot(state, snapshotFile, writerSessionId, previousInfo, now), poisonOnUncertain);
 }
 
-function savePreparedZergStateSnapshot(
+function savePreparedClankersStateSnapshot(
   snapshotFile: string,
-  prepared: PreparedZergStateSnapshot,
+  prepared: PreparedClankersStateSnapshot,
   poisonOnUncertain = false,
-): ZergPersistenceInfo {
+): ClankersPersistenceInfo {
   mkdirSync(dirname(snapshotFile), { recursive: true });
   const tempFile = `${snapshotFile}.${process.pid}.${Date.now().toString(36)}.tmp`;
   // Exclusive creation refuses pre-existing files/symlinks. Do not clean up a
@@ -583,17 +589,17 @@ function savePreparedZergStateSnapshot(
     try { unlinkSync(tempFile); } catch (cleanupError) {
       if ((cleanupError as NodeJS.ErrnoException)?.code !== 'ENOENT') failures.push(cleanupError);
     }
-    if (failures.length > 1) throw new AggregateError(failures, 'Zerg snapshot save failed and temporary-file cleanup failed.');
-    if (poisonOnUncertain) throw new Error(`Zerg snapshot commit failed; recovery manager must be discarded: ${error instanceof Error ? error.message : String(error)}`);
+    if (failures.length > 1) throw new AggregateError(failures, 'Clankers snapshot save failed and temporary-file cleanup failed.');
+    if (poisonOnUncertain) throw new Error(`Clankers snapshot commit failed; recovery manager must be discarded: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
   return prepared.info;
 }
 
-export function recoverZergStateAfterRestart(
-  state: ZergState,
+export function recoverClankersStateAfterRestart(
+  state: ClankersState,
   options: { now?: () => Date; previousWriterSessionId?: string } = {},
-): { state: ZergState; recoveredRunIds: string[] } {
+): { state: ClankersState; recoveredRunIds: string[] } {
   const recoveredAt = (options.now ?? (() => new Date()))().toISOString();
   let next = recoverSessionMessages(state, recoveredAt);
   if (state.extensions[AGENT_RESULTS_KEY] !== undefined) next = { ...next,
@@ -606,7 +612,7 @@ export function recoverZergStateAfterRestart(
     } catch (error) {
       // Preserve the raw namespace for inspection. Core admission rejects it;
       // corrupt workflow data must not suppress unrelated native recovery.
-      next = appendZergLogRecord(next, { source: 'adapter', level: 'warn', kind: 'error', createdAt: recoveredAt,
+      next = appendClankersLogRecord(next, { source: 'adapter', level: 'warn', kind: 'error', createdAt: recoveredAt,
         message: `Workflow recovery disabled; original namespace retained: ${(error instanceof Error ? error.message : String(error)).slice(0, 1024)}`,
       });
     }
@@ -634,7 +640,7 @@ export function recoverZergStateAfterRestart(
     const recoveryReason = run.nativeContinuation
       ? 'continuation interrupted by Pi restart; live session unavailable; new reviewed task required'
       : 'recovered after Pi restart; live session unavailable';
-    const recovery: ZergRunRecoveryInfo = {
+    const recovery: ClankersRunRecoveryInfo = {
       recoveredAt,
       reason: 'process-restart',
       previousStatus,
@@ -667,12 +673,12 @@ export function recoverZergStateAfterRestart(
             substateReason: recoveryReason,
             substateUpdatedAt: recoveredAt,
             updatedAt: recoveredAt,
-            metadata: { ...task.metadata, recovery } as ZergExtensionFields,
+            metadata: { ...task.metadata, recovery } as ClankersExtensionFields,
           },
         },
       };
     }
-    next = appendZergLogRecord(next, {
+    next = appendClankersLogRecord(next, {
       source: 'adapter',
       level: 'warn',
       kind: 'text',
@@ -692,8 +698,8 @@ export function recoverZergStateAfterRestart(
   return { state: next, recoveredRunIds };
 }
 
-function clearRecoveredActiveRun(state: ZergState, recoveredRunIds: readonly string[]): ZergState {
-  const control = state.extensions[ZERG_CONTROL_EXTENSION_KEY];
+function clearRecoveredActiveRun(state: ClankersState, recoveredRunIds: readonly string[]): ClankersState {
+  const control = state.extensions[CLANKERS_CONTROL_EXTENSION_KEY];
   if (!isPlainRecord(control) || typeof control.activeRunId !== 'string' || !recoveredRunIds.includes(control.activeRunId)) {
     return state;
   }
@@ -701,23 +707,23 @@ function clearRecoveredActiveRun(state: ZergState, recoveredRunIds: readonly str
     ...state,
     extensions: {
       ...state.extensions,
-      [ZERG_CONTROL_EXTENSION_KEY]: { ...control, activeRunId: undefined },
+      [CLANKERS_CONTROL_EXTENSION_KEY]: { ...control, activeRunId: undefined },
     },
   };
 }
 
-function writePersistenceInfo(state: ZergState, info: ZergPersistenceInfo): ZergState {
+function writePersistenceInfo(state: ClankersState, info: ClankersPersistenceInfo): ClankersState {
   return {
     ...state,
     extensions: {
       ...state.extensions,
-      [ZERG_PERSISTENCE_EXTENSION_KEY]: { ...info, recoveredRunIds: info.recoveredRunIds ? [...info.recoveredRunIds] : undefined },
-      zergLogs: getZergLogState(state),
+      [CLANKERS_PERSISTENCE_EXTENSION_KEY]: { ...info, recoveredRunIds: info.recoveredRunIds ? [...info.recoveredRunIds] : undefined },
+      clankersLogs: getClankersLogState(state),
     },
   };
 }
 
-function isTerminalRun(status: AgentStatus, substate: ZergLifecycleSubstate | undefined): boolean {
+function isTerminalRun(status: AgentStatus, substate: ClankersLifecycleSubstate | undefined): boolean {
   return status === 'done' || status === 'failed' || status === 'cancelled' || substate === 'completed' || substate === 'failed' || substate === 'cancelled';
 }
 
@@ -861,12 +867,12 @@ function hashGenericSnapshotWithIdentity(snapshotFile: string): SnapshotHeadCach
     const link = lstatSync(snapshotFile, { throwIfNoEntry: false });
     if (!link) return { kind: 'empty', hash: EMPTY_SNAPSHOT_SHA256 };
     if (link.isSymbolicLink()) return hashFinalSymlinkIdentity(snapshotFile, link);
-    throw new Error('Generic zerg snapshot head must be a regular file, missing path, or replaceable final symlink.');
+    throw new Error('Generic clankers snapshot head must be a regular file, missing path, or replaceable final symlink.');
   }
   if (!followed.isFile()) {
     const link = lstatSync(snapshotFile, { throwIfNoEntry: false });
     if (link?.isSymbolicLink()) return hashFinalSymlinkIdentity(snapshotFile, link);
-    throw new Error('Generic zerg snapshot head must be a regular file.');
+    throw new Error('Generic clankers snapshot head must be a regular file.');
   }
   if (followed.size > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
   const expectedSig = statSignature(followed);
@@ -874,10 +880,10 @@ function hashGenericSnapshotWithIdentity(snapshotFile: string): SnapshotHeadCach
   try {
     const opened = fstatSync(descriptor);
     if (!opened.isFile() || opened.dev !== followed.dev || opened.ino !== followed.ino) {
-      throw new Error('Generic zerg snapshot head changed before hashing.');
+      throw new Error('Generic clankers snapshot head changed before hashing.');
     }
     const openedSig = statSignature(opened);
-    if (!sameStatSignature(expectedSig, openedSig)) throw new Error('Generic zerg snapshot head metadata changed before hashing.');
+    if (!sameStatSignature(expectedSig, openedSig)) throw new Error('Generic clankers snapshot head metadata changed before hashing.');
     const hash = createHash('sha256');
     const chunk = Buffer.allocUnsafe(64 * 1024);
     let bytes = 0;
@@ -892,11 +898,11 @@ function hashGenericSnapshotWithIdentity(snapshotFile: string): SnapshotHeadCach
     const finishedSig = statSignature(finished);
     if (!finished.isFile() || finished.dev !== opened.dev || finished.ino !== opened.ino || finished.size > MAX_SNAPSHOT_BYTES
       || bytes !== opened.size || !sameStatSignature(openedSig, finishedSig)) {
-      throw new Error('Generic zerg snapshot head changed while hashing.');
+      throw new Error('Generic clankers snapshot head changed while hashing.');
     }
     const after = statSync(snapshotFile, { throwIfNoEntry: false });
     if (!after?.isFile() || after.dev !== followed.dev || after.ino !== followed.ino || !sameStatSignature(expectedSig, statSignature(after))) {
-      throw new Error('Generic zerg snapshot path changed while hashing.');
+      throw new Error('Generic clankers snapshot path changed while hashing.');
     }
     return { kind: 'regular', hash: hash.digest('hex'), dev: opened.dev, ino: opened.ino, size: opened.size, mtimeMs: opened.mtimeMs, ctimeMs: opened.ctimeMs };
   } finally {
@@ -905,13 +911,13 @@ function hashGenericSnapshotWithIdentity(snapshotFile: string): SnapshotHeadCach
 }
 
 function hashFinalSymlinkIdentity(snapshotFile: string, linkStat: Stats): SnapshotHeadCache {
-  if (!linkStat.isSymbolicLink()) throw new Error('Generic zerg snapshot replacement candidate is not a symbolic link.');
+  if (!linkStat.isSymbolicLink()) throw new Error('Generic clankers snapshot replacement candidate is not a symbolic link.');
   if (linkStat.size > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
   const target = readlinkSync(snapshotFile, 'utf8');
   if (Buffer.byteLength(target, 'utf8') > MAX_SNAPSHOT_BYTES) throw new Error(SNAPSHOT_SIZE_ERROR);
   const after = lstatSync(snapshotFile);
   if (!after.isSymbolicLink() || after.dev !== linkStat.dev || after.ino !== linkStat.ino || !sameStatSignature(statSignature(linkStat), statSignature(after))) {
-    throw new Error('Generic zerg snapshot symlink changed while hashing.');
+    throw new Error('Generic clankers snapshot symlink changed while hashing.');
   }
   const hash = createHash('sha256');
   hash.update('symlink\0');

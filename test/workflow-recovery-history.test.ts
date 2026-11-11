@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { WORKFLOW_LIMITS, workflowHash, workflowUnitHash } from '../workflow-model.js';
 import type { WorkflowDefinition, WorkflowNativePort, WorkflowRun, WorkflowSchema, WorkflowState } from '../workflow-model.js';
@@ -72,7 +72,7 @@ test('legacy v1 v2 and v3 records without recoveryOriginal remain valid and are 
 test('recovery preserves source ledger input object and does not execute public workflow code', () => {
   const original = state(nativeRun(1));
   const before = JSON.stringify(original);
-  const container = createZergStateContainer({ extensions: { workflows: original }, agentDefinitions: { reviewer: agent } });
+  const container = createClankersStateContainer({ extensions: { workflows: original }, agentDefinitions: { reviewer: agent } });
   const service = createWorkflowService(container, inertPort());
   assert.equal(JSON.stringify(original), before);
   assert.equal(service.get('run-1')?.recoveryOriginal?.status, 'running');

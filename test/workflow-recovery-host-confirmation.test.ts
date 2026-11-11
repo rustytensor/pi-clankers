@@ -6,14 +6,14 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
-import { createZergControl, registerZergSwarmExtension } from '../index.js';
-import { createZergPersistenceManager } from '../persistence.js';
-import { createZergState, createZergStateContainer, snapshotZergState, updateZergState } from '../state.js';
+import { createClankersControl, registerClankersExtension } from '../index.js';
+import { createClankersPersistenceManager } from '../persistence.js';
+import { createClankersState, createClankersStateContainer, snapshotClankersState, updateClankersState } from '../state.js';
 import { normalizeWorkflowAgent, workflowHash, workflowRecoveryAddresses, workflowRecoveryDependencyHash, workflowRecoverySourceContract, workflowUnitHash, type WorkflowRecoveryNativeSettlementRequest, type WorkflowDefinition, type WorkflowRun } from '../workflow-model.js';
-import type { ZergState, ZergStateContainer } from '../types.js';
+import type { ClankersState, ClankersStateContainer } from '../types.js';
 
 function fixture(t: test.TestContext, registered = false, now?: () => Date, extra: { coding?: boolean; fanout?: boolean; interrupted?: boolean; inspectNativeSettlement?: (request: WorkflowRecoveryNativeSettlementRequest) => 'settled' | 'unknown' } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-host-confirmation-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-host-confirmation-'));
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'staging'), snapshotFile = join(root, 'state.json');
   mkdirSync(projectRoot); mkdirSync(stagingParent);
   const agent = normalizeWorkflowAgent({ id: 'safe', label: 'Safe', prompt: 'Read only.', model: 'fake/model', tools: ['read'], source: 'runtime' });
@@ -41,16 +41,16 @@ function fixture(t: test.TestContext, registered = false, now?: () => Date, extr
     run.recovery.budget.usedAdmissions = 1; run.recovery.sequence = 1;
     run.recovery.operations = [{ kind: 'native', id: 'old-native-operation', sequence: 0, stepId: 'read', unitId: unit.id, inputHash: unit.inputHash, dependencyHash: workflowRecoveryDependencyHash(run, spec, unit, workflowRecoverySourceContract()), policyHash: workflowHash({ kind: 'native', agent, prompt: spec.prompt, outputSchema: spec.outputSchema, hostSourceContract: workflowRecoverySourceContract() }), paths: [], preimage: null, postimage: null, intent: { recordedAt: run.createdAt } }];
   }
-  const seed = createZergStateContainer({ agentDefinitions: { safe: agent, ...(extra.coding ? { reviewer } : {}) }, extensions: { workflows: { version: 1, definitions: [definition], runs: [run] } } });
-  const manager = createZergPersistenceManager({ snapshotFile })!;
+  const seed = createClankersStateContainer({ agentDefinitions: { safe: agent, ...(extra.coding ? { reviewer } : {}) }, extensions: { workflows: { version: 1, definitions: [definition], runs: [run] } } });
+  const manager = createClankersPersistenceManager({ snapshotFile })!;
   manager.hydrate(seed); manager.save(seed.read());
   const ownership = manager.acquireRecoveryOwnership!();
   // Local disk fixture simulates a retained verified-dead previous owner. No Pi process.
   writeFileSync(`${snapshotFile}.recovery-writer.lock/owner.json`, JSON.stringify({ version: 1, owner: { ...ownership.owner, pid: 2147483647, startTimeTicks: '1' } }));
-  const base = createZergStateContainer(); let launches = 0;
+  const base = createClankersStateContainer(); let launches = 0;
   const options = { now, persistence: { snapshotFile }, recovery: { enabled: true, ...(extra.inspectNativeSettlement ? { inspectNativeSettlement: extra.inspectNativeSettlement } : {}) }, coding: { enabled: extra.coding ?? false, projectRoot, stagingParent, ...(extra.coding ? { checkProfiles: { local: { id: 'local', executable: process.execPath, argv: ['-e', 'process.exit(0)'], cwd: 'src', env: {}, timeoutMs: 2000, outputBytes: 65536, generatedOutputs: [] } } } : {}) }, ...(extra.coding ? {} : { subagentAdapter: { kind: 'fake' as const, launch() { launches++; throw new Error('must not launch'); } } }) };
-  const registration = registered ? registerZergSwarmExtension({ registerCommand() {}, registerTool() {}, on() {} }, options) : undefined;
-  const control = registration?.control ?? createZergControl(base, options);
+  const registration = registered ? registerClankersExtension({ registerCommand() {}, registerTool() {}, on() {} }, options) : undefined;
+  const control = registration?.control ?? createClankersControl(base, options);
   t.after(() => { try { registration ? registration.dispose() : control.dispose(); } finally { rmSync(root, { recursive: true, force: true }); } });
   return { root, projectRoot, stagingParent, base, control, snapshotFile, source: run, get launches() { return launches; } };
 }
@@ -64,19 +64,19 @@ async function prepare(f: ReturnType<typeof fixture>) {
 
 test('actual control recovery capability reads and missing-run requests never initialize a ledger or acquire a writer', async t => {
   for (const existingSnapshot of [false, true]) {
-    const root = mkdtempSync(join(tmpdir(), 'zerg-host-inert-'));
+    const root = mkdtempSync(join(tmpdir(), 'clankers-host-inert-'));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const snapshotFile = join(root, 'state.json');
     if (existingSnapshot) {
-      const seed = createZergStateContainer();
-      const manager = createZergPersistenceManager({ snapshotFile })!;
+      const seed = createClankersStateContainer();
+      const manager = createClankersPersistenceManager({ snapshotFile })!;
       manager.hydrate(seed); manager.save(seed.read());
     }
     const disk = () => readdirSync(root, { recursive: true }).map(name => [name, readFileSync(join(root, String(name))).toString('hex')]);
     const beforeConstruction = disk();
-    const base = createZergStateContainer();
+    const base = createClankersStateContainer();
     let launches = 0, publications = 0;
-    const control = createZergControl(base, {
+    const control = createClankersControl(base, {
       persistence: { snapshotFile }, recovery: { enabled: true },
       subagentAdapter: { kind: 'fake', launch() { launches++; throw new Error('must not launch'); } },
     });
@@ -156,17 +156,17 @@ test('host rejects stale, readOnly, disposed, aborted and model-facing grants wi
 const source = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
 const parsed = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022, true);
 const compile = (text: string) => ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-function hooks(baseContainer: ZergStateContainer, manager: any, options: any = {}, registered = false) {
+function hooks(baseContainer: ClankersStateContainer, manager: any, options: any = {}, registered = false) {
   const recoveryPublications = new WeakMap(), recoveryWriterIdleChecks = new WeakMap(), ownedPersistenceManagers = new WeakMap();
-  const fn = parsed.statements.find((n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === (registered ? 'registerZergSwarmExtension' : 'createZergControl'))!;
+  const fn = parsed.statements.find((n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === (registered ? 'registerClankersExtension' : 'createClankersControl'))!;
   const statements = [...fn.body!.statements];
   const index = (name: string) => statements.findIndex(n => ts.isVariableStatement(n) && n.declarationList.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === name));
   const preparedStart = index('preparedOwner'), preparedEnd = index('assertPreparedOwner');
   if (!registered) assert.ok(preparedStart >= 0 && preparedEnd >= preparedStart, 'prepared owner initialization source missing');
   const initialization = registered ? [] : statements.slice(preparedStart, preparedEnd + 1);
   const text = [...initialization, ...statements.slice(index('committingPersistentState'), index('nativeTranscriptService'))].map(n => n.getText(parsed)).join('\n');
-  let shared: ZergState | undefined;
-  const container = new Function('startupRecoveryBlock', 'baseContainer', 'stateContainer', 'syncSharedStateFromContainer', 'persistenceManager', 'options', 'createZergState', 'updateZergState', 'snapshotZergState', 'isDeepStrictEqual', 'associatedPersistenceManager', 'ownedPersistenceManagers', 'recoveryPublications', 'recoveryWriterIdleChecks', compile(text + `\nreturn ${registered ? 'syncedStateContainer' : 'container'};`))(undefined, baseContainer, baseContainer, () => { shared = baseContainer.snapshot(); }, manager, options, createZergState, updateZergState, snapshotZergState, isDeepStrictEqual, undefined, ownedPersistenceManagers, recoveryPublications, recoveryWriterIdleChecks) as ZergStateContainer;
+  let shared: ClankersState | undefined;
+  const container = new Function('startupRecoveryBlock', 'baseContainer', 'stateContainer', 'syncSharedStateFromContainer', 'persistenceManager', 'options', 'createClankersState', 'updateClankersState', 'snapshotClankersState', 'isDeepStrictEqual', 'associatedPersistenceManager', 'ownedPersistenceManagers', 'recoveryPublications', 'recoveryWriterIdleChecks', compile(text + `\nreturn ${registered ? 'syncedStateContainer' : 'container'};`))(undefined, baseContainer, baseContainer, () => { shared = baseContainer.snapshot(); }, manager, options, createClankersState, updateClankersState, snapshotClankersState, isDeepStrictEqual, undefined, ownedPersistenceManagers, recoveryPublications, recoveryWriterIdleChecks) as ClankersStateContainer;
   const builder = parsed.statements.find((n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === 'buildWorkflowRecoveryOptions')!;
   const build = new Function('recoveryPublications', 'recoveryWriterIdleChecks', 'isDeepStrictEqual', 'inspectPreviousWorkflowOwner', compile(builder.getText(parsed) + '\nreturn buildWorkflowRecoveryOptions;'))(recoveryPublications, recoveryWriterIdleChecks, isDeepStrictEqual, () => 'dead');
   let disposed = false; let notified: unknown;
@@ -176,11 +176,11 @@ function hooks(baseContainer: ZergStateContainer, manager: any, options: any = {
 function mockManager() {
   let head = 'a'.repeat(64), acquired = false, saves = 0;
   const owner = { writerSessionId: 'same-manager', generation: 'same-generation' };
-  const manager = { info: {}, hydrate() {}, acquireRecoveryOwnership(request: any) { assert.equal(request.expectedSnapshotHash, head); acquired = true; return { owner }; }, inspectRecoveryOwnership() { return { owner: acquired ? owner : undefined, ownerValid: acquired, claimPresent: false, actualSnapshotHash: head, expectedSnapshotHash: head }; }, save(_state: ZergState, now?: () => Date) { now?.(); saves++; head = 'b'.repeat(64); }, get saves() { return saves; } };
+  const manager = { info: {}, hydrate() {}, acquireRecoveryOwnership(request: any) { assert.equal(request.expectedSnapshotHash, head); acquired = true; return { owner }; }, inspectRecoveryOwnership() { return { owner: acquired ? owner : undefined, ownerValid: acquired, claimPresent: false, actualSnapshotHash: head, expectedSnapshotHash: head }; }, save(_state: ClankersState, now?: () => Date) { now?.(); saves++; head = 'b'.repeat(64); }, get saves() { return saves; } };
   return manager;
 }
 test('existing wrapped publication has one save, same-manager owner notification, and no independent commit', () => {
-  const base = createZergStateContainer(), manager = mockManager(), h = hooks(base, manager);
+  const base = createClankersStateContainer(), manager = mockManager(), h = hooks(base, manager);
   const owner = h.port.acquireWriter({ expectedSnapshotHash: 'a'.repeat(64) });
   assert.equal(h.notified, owner);
   let observed = 0; base.subscribe!(() => { observed++; assert.equal(manager.saves, 1); assert.throws(() => h.container.replace({}), /nested/); });
@@ -189,7 +189,7 @@ test('existing wrapped publication has one save, same-manager owner notification
 });
 test('clock callback authority loss blocks save/publication; disposal/head checks precede effects', () => {
   for (const change of ['readOnly', 'dispose', 'head'] as const) {
-    const base = createZergStateContainer(), manager = mockManager(); let callback = () => {};
+    const base = createClankersStateContainer(), manager = mockManager(); let callback = () => {};
     const h = hooks(base, manager, { now() { callback(); return new Date(); } });
     h.port.acquireWriter({ expectedSnapshotHash: 'a'.repeat(64) });
     if (change === 'readOnly') callback = () => { base.update({ mode: { ...base.read().mode, readOnly: true } }); };
@@ -218,7 +218,7 @@ test('registered control preserves authoritative manager association through tru
 });
 test('publication observer disposal or owner generation loss poisons the existing writer after one save', () => {
   for (const kind of ['disposed', 'generation'] as const) {
-    const base = createZergStateContainer(), manager = mockManager(), h = hooks(base, manager);
+    const base = createClankersStateContainer(), manager = mockManager(), h = hooks(base, manager);
     h.port.acquireWriter({ expectedSnapshotHash: 'a'.repeat(64) });
     let lost = false;
     const inspect = manager.inspectRecoveryOwnership;
@@ -238,8 +238,8 @@ async function diskHooks(t: test.TestContext, registered: boolean, now?: () => D
   assert.equal(reply.ok, true, reply.error);
   const intended = f.control.getState(), childId = reply.view!.workflowRunId;
   const snapshotFile = join(f.root, `wrapped-${registered}.json`);
-  const base = createZergStateContainer();
-  const manager = createZergPersistenceManager({ snapshotFile })!;
+  const base = createClankersStateContainer();
+  const manager = createClankersPersistenceManager({ snapshotFile })!;
   manager.hydrate(base); base.replace(sourceState); manager.save(base.read());
   let saves = 0;
   const save = manager.save.bind(manager);
@@ -248,16 +248,16 @@ async function diskHooks(t: test.TestContext, registered: boolean, now?: () => D
   const head = manager.inspectRecoveryOwnership!().actualSnapshotHash!;
   const owner = h.port.acquireWriter({ expectedSnapshotHash: head });
   t.after(() => { try { manager.releaseRecoveryOwnership!(owner); } catch { /* deliberately poisoned fixtures retain evidence */ } });
-  const disk = () => JSON.parse(readFileSync(snapshotFile, 'utf8')).state as ZergState;
+  const disk = () => JSON.parse(readFileSync(snapshotFile, 'utf8')).state as ClankersState;
   const publish = () => h.port.publishSnapshot(intended, { expectedSnapshotHash: head });
   return { ...h, base, manager, intended, childId, snapshotFile, disk, publish, get shared() { return h.shared; }, get saves() { return saves; } };
 }
 
 // Save owns envelope metadata and JSON omits undefined fields. Compare the
 // entire durable canonical payload except that manager-owned bookkeeping.
-function durableCanonical(state: ZergState) {
+function durableCanonical(state: ClankersState) {
   const copy = JSON.parse(JSON.stringify(state));
-  delete copy.extensions.zergPersistence;
+  delete copy.extensions.clankersPersistence;
   return copy;
 }
 
@@ -484,13 +484,13 @@ test('trusted settlement callback is forwarded with exact request bindings, neve
 });
 
 test('default owned native adapter construction/inspection/disposal never independently hydrates/saves a blocked authoritative manager', async t => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-owned-host-inert-')), snapshotFile = join(root, 'state.json');
+  const root = mkdtempSync(join(tmpdir(), 'clankers-owned-host-inert-')), snapshotFile = join(root, 'state.json');
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const manager = createZergPersistenceManager({ snapshotFile })!, seed = createZergStateContainer(); manager.hydrate(seed); manager.save(seed.read());
+  const manager = createClankersPersistenceManager({ snapshotFile })!, seed = createClankersStateContainer(); manager.hydrate(seed); manager.save(seed.read());
   const owner = manager.acquireRecoveryOwnership!().owner;
   writeFileSync(`${snapshotFile}.recovery-writer.lock/owner.json`, JSON.stringify({ version: 1, owner: { ...owner, pid: 2147483647, startTimeTicks: '1' } }));
   const before = readFileSync(snapshotFile), marker = readFileSync(`${snapshotFile}.recovery-writer.lock/owner.json`);
-  const control = createZergControl(createZergStateContainer(), { persistence: { snapshotFile }, recovery: { enabled: true } });
+  const control = createClankersControl(createClankersStateContainer(), { persistence: { snapshotFile }, recovery: { enabled: true } });
   const initial = control.getState();
   const missing = await control.workflowRecovery!.authorize({ workflowRunId: 'missing', assessmentFingerprint: 'f'.repeat(64) });
   assert.equal(missing.ok, false); assert.deepEqual(control.getState(), initial);

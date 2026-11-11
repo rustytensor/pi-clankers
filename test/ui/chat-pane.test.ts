@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createZergState } from '../../state.js';
+import { createClankersState } from '../../state.js';
 import { sendChatDraft } from '../../ui/chat-pane.js';
 import { createManagementUiState, setSelectedTarget } from '../../ui/state.js';
 
 test('M9 chat pane records honest local/intervention delivery states without fake delivered status', () => {
-  const state = createZergState({
+  const state = createClankersState({
     agents: {
       leader: { id: 'leader', label: 'Leader', kind: 'team-leader', status: 'running' },
     },

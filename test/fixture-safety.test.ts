@@ -8,7 +8,7 @@ import test from 'node:test';
 // Only fake markers are seeded. These children import NO SDK, model or provider.
 const helper = new URL('./fixtures/fixture-safety.mjs', import.meta.url).href;
 function child(body: string, options = '{}') {
-  const dir = mkdtempSync(join(tmpdir(), 'zerg-guard-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'clankers-guard-test-'));
   mkdirSync(join(dir, 'home'));
   writeFileSync(join(dir, 'home', 'auth.json'), '{"key":"FAKE_SEEDED_CREDENTIAL_MARKER"}');
   const script = `import assert from 'node:assert/strict';

@@ -219,7 +219,7 @@ test('full 64KiB source survives JSON escaping expansion, accepted comments neve
 });
 
 test('source effects stay inert in literals and hidden side-effect AST never writes or exits', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'zerg-script-effects-'));
+  const directory = await mkdtemp(join(tmpdir(), 'clankers-script-effects-'));
   const marker = join(directory, 'must-not-exist');
   const payload = `require('node:fs').writeFileSync(${JSON.stringify(marker)},'SECRET_SENTINEL')`;
   try {

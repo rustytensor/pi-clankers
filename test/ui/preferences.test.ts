@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createUiPreferences, normalizeManagementShortcut } from '../../ui/preferences.js';
 function fixture() {
   const dir = mkdtempSync(join(dirname(fileURLToPath(import.meta.url)), '.prefs-'));
-  return { dir, file: join(dir, 'zerg-swarm', 'ui.json'), close: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, file: join(dir, 'clankers', 'ui.json'), close: () => rmSync(dir, { recursive: true, force: true }) };
 }
 test('portable grammar normalizes case/order and rejects unsupported settings', () => {
   for (const [input, output] of [['Alt+G', 'alt+g'], ['ALT+CTRL+7', 'ctrl+alt+7'], ['ctrl+a', 'ctrl+a']]) assert.equal(normalizeManagementShortcut(input), output);
@@ -48,10 +48,10 @@ test('malformed/schema/oversized preferences fail closed without overwrite or de
 test('failed/external-update save preserves prior desired state', () => {
   const f = fixture(); try {
     const store = createUiPreferences({ agentDir: f.dir });
-    writeFileSync(join(f.dir, 'zerg-swarm'), 'not a directory');
+    writeFileSync(join(f.dir, 'clankers'), 'not a directory');
     assert.equal(store.saveHuman({ activityStrip: false }).ok, false);
     assert.equal(store.snapshot().desired.activityStrip, true);
-    rmSync(join(f.dir, 'zerg-swarm')); mkdirSync(dirname(f.file)); writeFileSync(f.file, 'external');
+    rmSync(join(f.dir, 'clankers')); mkdirSync(dirname(f.file)); writeFileSync(f.file, 'external');
     assert.equal(store.saveHuman({ activityStrip: false }).ok, false);
     assert.equal(store.snapshot().desired.activityStrip, true); assert.equal(readFileSync(f.file, 'utf8'), 'external');
   } finally { f.close(); }

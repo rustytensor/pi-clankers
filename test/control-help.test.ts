@@ -5,29 +5,29 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import ts from 'typescript';
-import type { ZergControlOptions } from '../index.js';
+import type { ClankersControlOptions } from '../index.js';
 import * as helpModule from '../control-help.js';
-import { ZERG_CONTROL_ACTION_NAMES, ZERG_CONTROL_HELP_CATALOG } from '../control-help.js';
-import { createZergState, createZergStateContainer, readSharedZergState, replaceSharedZergState } from '../state.js';
+import { CLANKERS_CONTROL_ACTION_NAMES, CLANKERS_CONTROL_HELP_CATALOG } from '../control-help.js';
+import { createClankersState, createClankersStateContainer, readSharedClankersState, replaceSharedClankersState } from '../state.js';
 import { validateSessionMessageInput, validateSessionMessageKey } from '../session-messages.js';
 import { validateContinuationPrepare, type NativeContinuationPrepare } from '../native-continuation.js';
 import { isWorkflowScriptActionName, parseWorkflowScriptAction } from '../workflow-script-controls.js';
 import { validateWorkflowDefinition, type WorkflowDefinition } from '../workflow-model.js';
-import { ZERG_EXTENSION_VERSION, type StructuralPiToolDefinition, type StructuralPiToolResult, type ZergControlAction, type ZergControlResult, type ZergStateContainer } from '../types.js';
+import { CLANKERS_EXTENSION_VERSION, type StructuralPiToolDefinition, type StructuralPiToolResult, type ClankersControlAction, type ClankersControlResult, type ClankersStateContainer } from '../types.js';
 
 // Reuse the existing authoring-test resolve-hook pattern: allow the three
 // static Pi facades, but fail if help reaches lazy SDK/provider or compiler IO.
 let armed = false;
 let forbiddenEffects = 0;
-const globals = globalThis as typeof globalThis & { __zergHelpEffect?: (name: string) => void };
-globals.__zergHelpEffect = name => { if (armed) { forbiddenEffects++; assert.fail(`Help side effect: ${name}`); } };
+const globals = globalThis as typeof globalThis & { __clankersHelpEffect?: (name: string) => void };
+globals.__clankersHelpEffect = name => { if (armed) { forbiddenEffects++; assert.fail(`Help side effect: ${name}`); } };
 const fsFacade = `export * from 'fs'; import * as fs from 'fs';
-  export function openSync(...args) { globalThis.__zergHelpEffect('file read/open'); return fs.openSync(...args); }
-  export function mkdirSync(...args) { globalThis.__zergHelpEffect('mkdir'); return fs.mkdirSync(...args); }
-  export function writeFileSync(...args) { globalThis.__zergHelpEffect('snapshot write'); return fs.writeFileSync(...args); }
-  export function renameSync(...args) { globalThis.__zergHelpEffect('snapshot publish'); return fs.renameSync(...args); }`;
+  export function openSync(...args) { globalThis.__clankersHelpEffect('file read/open'); return fs.openSync(...args); }
+  export function mkdirSync(...args) { globalThis.__clankersHelpEffect('mkdir'); return fs.mkdirSync(...args); }
+  export function writeFileSync(...args) { globalThis.__clankersHelpEffect('snapshot write'); return fs.writeFileSync(...args); }
+  export function renameSync(...args) { globalThis.__clankersHelpEffect('snapshot publish'); return fs.renameSync(...args); }`;
 const processFacade = `export * from 'child_process'; import { spawn as real } from 'child_process';
-  export function spawn(...args) { globalThis.__zergHelpEffect('subprocess'); return real(...args); }`;
+  export function spawn(...args) { globalThis.__clankersHelpEffect('subprocess'); return real(...args); }`;
 const hook = registerHooks({ resolve(specifier, context, next) {
   if (specifier === '@earendil-works/pi-coding-agent' && armed) {
     forbiddenEffects++; assert.fail('Help requested lazy SDK/provider module');
@@ -38,8 +38,8 @@ const hook = registerHooks({ resolve(specifier, context, next) {
     return { url: `data:text/javascript,${encodeURIComponent(processFacade)}`, shortCircuit: true };
   return next(specifier, context);
 } });
-after(() => { hook.deregister(); delete globals.__zergHelpEffect; });
-const { createZergCommandHandler, createZergControl, registerZergSwarmExtension } = await import('../index.js');
+after(() => { hook.deregister(); delete globals.__clankersHelpEffect; });
+const { createClankersCommandHandler, createClankersControl, registerClankersExtension } = await import('../index.js');
 
 const EXPECTED_ACTIONS = [
   'help', 'status', 'agents.list', 'agents.show', 'agents.result', 'agents.results', 'agents.create', 'agents.update', 'agents.delete',
@@ -52,9 +52,9 @@ const EXPECTED_ACTIONS = [
   'workflows.resume', 'workflows.cancel', 'workflows.retry', 'workflows.report', 'workflows.forget',
   'workflows.recovery.inspect', 'workflows.recovery.prepare', 'workflows.scripts.validate',
   'workflows.scripts.compile', 'workflows.scripts.inspect', 'workflows.scripts.save', 'workflows.scripts.import',
-] as const satisfies readonly ZergControlAction['action'][];
+] as const satisfies readonly ClankersControlAction['action'][];
 // A new public union member must acquire a regression case, not just a catalog entry.
-type MissingAction = Exclude<ZergControlAction['action'], typeof EXPECTED_ACTIONS[number]>;
+type MissingAction = Exclude<ClankersControlAction['action'], typeof EXPECTED_ACTIONS[number]>;
 const exhaustive: Record<MissingAction, never> = {};
 void exhaustive;
 const indexSource = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
@@ -62,11 +62,11 @@ const indexAst = ts.createSourceFile('index.ts', indexSource, ts.ScriptTarget.La
 const sorted = (names: readonly string[]) => [...names].sort();
 const bytes = (value: unknown) => Buffer.byteLength(typeof value === 'string' ? value : JSON.stringify(value), 'utf8');
 const noRuntime = new Proxy({}, { get: (_target, key) => () => { assert.fail(`Help touched runtime ${String(key)}`); } });
-const inertOptions: ZergControlOptions = {
+const inertOptions: ClankersControlOptions = {
   subagentAdapter: { kind: 'fake', launch() { assert.fail('Help launched native/provider work'); } },
-  nativeTranscriptService: noRuntime as NonNullable<ZergControlOptions['nativeTranscriptService']>,
-  sessionMessageService: noRuntime as NonNullable<ZergControlOptions['sessionMessageService']>,
-  nativeContinuationService: noRuntime as NonNullable<ZergControlOptions['nativeContinuationService']>,
+  nativeTranscriptService: noRuntime as NonNullable<ClankersControlOptions['nativeTranscriptService']>,
+  sessionMessageService: noRuntime as NonNullable<ClankersControlOptions['sessionMessageService']>,
+  nativeContinuationService: noRuntime as NonNullable<ClankersControlOptions['nativeContinuationService']>,
 };
 interface Directory {
   version: string; kind: 'directory'; groups: Array<{ name: string; actions: Array<{ action: string; summary: string; effects: string[] }> }>;
@@ -75,7 +75,7 @@ interface Directory {
 interface Focused {
   version: string; kind: 'action'; action: string; summary: string;
   parameters: Array<{ name: string; type: string; required: boolean; description: string }>;
-  constraints: string[]; effects: string[]; example: ZergControlAction; restrictions: string[];
+  constraints: string[]; effects: string[]; example: ClankersControlAction; restrictions: string[];
 }
 
 function diskSnapshot(root: string): Array<{ path: string; content: string | null }> {
@@ -90,7 +90,7 @@ function diskSnapshot(root: string): Array<{ path: string; content: string | nul
   walk(root); return entries;
 }
 
-function bounded(result: ZergControlResult, error = false): void {
+function bounded(result: ClankersControlResult, error = false): void {
   assert.ok(bytes(result.output ?? '') <= (error ? 512 : 16384));
   assert.ok(bytes(result.data ?? {}) <= 16384);
   // Check the ENTIRE envelope too: bounding only output leaves result.action vulnerable.
@@ -104,25 +104,25 @@ function bounded(result: ZergControlResult, error = false): void {
     assert.doesNotMatch(result.action, /[\u0000-\u001f\u007f-\u009f]/u);
   }
 }
-function toolResult(result: StructuralPiToolResult, error = false): ZergControlResult {
+function toolResult(result: StructuralPiToolResult, error = false): ClankersControlResult {
   assert.ok(bytes(result) <= (error ? 4096 : 65536));
   for (const part of result.content ?? []) if (part.type === 'text') assert.ok(bytes(part.text ?? '') <= (error ? 512 : 16384));
-  const details = result.details as ZergControlResult;
+  const details = result.details as ClankersControlResult;
   bounded(details, error);
   assert.equal(result.isError, error);
   return details;
 }
-function registration(options: ZergControlOptions = inertOptions) {
+function registration(options: ClankersControlOptions = inertOptions) {
   let tool: StructuralPiToolDefinition | undefined;
   const tools = new Map<string, StructuralPiToolDefinition>();
   const commands = new Map<string, { handler: (args: string, ctx: { hasUI: boolean; mode: 'print'; ui: { notify: (text: string) => void } }) => unknown }>();
-  const owner = registerZergSwarmExtension({
+  const owner = registerClankersExtension({
     registerTool(value) { tools.set(value.name, value); if (value.name === 'clankers_control') tool = value; },
     registerCommand(name, value) { commands.set(name, value); },
   }, options);
-  assert.deepEqual([...tools.keys()], ['clankers_control', 'zerg_control']);
-  assert.equal(tools.get('clankers_control')?.execute, tools.get('zerg_control')?.execute);
-  assert.equal(tools.get('clankers_control')?.parameters, tools.get('zerg_control')?.parameters);
+  assert.deepEqual([...tools.keys()], ['clankers_control']);
+  assert.equal(tools.get('clankers_control')?.execute, tools.get('clankers_control')?.execute);
+  assert.equal(tools.get('clankers_control')?.parameters, tools.get('clankers_control')?.parameters);
   assert.ok(tool?.execute);
   return { owner, tool, commands, execute: (input: unknown) => Promise.resolve(tool!.execute!('help-regression', input, undefined, undefined, { hasUI: false, mode: 'print' })) };
 }
@@ -130,25 +130,25 @@ function registration(options: ZergControlOptions = inertOptions) {
 /** Inspect just the existing pure tool parser; never call a mutating dispatcher to
  * validate illustrative examples. The installed TS parser is already a dependency.
  * Keep this small whitelist fail-closed if parser dependencies change. */
-function pureToolParser(): (input: unknown) => { ok: boolean; action?: ZergControlAction; message?: string } {
-  const names = ['parseZergControlToolParams', 'parseRecoveryControlToolAction', 'parseRecoverySelections', 'isZergControlActionName', 'workflowFailure'];
+function pureToolParser(): (input: unknown) => { ok: boolean; action?: ClankersControlAction; message?: string } {
+  const names = ['parseClankersControlToolParams', 'parseRecoveryControlToolAction', 'parseRecoverySelections', 'isClankersControlActionName', 'workflowFailure'];
   const declarations = names.map(name => {
     const node = indexAst.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
-    if (!node && name === 'isZergControlActionName') return ''; // May be imported from the shared catalog.
+    if (!node && name === 'isClankersControlActionName') return ''; // May be imported from the shared catalog.
     assert.ok(node, `Missing pure parser ${name}`);
     return node.getText(indexAst).replace(/^export\s+/, '');
   });
   const workflowNames = EXPECTED_ACTIONS.filter(name => name.startsWith('workflows.') && !name.startsWith('workflows.scripts.'));
   const bindings = { ...helpModule, isWorkflowScriptActionName, parseWorkflowScriptAction,
-    WORKFLOW_ACTION_NAMES: new Set(workflowNames), isZergOperatorMessageMode: (value: unknown) => value === 'steer' || value === 'followUp' };
-  const js = ts.transpileModule(`${declarations.join('\n')}\nreturn parseZergControlToolParams;`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+    WORKFLOW_ACTION_NAMES: new Set(workflowNames), isClankersOperatorMessageMode: (value: unknown) => value === 'steer' || value === 'followUp' };
+  const js = ts.transpileModule(`${declarations.join('\n')}\nreturn parseClankersControlToolParams;`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   return new Function(...Object.keys(bindings), js)(...Object.values(bindings)) as ReturnType<typeof pureToolParser>;
 }
 
 // Dispatchers for legacy calls intentionally have permissive flat parsing. These
 // additional PURE checks mirror required argument guards, not runtime existence,
 // authority, provider availability, script compilation, or file readability.
-function exampleArguments(example: ZergControlAction): void {
+function exampleArguments(example: ClankersControlAction): void {
   const value = example as unknown as Record<string, unknown>;
   const nonempty = (key: string) => assert.ok(typeof value[key] === 'string' && (value[key] as string).trim(), `${example.action}: ${key}`);
   if (isWorkflowScriptActionName(example.action)) { assert.doesNotThrow(() => parseWorkflowScriptAction(example)); return; }
@@ -192,13 +192,13 @@ function exampleArguments(example: ZergControlAction): void {
 }
 
 test('control help general directory is static, grouped, bounded and exact', async () => {
-  const control = createZergControl({}, inertOptions);
+  const control = createClankersControl({}, inertOptions);
   try {
     const result = await control.execute({ action: 'help' }); bounded(result);
     assert.equal(result.ok, true); assert.equal(result.action, 'help');
     const data = result.data as Directory;
     assert.deepEqual(sorted(Object.keys(data)), sorted(['version', 'kind', 'groups', 'hint', 'restrictions']));
-    assert.equal(data.kind, 'directory'); assert.equal(data.version, ZERG_EXTENSION_VERSION);
+    assert.equal(data.kind, 'directory'); assert.equal(data.version, CLANKERS_EXTENSION_VERSION);
     assert.ok(data.groups.length > 1); assert.match(data.hint, /topic/);
     assert.deepEqual(sorted(data.groups.flatMap(group => group.actions.map(entry => entry.action))), sorted(EXPECTED_ACTIONS));
     for (const group of data.groups) {
@@ -211,7 +211,7 @@ test('control help general directory is static, grouped, bounded and exact', asy
 });
 
 test('every exact action topic has identical direct/tool help and valid data-only example', async () => {
-  const control = createZergControl({}, inertOptions); const host = registration(); const parse = pureToolParser();
+  const control = createClankersControl({}, inertOptions); const host = registration(); const parse = pureToolParser();
   try {
     assert.deepEqual(toolResult(await host.execute({ action: 'help' })).data, (await control.execute({ action: 'help' })).data);
     for (const topic of EXPECTED_ACTIONS) {
@@ -219,12 +219,12 @@ test('every exact action topic has identical direct/tool help and valid data-onl
       const registered = toolResult(await host.execute({ action: 'help', topic })); assert.deepEqual(registered.data, direct.data, topic);
       const data = direct.data as Focused;
       assert.deepEqual(sorted(Object.keys(data)), sorted(['version', 'kind', 'action', 'summary', 'parameters', 'constraints', 'effects', 'example', 'restrictions']));
-      assert.equal(data.kind, 'action'); assert.equal(data.action, topic); assert.equal(data.version, ZERG_EXTENSION_VERSION);
+      assert.equal(data.kind, 'action'); assert.equal(data.action, topic); assert.equal(data.version, CLANKERS_EXTENSION_VERSION);
       assert.ok(data.summary); assert.ok(data.effects.length); assert.ok(Array.isArray(data.restrictions));
       assert.equal(new Set(data.parameters.map(parameter => parameter.name)).size, data.parameters.length);
       const action = data.parameters.find(parameter => parameter.name === 'action'); assert.ok(action?.required);
       for (const parameter of data.parameters) { assert.ok(parameter.type); assert.ok(parameter.description); assert.equal(typeof parameter.required, 'boolean'); }
-      const example = JSON.parse(JSON.stringify(data.example)) as ZergControlAction;
+      const example = JSON.parse(JSON.stringify(data.example)) as ClankersControlAction;
       assert.equal(example.action, topic); assert.equal(parse(example).ok, true, `Tool parser rejected ${topic}`);
       for (const parameter of data.parameters.filter(parameter => parameter.required)) assert.ok(Object.hasOwn(example, parameter.name), `${topic}: ${parameter.name}`);
       exampleArguments(example); // Deliberately NOT control.execute(example).
@@ -235,9 +235,9 @@ test('every exact action topic has identical direct/tool help and valid data-onl
 test('tool enum, public predicate, typed catalog and workflow/script families cannot drift', () => {
   const host = registration();
   try {
-    assert.deepEqual(sorted(ZERG_CONTROL_ACTION_NAMES), sorted(EXPECTED_ACTIONS));
-    assert.deepEqual(sorted(Object.keys(ZERG_CONTROL_HELP_CATALOG)), sorted(EXPECTED_ACTIONS));
-    assert.equal(new Set(ZERG_CONTROL_ACTION_NAMES).size, EXPECTED_ACTIONS.length);
+    assert.deepEqual(sorted(CLANKERS_CONTROL_ACTION_NAMES), sorted(EXPECTED_ACTIONS));
+    assert.deepEqual(sorted(Object.keys(CLANKERS_CONTROL_HELP_CATALOG)), sorted(EXPECTED_ACTIONS));
+    assert.equal(new Set(CLANKERS_CONTROL_ACTION_NAMES).size, EXPECTED_ACTIONS.length);
     const schema = host.tool.parameters as { additionalProperties: boolean; properties: { action: { enum: string[] }; topic: { type: string; maxLength: number; description: string } }; required: string[] };
     assert.deepEqual(sorted(schema.properties.action.enum), sorted(EXPECTED_ACTIONS));
     assert.equal(schema.additionalProperties, true, 'No unrelated global parser/schema tightening');
@@ -259,8 +259,8 @@ test('tool enum, public predicate, typed catalog and workflow/script families ca
 });
 
 test('focused metadata preserves conditional identities, defaults, bounds and authority exclusions', async () => {
-  const control = createZergControl({}, inertOptions);
-  const text = async (topic: ZergControlAction['action']) => JSON.stringify((await control.execute({ action: 'help', topic })).data);
+  const control = createClankersControl({}, inertOptions);
+  const text = async (topic: ClankersControlAction['action']) => JSON.stringify((await control.execute({ action: 'help', topic })).data);
   try {
     assert.match(await text('run'), /8/); assert.match(await text('run'), /concurrency/);
     assert.match(await text('workflows.start'), /32/);
@@ -281,14 +281,14 @@ test('focused metadata preserves conditional identities, defaults, bounds and au
     assert.match(await text('session.continuation.prepare'), /Only start checks execution admission/i);
     assert.doesNotMatch(await text('session.continuation.prepare'), /non-read-only owner/i);
     for (const forbidden of ['teams.create', 'workflows.approve', 'workflows.approvals.grant', 'workflows.recovery.authorize', 'grantFingerprint', 'authorize']) {
-      assert.equal(Object.hasOwn(ZERG_CONTROL_HELP_CATALOG, forbidden), false);
-      bounded(await control.execute({ action: 'help', topic: forbidden } as ZergControlAction), true);
+      assert.equal(Object.hasOwn(CLANKERS_CONTROL_HELP_CATALOG, forbidden), false);
+      bounded(await control.execute({ action: 'help', topic: forbidden } as ClankersControlAction), true);
     }
   } finally { control.dispose(); }
 });
 
 test('malformed, alias, fuzzy and oversized help topics/extras fail bounded on both paths', async () => {
-  const control = createZergControl({}, inertOptions); const host = registration();
+  const control = createClankersControl({}, inertOptions); const host = registration();
   const requests: unknown[] = [
     ...[null, false, 1, [], {}, '', ' help', 'help ', 'agents', 'agents.*', 'teams.create', 'HELP', 'x'.repeat(96), 'x'.repeat(97), '\u001b\u0000' + '💥'.repeat(50000)].map(topic => ({ action: 'help', topic })),
     { action: 'help', limit: 1 }, { action: 'help', source: 'x'.repeat(100000) }, { action: 'help', extra: undefined },
@@ -297,7 +297,7 @@ test('malformed, alias, fuzzy and oversized help topics/extras fail bounded on b
   ];
   try {
     for (const request of requests) {
-      bounded(await control.execute(request as ZergControlAction), true);
+      bounded(await control.execute(request as ClankersControlAction), true);
       toolResult(await host.execute(request), true);
     }
     for (const request of [null, [], {}, { action: 1 }]) toolResult(await host.execute(request), true);
@@ -305,10 +305,10 @@ test('malformed, alias, fuzzy and oversized help topics/extras fail bounded on b
 });
 
 test('unknown actions remain errors with discovery guidance and bounded sanitized entire results', async () => {
-  const control = createZergControl({}, inertOptions); const host = registration();
+  const control = createClankersControl({}, inertOptions); const host = registration();
   try {
     for (const action of ['agents.lsit', 'workflows.recovery.authorize', 'x'.repeat(100000), '\u0000\u001b\n' + '💥'.repeat(50000)]) {
-      const direct = await control.execute({ action } as ZergControlAction); bounded(direct, true);
+      const direct = await control.execute({ action } as ClankersControlAction); bounded(direct, true);
       const registered = toolResult(await host.execute({ action }), true);
       for (const result of [direct, registered]) assert.match(result.error!.message, /\{"action":"help"\}/);
     }
@@ -316,11 +316,11 @@ test('unknown actions remain errors with discovery guidance and bounded sanitize
 });
 
 test('topic on non-help is rejected without silently dispatching or changing state', async () => {
-  const control = createZergControl({}, inertOptions); const host = registration();
+  const control = createClankersControl({}, inertOptions); const host = registration();
   try {
     for (const action of ['status', 'agents.create', 'workflows.list', 'workflows.scripts.compile'] as const) {
       for (const topic of ['status', undefined, 'x'.repeat(100000)]) {
-        bounded(await control.execute({ action, topic } as ZergControlAction), true);
+        bounded(await control.execute({ action, topic } as ClankersControlAction), true);
         toolResult(await host.execute({ action, topic }), true);
       }
     }
@@ -328,13 +328,13 @@ test('topic on non-help is rejected without silently dispatching or changing sta
 });
 
 test('read-only direct help reads revision without snapshots, publications, lazy workflows or persistence/runtime effects', async () => {
-  const rootDir = mkdtempSync(join(tmpdir(), 'zerg-help-'));
-  const base = createZergStateContainer(createZergState({ mode: { automation: 'manual', interventionEnabled: true, controller: 'operator', readOnly: true } }));
+  const rootDir = mkdtempSync(join(tmpdir(), 'clankers-help-'));
+  const base = createClankersStateContainer(createClankersState({ mode: { automation: 'manual', interventionEnabled: true, controller: 'operator', readOnly: true } }));
   let snapshots = 0, writes = 0, publications = 0, clocks = 0;
-  const container: ZergStateContainer = { read: () => base.read(), snapshot: () => { snapshots++; return base.snapshot(); },
+  const container: ClankersStateContainer = { read: () => base.read(), snapshot: () => { snapshots++; return base.snapshot(); },
     replace: value => { writes++; return base.replace(value); }, update: (value, options) => { writes++; return base.update(value, options); }, subscribe: listener => base.subscribe!(listener) };
   const remove = base.subscribe!(() => { publications++; });
-  const control = createZergControl(container, { ...inertOptions, persistence: { enabled: true, rootDir }, now: () => { clocks++; return new Date('2026-10-09T00:00:00Z'); } });
+  const control = createClankersControl(container, { ...inertOptions, persistence: { enabled: true, rootDir }, now: () => { clocks++; return new Date('2026-10-09T00:00:00Z'); } });
   const before = base.snapshot(); const baseline = { snapshots, writes, publications, clocks };
   forbiddenEffects = 0; armed = true;
   try {
@@ -350,10 +350,10 @@ test('read-only direct help reads revision without snapshots, publications, lazy
 });
 
 test('registered non-UI/read-only help does not publish shared state or initialize workflows', async () => {
-  const previous = readSharedZergState();
-  replaceSharedZergState(createZergState({ mode: { automation: 'manual', interventionEnabled: true, controller: 'operator', readOnly: true } }));
-  const rootDir = mkdtempSync(join(tmpdir(), 'zerg-tool-help-'));
-  const host = registration({ ...inertOptions, persistence: { enabled: true, rootDir } }); const before = host.owner.state; const shared = readSharedZergState();
+  const previous = readSharedClankersState();
+  replaceSharedClankersState(createClankersState({ mode: { automation: 'manual', interventionEnabled: true, controller: 'operator', readOnly: true } }));
+  const rootDir = mkdtempSync(join(tmpdir(), 'clankers-tool-help-'));
+  const host = registration({ ...inertOptions, persistence: { enabled: true, rootDir } }); const before = host.owner.state; const shared = readSharedClankersState();
   // Registration itself may persist command/lifecycle setup; help must not.
   const diskBefore = diskSnapshot(rootDir);
   forbiddenEffects = 0; armed = true;
@@ -363,32 +363,32 @@ test('registered non-UI/read-only help does not publish shared state or initiali
       assert.equal(result.ok, true); assert.equal(result.stateRevision, before.revision);
     }
     assert.equal(forbiddenEffects, 0);
-    assert.deepEqual(host.owner.state, before); assert.deepEqual(readSharedZergState(), shared);
+    assert.deepEqual(host.owner.state, before); assert.deepEqual(readSharedClankersState(), shared);
     assert.equal(host.owner.state.extensions.workflows, undefined); assert.deepEqual(diskSnapshot(rootDir), diskBefore);
-  } finally { armed = false; host.owner.dispose(); replaceSharedZergState(previous); rmSync(rootDir, { recursive: true, force: true }); }
+  } finally { armed = false; host.owner.dispose(); replaceSharedClankersState(previous); rmSync(rootDir, { recursive: true, force: true }); }
 });
 
 test('legacy slash help and all registered aliases remain available without UI', async () => {
-  const container = createZergStateContainer(); const before = container.snapshot(); const slash = createZergCommandHandler(container);
-  const expected = slash('/zerg help'); assert.equal(expected.ok, true); assert.match(expected.output, /\/zerg/);
-  for (const alias of ['/clankers', '/clank', '/zerg', '/zerg-swarm', '/swarm']) assert.deepEqual(slash(`${alias} help`), expected);
+  const container = createClankersStateContainer(); const before = container.snapshot(); const slash = createClankersCommandHandler(container);
+  const expected = slash('/clankers help'); assert.equal(expected.ok, true); assert.match(expected.output, /\/clankers/);
+  for (const alias of ['/clankers', '/clank']) assert.deepEqual(slash(`${alias} help`), expected);
   const host = registration();
   try {
-    assert.deepEqual(sorted([...host.commands.keys()]), sorted(['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']));
+    assert.deepEqual(sorted([...host.commands.keys()]), sorted(['clankers', 'clank']));
     for (const command of host.commands.values()) {
       const output: string[] = []; await command.handler('help', { hasUI: false, mode: 'print', ui: { notify: text => { output.push(text); } } });
-      assert.ok(output.some(text => text.includes('/zerg')));
+      assert.ok(output.some(text => text.includes('/clankers')));
     }
     assert.deepEqual(container.snapshot(), before);
   } finally { host.owner.dispose(); }
 });
 
 test('legacy valid inspection calls keep their permissive non-help fields and parser semantics', async () => {
-  const control = createZergControl({}, inertOptions); const host = registration(); const parse = pureToolParser();
+  const control = createClankersControl({}, inertOptions); const host = registration(); const parse = pureToolParser();
   try {
     for (const input of [{ action: 'status', unrelated: true }, { action: 'logs.list', limit: 1000 }, { action: 'timeline.list', limit: 256 }]) {
       assert.equal(parse(input).ok, true);
-      assert.equal((await control.execute(input as ZergControlAction)).ok, true);
+      assert.equal((await control.execute(input as ClankersControlAction)).ok, true);
       assert.equal((await host.execute(input)).isError, false);
     }
     assert.equal(parse({ action: 'message', targetId: 'worker', body: 'Review', mode: 'followUp' }).ok, true);
@@ -419,8 +419,8 @@ test('receipt help default matches the real read-only list handler, not its maxi
     mode: 'followUp', status: 'delivered', detail: 'Synthetic retained receipt',
     createdAt: '2026-10-09T00:00:00Z', updatedAt: '2026-10-09T00:00:00Z', persistence: 'memory',
   }));
-  const container = createZergStateContainer(createZergState({ extensions: { zergSessionMessages: { schemaVersion: 1, receipts } } }));
-  const control = createZergControl(container, { subagentAdapter: inertOptions.subagentAdapter });
+  const container = createClankersStateContainer(createClankersState({ extensions: { clankersSessionMessages: { schemaVersion: 1, receipts } } }));
+  const control = createClankersControl(container, { subagentAdapter: inertOptions.subagentAdapter });
   const before = control.getState();
   try {
     const listed = await control.execute({ action: 'session.messages.list', ...key });

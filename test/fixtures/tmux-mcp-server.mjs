@@ -23,7 +23,7 @@ async function request(m) {
     send(m.id, { protocolVersion: m.params.protocolVersion, capabilities: { tools: {}, logging: {} }, serverInfo: { name: 'synthetic-larra', version: '1' } });
   } else if (m.method === 'tools/list') {
     assert(notified); audit({ kind: 'list' });
-    send(m.id, { tools: ['search_text', 'delete_symbol', 'clankers_control', 'zerg_control'].map(name => ({ name, description: 'Synthetic gate operation', inputSchema: schema })) });
+    send(m.id, { tools: ['search_text', 'delete_symbol', 'clankers_control'].map(name => ({ name, description: 'Synthetic gate operation', inputSchema: schema })) });
   } else if (m.method === 'tools/call') {
     assert(notified);
     // Audit BEFORE any dispatch, including forbidden or malformed requests.

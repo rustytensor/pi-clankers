@@ -21,10 +21,10 @@ const USER_NEWER_BYTES = 'USER_NEWER_BYTES\n';
 if (process.argv[2] === '--recover') {
   const info = JSON.parse(readFileSync(process.argv[3], 'utf8'));
   const sdk = await import('@earendil-works/pi-coding-agent');
-  const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+  const clankers = await import(new URL('../../index.ts', import.meta.url).href);
   let executions = 0;
   for (const method of ['bindExtensions','prompt']) sdk.AgentSession.prototype[method] = function () { executions++; throw Error('Recovered coding hydration must not start SDK work'); };
-  const owner = zerg.createZergControl(undefined, { persistence: { enabled: true, snapshotFile: info.snapshotFile } });
+  const owner = clankers.createClankersControl(undefined, { persistence: { enabled: true, snapshotFile: info.snapshotFile } });
   try {
     const shown = await owner.execute({ action: 'workflows.show', workflowRunId: info.workflowRunId }); assert(shown.ok, JSON.stringify(shown)); assert.equal(shown.data.view.status, 'needs-attention'); assert.equal(shown.data.view.recovered, true);
     assert.equal((await owner.execute({ action: 'workflows.resume', workflowRunId: info.workflowRunId })).ok, false);
@@ -45,7 +45,7 @@ const str = (maxLength = 256) => ({ type: 'string', maxLength });
 const arr = items => ({ type: 'array', maxItems: 8, items });
 const bool = { type: 'boolean' };
 
-const root = mkdtempSync(join(tmpdir(), 'zerg-coding-sdk-'));
+const root = mkdtempSync(join(tmpdir(), 'clankers-coding-sdk-'));
 const work = join(root, 'work'), agentDir = join(root, 'agent'), staging = join(root, 'stage');
 for (const dir of [work, agentDir, staging, join(work, 'src')]) mkdirSync(dir, { recursive: true });
 process.env.PI_CODING_AGENT_DIR = agentDir;
@@ -59,7 +59,7 @@ const settings = { packages: [], extensions: ['-builtin:mcp','-builtin:llama.cpp
 writeFileSync(join(agentDir, 'settings.json'), JSON.stringify(settings)); writeFileSync(join(agentDir, 'auth.json'), '{}');
 
 const sdk = await import('@earendil-works/pi-coding-agent'); guard.watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const model = await import(new URL('../../workflow-model.ts', import.meta.url).href);
 const persistence = await import(new URL('../../persistence.ts', import.meta.url).href);
 
@@ -117,13 +117,13 @@ async function until(check, label, ms = 45000) { const end = Date.now() + ms; wh
 async function exec(control, action) { const r = await control.execute(action); assert(r.ok, JSON.stringify(r)); return r; }
 function terminal(run) { return run.cleanupSettled && ['completed','failed','cancelled','needs-attention'].includes(run.status); }
 function units(run) { return model.workflowStepEntries(run).flatMap(e => e.step.units); }
-async function createControl(snapshotFile) { return zerg.createZergControl(undefined, { persistence: { enabled: true, snapshotFile }, coding: { enabled: true, projectRoot: work, stagingParent: staging, checkProfiles: { node: { id: 'node', executable: process.execPath, argv: checkProfile().argv, cwd: 'src', env: {}, timeoutMs: 10000, outputBytes: 4096 } } } }); }
+async function createControl(snapshotFile) { return clankers.createClankersControl(undefined, { persistence: { enabled: true, snapshotFile }, coding: { enabled: true, projectRoot: work, stagingParent: staging, checkProfiles: { node: { id: 'node', executable: process.execPath, argv: checkProfile().argv, cwd: 'src', env: {}, timeoutMs: 10000, outputBytes: 4096 } } } }); }
 
 try {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { fixture: { api: 'openai-completions', baseUrl: 'http://127.0.0.1:' + server.address().port + '/v1', apiKey: 'dummy-coding-sdk-only', models: ['writer','reviewer'].map(id => ({ id, reasoning: false, input: ['text'], contextWindow: 65536, maxTokens: 2048 })) } } }));
   const snapshotFile = join(root, 'snapshot.json'); var control = await createControl(snapshotFile);
-  for (const [id, modelId, prompt] of [['writer','fixture/writer','Writer MUST use workflow_stage_read before workflow_stage_write; no other tools.'], ['reviewer','fixture/reviewer','Readonly reviewer; use workflow_stage_read and return JSON verdict.']]) await exec(control, { action: 'agents.create', id, model: modelId, tools: ['read','bash','edit','write','zerg_control','codemode'], prompt });
+  for (const [id, modelId, prompt] of [['writer','fixture/writer','Writer MUST use workflow_stage_read before workflow_stage_write; no other tools.'], ['reviewer','fixture/reviewer','Readonly reviewer; use workflow_stage_read and return JSON verdict.']]) await exec(control, { action: 'agents.create', id, model: modelId, tools: ['read','bash','edit','write','clankers_control','codemode'], prompt });
 
   await exec(control, { action: 'workflows.define', definition: definition('deny', 'deny', false, false) });
   const deny = (await exec(control, { action: 'workflows.start', definitionId: 'deny', inputs: {}, concurrency: 1 })).data.view.workflowRunId;
@@ -189,7 +189,7 @@ try {
   await until(() => held.has('cancel-writer') && control.getState().extensions.workflows.runs.find(r => r.workflowRunId === rec).steps.some(s => s.units.some(u => u.native)), 'recover in-flight native');
   const savedRequests = requests.length; const savedHashes = [join(work, 'src/bug.js'), join(work, 'src/untouched.txt'), join(work, 'src/original.txt')].map(f => [f, digest(f)]);
   const recoverySnapshot = join(root, 'recovery-state.json');
-  persistence.createZergPersistenceManager({ enabled: true, snapshotFile: recoverySnapshot }).save(control.getState());
+  persistence.createClankersPersistenceManager({ enabled: true, snapshotFile: recoverySnapshot }).save(control.getState());
   control.dispose(); held.get('cancel-writer')?.();
   const loader = createRequire(import.meta.url).resolve('tsx'), info = join(root, 'recover-info.json'); writeFileSync(info, JSON.stringify({ snapshotFile: recoverySnapshot, workflowRunId: rec, hashes: savedHashes }));
   recoveryChild = spawn(process.execPath, ['--import', loader, fileURLToPath(import.meta.url), '--recover', info], { cwd: work, env: guard.childEnv(), stdio: ['ignore','pipe','pipe'] });

@@ -1,29 +1,29 @@
-import type { ZergManagementTargetKind, ZergManagementUiState, ZergOperatorMessageDeliveryStatus, ZergState } from '../types.js';
+import type { ClankersManagementTargetKind, ClankersManagementUiState, ClankersOperatorMessageDeliveryStatus, ClankersState } from '../types.js';
 import { renderPane, sanitizeUiText, styleText, type UiThemeLike } from './components.js';
 import { addOperatorMessage, backspaceDraft, clearDraft } from './state.js';
 import { resolveSelectedTarget } from './detail-pane.js';
 
 export interface ChatSendResult {
-  status: ZergOperatorMessageDeliveryStatus;
+  status: ClankersOperatorMessageDeliveryStatus;
   statusDetail: string;
   routedTargetId?: string;
 }
 
 export interface ChatPaneActions {
   now(): Date;
-  sendOperatorMessage(target: { id: string; kind: ZergManagementTargetKind }, body: string): ChatSendResult;
+  sendOperatorMessage(target: { id: string; kind: ClankersManagementTargetKind }, body: string): ChatSendResult;
 }
 
-export function updateChatDraftFromInput(uiState: ZergManagementUiState, input: string): void {
+export function updateChatDraftFromInput(uiState: ClankersManagementUiState, input: string): void {
   uiState.chatDraft = `${uiState.chatDraft}${input}`.slice(0, 500);
 }
 
-export function cancelChatDraft(uiState: ZergManagementUiState): string {
+export function cancelChatDraft(uiState: ClankersManagementUiState): string {
   clearDraft(uiState);
   return 'chat draft cancelled';
 }
 
-export function sendChatDraft(state: ZergState, uiState: ZergManagementUiState, actions: ChatPaneActions): string {
+export function sendChatDraft(state: ClankersState, uiState: ClankersManagementUiState, actions: ChatPaneActions): string {
   const body = uiState.chatDraft.trim();
   if (!body) {
     return 'chat draft is empty';
@@ -55,11 +55,11 @@ export function sendChatDraft(state: ZergState, uiState: ZergManagementUiState, 
   return result.statusDetail;
 }
 
-export function handleChatBackspace(uiState: ZergManagementUiState): void {
+export function handleChatBackspace(uiState: ClankersManagementUiState): void {
   backspaceDraft(uiState);
 }
 
-export function renderChatPane(state: ZergState, uiState: ZergManagementUiState, width: number, height: number, composerLines?: readonly string[], theme?: UiThemeLike): string[] {
+export function renderChatPane(state: ClankersState, uiState: ClankersManagementUiState, width: number, height: number, composerLines?: readonly string[], theme?: UiThemeLike): string[] {
   const selected = resolveSelectedTarget(state, uiState);
   const targetLabel = selected ? `${sanitizeUiText(selected.kind)} ${sanitizeUiText(selected.id)}` : 'none';
   const lines = [

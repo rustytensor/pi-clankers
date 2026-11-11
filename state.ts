@@ -1,9 +1,10 @@
 import { normalizeResultSchema, normalizeMayWrite, isImmutableAgentResultLedger } from './agent-results.js';
-import { ZERG_STATE_SCHEMA_VERSION, type AgentIdentity, type AgentKind, type AgentStatus, type HookLifecycleEvent, type PermissionModeIntervention, type PermissionModeInterventionInput, type PermissionModeSnapshot, type PermissionModeState, type PermissionModeTransitionInput, type TaskRecord, type TeamIdentity, type TeamKind, type ZergAgentDefinition, type ZergAgentRuntimeTransition, type ZergContext, type ZergExtensionFields, type ZergPermissionDecision, type ZergPermissionQueueState, type ZergPermissionRequest, type ZergPermissionRequester, type ZergPermissionRequestKind, type ZergPermissionRequestStatus, type ZergPermissionResolver, type ZergLifecycleSubstate, type ZergLogLevel, type ZergLogRecord, type ZergLogSource, type ZergLogState, type ZergOutputKind, type ZergRuntimeHealth, type ZergRuntimeModeContext, type ZergRuntimeState, type ZergRuntimeTransition, type ZergState, type ZergStateContainer, type ZergStateListener, type ZergStatePatch, type ZergStateUpdateOptions, type ZergSubagentRunSnapshot, type ZergNativeSessionReference, type ZergTeamRuntimeTransition, type ZergTreeNode } from './types.js';
+import { hasRunIdPrefix } from './legacy-names.js';
+import { CLANKERS_STATE_SCHEMA_VERSION, type AgentIdentity, type AgentKind, type AgentStatus, type HookLifecycleEvent, type PermissionModeIntervention, type PermissionModeInterventionInput, type PermissionModeSnapshot, type PermissionModeState, type PermissionModeTransitionInput, type TaskRecord, type TeamIdentity, type TeamKind, type ClankersAgentDefinition, type ClankersAgentRuntimeTransition, type ClankersContext, type ClankersExtensionFields, type ClankersPermissionDecision, type ClankersPermissionQueueState, type ClankersPermissionRequest, type ClankersPermissionRequester, type ClankersPermissionRequestKind, type ClankersPermissionRequestStatus, type ClankersPermissionResolver, type ClankersLifecycleSubstate, type ClankersLogLevel, type ClankersLogRecord, type ClankersLogSource, type ClankersLogState, type ClankersOutputKind, type ClankersRuntimeHealth, type ClankersRuntimeModeContext, type ClankersRuntimeState, type ClankersRuntimeTransition, type ClankersState, type ClankersStateContainer, type ClankersStateListener, type ClankersStatePatch, type ClankersStateUpdateOptions, type ClankersSubagentRunSnapshot, type ClankersNativeSessionReference, type ClankersTeamRuntimeTransition, type ClankersTreeNode } from './types.js';
 
 const DEFAULT_TIMESTAMP = '1970-01-01T00:00:00.000Z';
 const MAX_LIFECYCLE_SUBSTATE_REASON_LENGTH = 160;
-const MAX_ZERG_STATE_LISTENER_DIAGNOSTIC_LENGTH = 240;
+const MAX_CLANKERS_STATE_LISTENER_DIAGNOSTIC_LENGTH = 240;
 // Extension metadata is persisted as JSON-shaped state. Bound traversal so invalid
 // cycles and hostile/deep graphs fail before commits instead of overflowing stacks.
 const MAX_EXTENSION_CLONE_DEPTH = 64;
@@ -15,7 +16,7 @@ const DEFAULT_MODE: PermissionModeState = {
   controller: 'operator',
 };
 
-const BUILTIN_AGENT_DEFINITIONS: Record<string, ZergAgentDefinition> = {
+const BUILTIN_AGENT_DEFINITIONS: Record<string, ClankersAgentDefinition> = {
   generalist: {
     id: 'generalist',
     label: 'Generalist',
@@ -46,11 +47,11 @@ const BUILTIN_AGENT_DEFINITIONS: Record<string, ZergAgentDefinition> = {
   },
 };
 
-export function createBuiltinAgentDefinitions(): Record<string, ZergAgentDefinition> {
+export function createBuiltinAgentDefinitions(): Record<string, ClankersAgentDefinition> {
   return cloneAgentDefinitions(BUILTIN_AGENT_DEFINITIONS);
 }
 
-export function createZergSubagentRunSnapshot(run: ZergSubagentRunSnapshot): ZergSubagentRunSnapshot {
+export function createClankersSubagentRunSnapshot(run: ClankersSubagentRunSnapshot): ClankersSubagentRunSnapshot {
   // Parent metadata is authoritative whenever the reserved key is present,
   // including malformed/null/undefined values. Typed-only adapter snapshots
   // remain supported when no canonical ledger key was supplied.
@@ -84,7 +85,7 @@ export function createZergSubagentRunSnapshot(run: ZergSubagentRunSnapshot): Zer
   };
 }
 
-export function seedBuiltinAgentDefinitions(state: ZergState): ZergState {
+export function seedBuiltinAgentDefinitions(state: ClankersState): ClankersState {
   let mergedDefinitions = state.agentDefinitions;
   let changed = false;
 
@@ -110,7 +111,7 @@ export function seedBuiltinAgentDefinitions(state: ZergState): ZergState {
     return state;
   }
 
-  return createZergState({
+  return createClankersState({
     ...state,
     agentDefinitions: mergedDefinitions,
   });
@@ -125,13 +126,13 @@ export function normalizeAgentDefinitionId(input: string): string {
     .replace(/-+$/, '');
 }
 
-export function getAgentDefinitions(state: ZergState): ZergAgentDefinition[] {
+export function getAgentDefinitions(state: ClankersState): ClankersAgentDefinition[] {
   return Object.values(state.agentDefinitions)
     .map((definition) => cloneAgentDefinition(definition))
     .sort((left, right) => left.id.localeCompare(right.id) || left.label.localeCompare(right.label));
 }
 
-export function getAgentDefinition(state: ZergState, rawId: string): ZergAgentDefinition | undefined {
+export function getAgentDefinition(state: ClankersState, rawId: string): ClankersAgentDefinition | undefined {
   const id = normalizeAgentDefinitionId(rawId);
   if (!id) {
     return undefined;
@@ -145,19 +146,19 @@ export function getAgentDefinition(state: ZergState, rawId: string): ZergAgentDe
   return cloneAgentDefinition(definition);
 }
 
-export function getSubagentRunSnapshots(state: ZergState): ZergSubagentRunSnapshot[] {
+export function getSubagentRunSnapshots(state: ClankersState): ClankersSubagentRunSnapshot[] {
   return Object.values(state.agents)
     .filter((agent) => isPiSubagentRunAgentId(agent.id))
     .map((agent) => cloneSubagentRunSnapshot(fromAgentToRunSnapshot(agent)))
     .sort((left, right) => (right.startedAt ?? '').localeCompare(left.startedAt ?? '') || left.runId.localeCompare(right.runId));
 }
 
-export function getSubagentRunSnapshot(state: ZergState, runId: string): ZergSubagentRunSnapshot | undefined {
+export function getSubagentRunSnapshot(state: ClankersState, runId: string): ClankersSubagentRunSnapshot | undefined {
   const run = getSubagentRunById(state, runId);
   return run ? cloneSubagentRunSnapshot(run) : undefined;
 }
 
-export function upsertAgentDefinition(state: ZergState, definition: ZergAgentDefinition): ZergState {
+export function upsertAgentDefinition(state: ClankersState, definition: ClankersAgentDefinition): ClankersState {
   const id = normalizeAgentDefinitionId(definition.id);
   if (!id) {
     throw new Error('agent definition id must be a non-empty string');
@@ -173,7 +174,7 @@ export function upsertAgentDefinition(state: ZergState, definition: ZergAgentDef
   const maxTurns = normalizePositiveInteger(definition.maxTurns);
 
   const { result_schema, may_write, ...baseDefinition } = definition;
-  const normalized: ZergAgentDefinition = {
+  const normalized: ClankersAgentDefinition = {
     ...baseDefinition,
     id,
     label: definition.label?.trim() || definition.id,
@@ -189,7 +190,7 @@ export function upsertAgentDefinition(state: ZergState, definition: ZergAgentDef
     extensions: cloneOptional(definition.extensions, cloneExtensionFields),
   };
 
-  return updateZergState(state, {
+  return updateClankersState(state, {
     agentDefinitions: {
       ...state.agentDefinitions,
       [id]: normalized,
@@ -197,7 +198,7 @@ export function upsertAgentDefinition(state: ZergState, definition: ZergAgentDef
   });
 }
 
-export function removeAgentDefinition(state: ZergState, rawId: string): ZergState {
+export function removeAgentDefinition(state: ClankersState, rawId: string): ClankersState {
   const id = normalizeAgentDefinitionId(rawId);
   if (!id || state.agentDefinitions[id] === undefined) {
     return state;
@@ -206,14 +207,14 @@ export function removeAgentDefinition(state: ZergState, rawId: string): ZergStat
   const nextDefinitions = { ...state.agentDefinitions };
   delete nextDefinitions[id];
 
-  return updateZergState(state, {
+  return updateClankersState(state, {
     agentDefinitions: nextDefinitions,
   });
 }
 
-export function createZergState(seed: Partial<ZergState> = {}): ZergState {
+export function createClankersState(seed: Partial<ClankersState> = {}): ClankersState {
   return {
-    schemaVersion: ZERG_STATE_SCHEMA_VERSION,
+    schemaVersion: CLANKERS_STATE_SCHEMA_VERSION,
     lifecycle: seed.lifecycle ?? 'ready',
     revision: seed.revision ?? 0,
     metadata: cloneMetadata(seed.metadata),
@@ -230,12 +231,12 @@ export function createZergState(seed: Partial<ZergState> = {}): ZergState {
   };
 }
 
-export function snapshotZergState(state: ZergState): ZergState {
-  return createZergState(state);
+export function snapshotClankersState(state: ClankersState): ClankersState {
+  return createClankersState(state);
 }
 
-export function updateZergState(state: ZergState, patch: ZergStatePatch, options: ZergStateUpdateOptions = {}): ZergState {
-  const base = snapshotZergState(state);
+export function updateClankersState(state: ClankersState, patch: ClankersStatePatch, options: ClankersStateUpdateOptions = {}): ClankersState {
+  const base = snapshotClankersState(state);
   const resolvedPatch = typeof patch === 'function' ? patch(base) : patch;
   const mergedMetadata = cloneMetadata({
     ...base.metadata,
@@ -243,7 +244,7 @@ export function updateZergState(state: ZergState, patch: ZergStatePatch, options
     updatedAt: options.updatedAt ?? resolvedPatch.metadata?.updatedAt ?? base.metadata.updatedAt,
   });
 
-  return createZergState({
+  return createClankersState({
     ...base,
     ...resolvedPatch,
     metadata: mergedMetadata,
@@ -252,36 +253,36 @@ export function updateZergState(state: ZergState, patch: ZergStatePatch, options
   });
 }
 
-export function getCurrentAgents(state: ZergState): AgentIdentity[] {
+export function getCurrentAgents(state: ClankersState): AgentIdentity[] {
   return Object.keys(state.agents).sort().map((id) => cloneAgent(state.agents[id]!));
 }
 
-export function getCurrentTasks(state: ZergState): TaskRecord[] {
+export function getCurrentTasks(state: ClankersState): TaskRecord[] {
   return Object.keys(state.tasks).sort().map((id) => cloneTask(state.tasks[id]!));
 }
 
-export function getCurrentTeams(state: ZergState): TeamIdentity[] {
+export function getCurrentTeams(state: ClankersState): TeamIdentity[] {
   return Object.keys(state.teams).sort().map((id) => cloneTeam(state.teams[id]!));
 }
 
-export function getCurrentTree(state: ZergState): Record<string, ZergTreeNode> {
+export function getCurrentTree(state: ClankersState): Record<string, ClankersTreeNode> {
   return cloneTree(state.tree);
 }
 
-export function getCurrentMode(state: ZergState): PermissionModeState {
+export function getCurrentMode(state: ClankersState): PermissionModeState {
   return cloneMode(state.mode);
 }
 
-export function getSelectedNodeId(state: ZergState): string | undefined {
+export function getSelectedNodeId(state: ClankersState): string | undefined {
   return state.selectedNodeId;
 }
 
-export function getSelectedTreeNode(state: ZergState): ZergTreeNode | undefined {
+export function getSelectedTreeNode(state: ClankersState): ClankersTreeNode | undefined {
   return state.selectedNodeId ? cloneOptional(state.tree[state.selectedNodeId], cloneTreeNode) : undefined;
 }
 
-export function upsertAgent(state: ZergState, agent: AgentIdentity): ZergState {
-  return updateZergState(state, {
+export function upsertAgent(state: ClankersState, agent: AgentIdentity): ClankersState {
+  return updateClankersState(state, {
     agents: {
       ...state.agents,
       [agent.id]: cloneAgent(agent),
@@ -289,8 +290,8 @@ export function upsertAgent(state: ZergState, agent: AgentIdentity): ZergState {
   });
 }
 
-export function upsertTask(state: ZergState, task: TaskRecord): ZergState {
-  return updateZergState(state, {
+export function upsertTask(state: ClankersState, task: TaskRecord): ClankersState {
+  return updateClankersState(state, {
     tasks: {
       ...state.tasks,
       [task.id]: cloneTask(task),
@@ -298,8 +299,8 @@ export function upsertTask(state: ZergState, task: TaskRecord): ZergState {
   });
 }
 
-export function upsertTeam(state: ZergState, team: TeamIdentity): ZergState {
-  return updateZergState(state, {
+export function upsertTeam(state: ClankersState, team: TeamIdentity): ClankersState {
+  return updateClankersState(state, {
     teams: {
       ...state.teams,
       [team.id]: cloneTeam(team),
@@ -307,8 +308,8 @@ export function upsertTeam(state: ZergState, team: TeamIdentity): ZergState {
   });
 }
 
-export function upsertTreeNode(state: ZergState, node: ZergTreeNode): ZergState {
-  return updateZergState(state, {
+export function upsertTreeNode(state: ClankersState, node: ClankersTreeNode): ClankersState {
+  return updateClankersState(state, {
     tree: {
       ...state.tree,
       [node.id]: cloneTreeNode(node),
@@ -316,13 +317,13 @@ export function upsertTreeNode(state: ZergState, node: ZergTreeNode): ZergState 
   });
 }
 
-export function appendHookEvent(state: ZergState, event: HookLifecycleEvent, maxEvents = 100): ZergState {
+export function appendHookEvent(state: ClankersState, event: HookLifecycleEvent, maxEvents = 100): ClankersState {
   const events = [...cloneEvents(state.events), cloneEvent(event)].slice(-Math.max(1, maxEvents));
-  return updateZergState(state, { events });
+  return updateClankersState(state, { events });
 }
 
-export function selectNode(state: ZergState, selectedNodeId: string | undefined): ZergState {
-  return updateZergState(state, { selectedNodeId });
+export function selectNode(state: ClankersState, selectedNodeId: string | undefined): ClankersState {
+  return updateClankersState(state, { selectedNodeId });
 }
 
 export const MAX_INTERVENTION_MESSAGE_LENGTH = 240;
@@ -330,106 +331,106 @@ export const DEFAULT_PERMISSION_QUEUE_MAX_REQUESTS = 50;
 export const MAX_PERMISSION_SUMMARY_LENGTH = 160;
 export const MAX_PERMISSION_DETAILS_LENGTH = 480;
 export const MAX_PERMISSION_REASON_LENGTH = 240;
-export const DEFAULT_ZERG_LOG_MAX_RECORDS = 200;
-export const MAX_ZERG_LOG_MESSAGE_LENGTH = 480;
-const MAX_ZERG_LOG_DATA_DEPTH = 3;
-const MAX_ZERG_LOG_DATA_KEYS = 24;
-const MAX_ZERG_LOG_DATA_ARRAY_ITEMS = 20;
-const MAX_ZERG_LOG_DATA_STRING_LENGTH = 160;
-const ZERG_PERMISSION_EXTENSION_KEY = 'zergPermissions';
-const ZERG_LOG_EXTENSION_KEY = 'zergLogs';
+export const DEFAULT_CLANKERS_LOG_MAX_RECORDS = 200;
+export const MAX_CLANKERS_LOG_MESSAGE_LENGTH = 480;
+const MAX_CLANKERS_LOG_DATA_DEPTH = 3;
+const MAX_CLANKERS_LOG_DATA_KEYS = 24;
+const MAX_CLANKERS_LOG_DATA_ARRAY_ITEMS = 20;
+const MAX_CLANKERS_LOG_DATA_STRING_LENGTH = 160;
+const CLANKERS_PERMISSION_EXTENSION_KEY = 'clankersPermissions';
+const CLANKERS_LOG_EXTENSION_KEY = 'clankersLogs';
 
 export interface EnqueuePermissionRequestInput {
-  kind: ZergPermissionRequestKind;
+  kind: ClankersPermissionRequestKind;
   targetId?: string;
   agentId?: string;
   runId?: string;
-  requester?: ZergPermissionRequester;
+  requester?: ClankersPermissionRequester;
   summary: string;
   details?: string;
   expiresAt?: string;
-  metadata?: ZergExtensionFields;
+  metadata?: ClankersExtensionFields;
 }
 
-export interface PermissionQueueMutationOptions extends ZergRuntimeTransitionOptions {
+export interface PermissionQueueMutationOptions extends ClankersRuntimeTransitionOptions {
   id?: string;
   maxRequests?: number;
-  resolvedBy?: ZergPermissionResolver;
+  resolvedBy?: ClankersPermissionResolver;
   reason?: string;
 }
 
-export interface AppendZergLogRecordInput {
+export interface AppendClankersLogRecordInput {
   id?: string;
   runId?: string;
   agentId?: string;
   taskId?: string;
   teamId?: string;
-  source: ZergLogSource;
-  level?: ZergLogLevel;
-  kind?: ZergOutputKind;
+  source: ClankersLogSource;
+  level?: ClankersLogLevel;
+  kind?: ClankersOutputKind;
   message: string;
-  data?: ZergExtensionFields;
+  data?: ClankersExtensionFields;
   createdAt?: string;
 }
 
-export interface ZergLogMutationOptions extends ZergRuntimeTransitionOptions {
+export interface ClankersLogMutationOptions extends ClankersRuntimeTransitionOptions {
   maxRecords?: number;
 }
 
-export interface ZergLogFilter {
+export interface ClankersLogFilter {
   runId?: string;
-  level?: ZergLogLevel;
+  level?: ClankersLogLevel;
   limit?: number;
 }
 
-export function getPermissionQueueState(state: ZergState): ZergPermissionQueueState {
+export function getPermissionQueueState(state: ClankersState): ClankersPermissionQueueState {
   return clonePermissionQueueState(readPermissionQueueCandidate(state), DEFAULT_PERMISSION_QUEUE_MAX_REQUESTS);
 }
 
-export function getPendingPermissionRequests(state: ZergState): ZergPermissionRequest[] {
+export function getPendingPermissionRequests(state: ClankersState): ClankersPermissionRequest[] {
   return getPermissionQueueState(state).requests
     .filter((request) => request.status === 'pending')
     .map(clonePermissionRequest);
 }
 
-export function getZergLogState(state: ZergState): ZergLogState {
-  return cloneZergLogState(readZergLogCandidate(state), DEFAULT_ZERG_LOG_MAX_RECORDS);
+export function getClankersLogState(state: ClankersState): ClankersLogState {
+  return cloneClankersLogState(readClankersLogCandidate(state), DEFAULT_CLANKERS_LOG_MAX_RECORDS);
 }
 
-export function appendZergLogRecord(
-  state: ZergState,
-  input: AppendZergLogRecordInput,
-  options: ZergLogMutationOptions = {},
-): ZergState {
-  return appendZergLogRecords(state, [input], options);
+export function appendClankersLogRecord(
+  state: ClankersState,
+  input: AppendClankersLogRecordInput,
+  options: ClankersLogMutationOptions = {},
+): ClankersState {
+  return appendClankersLogRecords(state, [input], options);
 }
 
-export function appendZergLogRecords(
-  state: ZergState,
-  inputs: readonly AppendZergLogRecordInput[],
-  options: ZergLogMutationOptions = {},
-): ZergState {
+export function appendClankersLogRecords(
+  state: ClankersState,
+  inputs: readonly AppendClankersLogRecordInput[],
+  options: ClankersLogMutationOptions = {},
+): ClankersState {
   if (inputs.length === 0) {
     return state;
   }
 
   const timestamp = resolveStateTransitionTimestamp(state, options);
-  const maxRecords = normalizeZergLogMax(options.maxRecords ?? getZergLogState(state).maxRecords);
+  const maxRecords = normalizeClankersLogMax(options.maxRecords ?? getClankersLogState(state).maxRecords);
 
-  return updateZergState(state, (base) => {
-    const currentLogState = getZergLogState(base);
+  return updateClankersState(state, (base) => {
+    const currentLogState = getClankersLogState(base);
     let nextSequence = Math.max(base.revision, ...currentLogState.records.map((record) => record.sequence ?? 0));
     const records = [...currentLogState.records];
 
     for (const input of inputs) {
-      const message = sanitizeZergLogMessage(input.message);
+      const message = sanitizeClankersLogMessage(input.message);
       if (!message) {
         continue;
       }
 
       nextSequence += 1;
-      records.push(cloneZergLogRecord({
-        id: sanitizeZergLogId(input.id) || `log-${nextSequence}`,
+      records.push(cloneClankersLogRecord({
+        id: sanitizeClankersLogId(input.id) || `log-${nextSequence}`,
         source: input.source,
         level: input.level ?? 'info',
         kind: input.kind ?? 'text',
@@ -440,15 +441,15 @@ export function appendZergLogRecords(
         agentId: sanitizeOptionalLogText(input.agentId, MAX_PERMISSION_SUMMARY_LENGTH),
         taskId: sanitizeOptionalLogText(input.taskId, MAX_PERMISSION_SUMMARY_LENGTH),
         teamId: sanitizeOptionalLogText(input.teamId, MAX_PERMISSION_SUMMARY_LENGTH),
-        data: sanitizeZergLogData(input.data),
+        data: sanitizeClankersLogData(input.data),
       }));
     }
 
-    const trimmedRecords = trimZergLogRecords(records, maxRecords);
+    const trimmedRecords = trimClankersLogRecords(records, maxRecords);
     return {
       extensions: {
         ...base.extensions,
-        [ZERG_LOG_EXTENSION_KEY]: cloneZergLogState({
+        [CLANKERS_LOG_EXTENSION_KEY]: cloneClankersLogState({
           records: trimmedRecords,
           maxRecords,
           lastRecordId: trimmedRecords.at(-1)?.id ?? currentLogState.lastRecordId,
@@ -458,9 +459,9 @@ export function appendZergLogRecords(
   }, { updatedAt: timestamp, preserveRevision: true });
 }
 
-export function getZergLogs(state: ZergState, filter: ZergLogFilter = {}): ZergLogRecord[] {
-  const limit = normalizeZergLogLimit(filter.limit);
-  const records = getZergLogState(state).records.filter((record) => {
+export function getClankersLogs(state: ClankersState, filter: ClankersLogFilter = {}): ClankersLogRecord[] {
+  const limit = normalizeClankersLogLimit(filter.limit);
+  const records = getClankersLogState(state).records.filter((record) => {
     if (filter.runId && record.runId !== filter.runId) {
       return false;
     }
@@ -472,14 +473,14 @@ export function getZergLogs(state: ZergState, filter: ZergLogFilter = {}): ZergL
     return true;
   });
 
-  return records.slice(-limit).map(cloneZergLogRecord);
+  return records.slice(-limit).map(cloneClankersLogRecord);
 }
 
 export function enqueuePermissionRequest(
-  state: ZergState,
+  state: ClankersState,
   input: EnqueuePermissionRequestInput,
   options: PermissionQueueMutationOptions = {},
-): ZergState {
+): ClankersState {
   const timestamp = resolveStateTransitionTimestamp(state, options);
   const maxRequests = normalizePermissionQueueMax(options.maxRequests ?? getPermissionQueueState(state).maxRequests);
   const summary = sanitizePermissionText(input.summary, MAX_PERMISSION_SUMMARY_LENGTH);
@@ -492,10 +493,10 @@ export function enqueuePermissionRequest(
     throw new Error('permission request summary must be non-empty');
   }
 
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const currentQueue = getPermissionQueueState(base);
-    const request: ZergPermissionRequest = {
+    const request: ClankersPermissionRequest = {
       id: sanitizePermissionId(options.id) || `perm-${revision}`,
       kind: input.kind,
       status: 'pending',
@@ -528,7 +529,7 @@ export function enqueuePermissionRequest(
     return {
       extensions: {
         ...base.extensions,
-        [ZERG_PERMISSION_EXTENSION_KEY]: queue,
+        [CLANKERS_PERMISSION_EXTENSION_KEY]: queue,
       },
       events: appendRuntimeEvent(base.events, event, options.maxEvents),
     };
@@ -536,11 +537,11 @@ export function enqueuePermissionRequest(
 }
 
 export function resolvePermissionRequest(
-  state: ZergState,
+  state: ClankersState,
   requestId: string,
-  decision: ZergPermissionDecision,
+  decision: ClankersPermissionDecision,
   options: PermissionQueueMutationOptions = {},
-): ZergState {
+): ClankersState {
   const queue = getPermissionQueueState(state);
   const normalizedId = sanitizePermissionId(requestId);
   const existing = queue.requests.find((request) => request.id === normalizedId);
@@ -551,10 +552,10 @@ export function resolvePermissionRequest(
   const timestamp = resolveStateTransitionTimestamp(state, options);
   const nextStatus = permissionStatusForDecision(decision);
   const reason = sanitizeOptionalPermissionText(options.reason, MAX_PERMISSION_REASON_LENGTH);
-  const resolvedBy = options.resolvedBy ?? (decision === 'expire' ? 'zerg' : 'operator');
+  const resolvedBy = options.resolvedBy ?? (decision === 'expire' ? 'clankers' : 'operator');
   const maxRequests = normalizePermissionQueueMax(options.maxRequests ?? queue.maxRequests);
 
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const currentQueue = getPermissionQueueState(base);
     const requests = trimPermissionRequests(currentQueue.requests.map((request) => {
@@ -589,7 +590,7 @@ export function resolvePermissionRequest(
     return {
       extensions: {
         ...base.extensions,
-        [ZERG_PERMISSION_EXTENSION_KEY]: nextQueue,
+        [CLANKERS_PERMISSION_EXTENSION_KEY]: nextQueue,
       },
       events: appendRuntimeEvent(base.events, event, options.maxEvents),
     };
@@ -597,9 +598,9 @@ export function resolvePermissionRequest(
 }
 
 export function expirePermissionRequests(
-  state: ZergState,
+  state: ClankersState,
   options: PermissionQueueMutationOptions = {},
-): ZergState {
+): ClankersState {
   const timestamp = resolveStateTransitionTimestamp(state, options);
   const queue = getPermissionQueueState(state);
   const expiringIds = queue.requests
@@ -611,12 +612,12 @@ export function expirePermissionRequests(
   }
 
   const maxRequests = normalizePermissionQueueMax(options.maxRequests ?? queue.maxRequests);
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const currentQueue = getPermissionQueueState(base);
     const expiring = new Set(expiringIds);
     const requests = trimPermissionRequests(currentQueue.requests.map((request) => expiring.has(request.id)
-      ? clonePermissionRequest({ ...request, status: 'expired', resolvedAt: timestamp, resolvedBy: options.resolvedBy ?? 'zerg' })
+      ? clonePermissionRequest({ ...request, status: 'expired', resolvedAt: timestamp, resolvedBy: options.resolvedBy ?? 'clankers' })
       : request), maxRequests);
     const nextQueue = clonePermissionQueueState({
       requests,
@@ -636,15 +637,15 @@ export function expirePermissionRequests(
     return {
       extensions: {
         ...base.extensions,
-        [ZERG_PERMISSION_EXTENSION_KEY]: nextQueue,
+        [CLANKERS_PERMISSION_EXTENSION_KEY]: nextQueue,
       },
       events: appendRuntimeEvent(base.events, event, options.maxEvents),
     };
   }, { updatedAt: timestamp });
 }
 
-export function setMode(state: ZergState, mode: Partial<PermissionModeState>): ZergState {
-  return updateZergState(state, {
+export function setMode(state: ClankersState, mode: Partial<PermissionModeState>): ClankersState {
+  return updateClankersState(state, {
     mode: {
       ...state.mode,
       ...mode,
@@ -653,13 +654,13 @@ export function setMode(state: ZergState, mode: Partial<PermissionModeState>): Z
 }
 
 export function applyModeTransition(
-  state: ZergState,
+  state: ClankersState,
   transition: PermissionModeTransitionInput,
-  options: ZergRuntimeTransitionOptions = {},
-): ZergState {
+  options: ClankersRuntimeTransitionOptions = {},
+): ClankersState {
   const timestamp = resolveStateTransitionTimestamp(state, options);
 
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const previousMode = clonePermissionModeSnapshot(base.mode);
     const contextId = Object.hasOwn(transition, 'contextId')
@@ -696,13 +697,13 @@ export function applyModeTransition(
 }
 
 export function applyInterventionRecord(
-  state: ZergState,
+  state: ClankersState,
   intervention: PermissionModeInterventionInput,
-  options: ZergRuntimeTransitionOptions = {},
-): ZergState {
+  options: ClankersRuntimeTransitionOptions = {},
+): ClankersState {
   const timestamp = resolveStateTransitionTimestamp(state, options);
 
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const sanitized = {
       ...intervention,
@@ -737,20 +738,20 @@ export function applyInterventionRecord(
   }, { updatedAt: timestamp });
 }
 
-export function resetZergState(seed?: Partial<ZergState>): ZergState {
-  return createZergState(seed);
+export function resetClankersState(seed?: Partial<ClankersState>): ClankersState {
+  return createClankersState(seed);
 }
 
-export function createZergStateContainer(seed?: Partial<ZergState>): ZergStateContainer {
-  let current = createZergState(seed);
-  const listeners = new Set<ZergStateListener>();
+export function createClankersStateContainer(seed?: Partial<ClankersState>): ClankersStateContainer {
+  let current = createClankersState(seed);
+  const listeners = new Set<ClankersStateListener>();
 
   const publish = () => {
-    const snapshot = snapshotZergState(current);
+    const snapshot = snapshotClankersState(current);
     const listenerFailures: unknown[] = [];
     for (const listener of [...listeners]) {
       try {
-        listener(snapshotZergState(snapshot));
+        listener(snapshotClankersState(snapshot));
       } catch (error) {
         listenerFailures.push(error);
       }
@@ -761,20 +762,20 @@ export function createZergStateContainer(seed?: Partial<ZergState>): ZergStateCo
 
   return {
     read() {
-      return snapshotZergState(current);
+      return snapshotClankersState(current);
     },
     snapshot() {
-      return snapshotZergState(current);
+      return snapshotClankersState(current);
     },
-    replace(nextState: Partial<ZergState> = createZergState()) {
-      current = createZergState(nextState);
+    replace(nextState: Partial<ClankersState> = createClankersState()) {
+      current = createClankersState(nextState);
       return publish();
     },
-    update(patch: ZergStatePatch, options?: ZergStateUpdateOptions) {
-      current = updateZergState(current, patch, options);
+    update(patch: ClankersStatePatch, options?: ClankersStateUpdateOptions) {
+      current = updateClankersState(current, patch, options);
       return publish();
     },
-    subscribe(listener: ZergStateListener) {
+    subscribe(listener: ClankersStateListener) {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -789,8 +790,8 @@ function reportStateListenerFailures(failures: readonly unknown[]): void {
   }
 
   const firstFailure = formatStateListenerFailure(failures[0]);
-  const diagnostic = `pi-zerg-swarm state listener failure: ${failures.length} subscriber(s) failed${firstFailure ? `: ${firstFailure}` : ''}`
-    .slice(0, MAX_ZERG_STATE_LISTENER_DIAGNOSTIC_LENGTH);
+  const diagnostic = `pi-clankers state listener failure: ${failures.length} subscriber(s) failed${firstFailure ? `: ${firstFailure}` : ''}`
+    .slice(0, MAX_CLANKERS_STATE_LISTENER_DIAGNOSTIC_LENGTH);
   try {
     globalThis.console?.error?.(diagnostic);
   } catch {
@@ -811,36 +812,36 @@ function formatStateListenerFailure(error: unknown): string {
   }
 }
 
-export let sharedZergState = createZergState();
+export let sharedClankersState = createClankersState();
 
-export function readSharedZergState(): ZergState {
-  return snapshotZergState(sharedZergState);
+export function readSharedClankersState(): ClankersState {
+  return snapshotClankersState(sharedClankersState);
 }
 
-export function updateSharedZergState(patch: ZergStatePatch, options?: ZergStateUpdateOptions): ZergState {
-  sharedZergState = updateZergState(sharedZergState, patch, options);
-  return readSharedZergState();
+export function updateSharedClankersState(patch: ClankersStatePatch, options?: ClankersStateUpdateOptions): ClankersState {
+  sharedClankersState = updateClankersState(sharedClankersState, patch, options);
+  return readSharedClankersState();
 }
 
-export function replaceSharedZergState(nextState: Partial<ZergState> = createZergState()): ZergState {
-  sharedZergState = createZergState(nextState);
-  return readSharedZergState();
+export function replaceSharedClankersState(nextState: Partial<ClankersState> = createClankersState()): ClankersState {
+  sharedClankersState = createClankersState(nextState);
+  return readSharedClankersState();
 }
 
 
-export interface ZergRuntimeTransitionOptions {
+export interface ClankersRuntimeTransitionOptions {
   now?: () => Date;
   maxEvents?: number;
 }
 
 export function applyRuntimeTransition(
-  state: ZergState,
-  transition: ZergRuntimeTransition,
-  options: ZergRuntimeTransitionOptions = {},
-): ZergState {
+  state: ClankersState,
+  transition: ClankersRuntimeTransition,
+  options: ClankersRuntimeTransitionOptions = {},
+): ClankersState {
   const timestamp = resolveTransitionTimestamp(state, transition, options);
 
-  return updateZergState(state, (base) => {
+  return updateClankersState(state, (base) => {
     const revision = base.revision + 1;
     const mode = resolveRuntimeMode(base.mode, transition);
     const status = resolveTransitionStatus(base, transition);
@@ -898,30 +899,30 @@ export function applyRuntimeTransition(
 }
 
 export function replayRuntimeTransitions(
-  seed: Partial<ZergState> | ZergState,
-  transitions: readonly ZergRuntimeTransition[],
-  options: ZergRuntimeTransitionOptions = {},
-): ZergState {
-  return transitions.reduce((current, transition) => applyRuntimeTransition(current, transition, options), createZergState(seed));
+  seed: Partial<ClankersState> | ClankersState,
+  transitions: readonly ClankersRuntimeTransition[],
+  options: ClankersRuntimeTransitionOptions = {},
+): ClankersState {
+  return transitions.reduce((current, transition) => applyRuntimeTransition(current, transition, options), createClankersState(seed));
 }
 
 
 function resolveStateTransitionTimestamp(
-  state: ZergState,
-  options: ZergRuntimeTransitionOptions,
+  state: ClankersState,
+  options: ClankersRuntimeTransitionOptions,
 ): string {
   return options.now?.().toISOString() ?? state.metadata.updatedAt;
 }
 
 function resolveTransitionTimestamp(
-  state: ZergState,
-  transition: ZergRuntimeTransition,
-  options: ZergRuntimeTransitionOptions,
+  state: ClankersState,
+  transition: ClankersRuntimeTransition,
+  options: ClankersRuntimeTransitionOptions,
 ): string {
   return transition.at ?? options.now?.().toISOString() ?? state.metadata.updatedAt;
 }
 
-function resolveRuntimeMode(stateMode: PermissionModeState, transition: ZergRuntimeTransition): ZergRuntimeModeContext {
+function resolveRuntimeMode(stateMode: PermissionModeState, transition: ClankersRuntimeTransition): ClankersRuntimeModeContext {
   return {
     automation: transition.mode?.automation ?? stateMode.automation,
     interventionEnabled: transition.mode?.interventionEnabled ?? stateMode.interventionEnabled,
@@ -950,11 +951,11 @@ function sanitizeInterventionMessage(message: string, maxLength: number = MAX_IN
   return sanitized.slice(0, maxLength);
 }
 
-function getExistingRuntime(state: ZergState, transition: ZergRuntimeTransition): ZergRuntimeState | undefined {
+function getExistingRuntime(state: ClankersState, transition: ClankersRuntimeTransition): ClankersRuntimeState | undefined {
   return transition.entity === 'agent' ? state.agents[transition.id]?.runtime : state.teams[transition.id]?.runtime;
 }
 
-function resolveTransitionStatus(state: ZergState, transition: ZergRuntimeTransition): AgentStatus {
+function resolveTransitionStatus(state: ClankersState, transition: ClankersRuntimeTransition): AgentStatus {
   if (transition.status) {
     return transition.status;
   }
@@ -974,11 +975,11 @@ function resolveTransitionStatus(state: ZergState, transition: ZergRuntimeTransi
   }
 }
 
-function getExistingStatus(state: ZergState, transition: ZergRuntimeTransition): AgentStatus | undefined {
+function getExistingStatus(state: ClankersState, transition: ClankersRuntimeTransition): AgentStatus | undefined {
   return transition.entity === 'agent' ? state.agents[transition.id]?.status : state.teams[transition.id]?.status;
 }
 
-function resolveTransitionHealth(state: ZergState, transition: ZergRuntimeTransition): ZergRuntimeHealth {
+function resolveTransitionHealth(state: ClankersState, transition: ClankersRuntimeTransition): ClankersRuntimeHealth {
   if (transition.health) {
     return transition.health;
   }
@@ -999,16 +1000,16 @@ function resolveTransitionHealth(state: ZergState, transition: ZergRuntimeTransi
 }
 
 function buildRuntimeState(
-  existing: ZergRuntimeState | undefined,
-  transition: ZergRuntimeTransition,
+  existing: ClankersRuntimeState | undefined,
+  transition: ClankersRuntimeTransition,
   timestamp: string,
-  mode: ZergRuntimeModeContext,
-  health: ZergRuntimeHealth,
+  mode: ClankersRuntimeModeContext,
+  health: ClankersRuntimeHealth,
   activity: string,
   activitySequence: number,
-  substate: ZergLifecycleSubstate,
+  substate: ClankersLifecycleSubstate,
   substateReason: string | undefined,
-): ZergRuntimeState {
+): ClankersRuntimeState {
   const createdAt = existing?.createdAt ?? timestamp;
   const activityMetadata = {
     lastActivity: activity,
@@ -1043,9 +1044,9 @@ function buildRuntimeState(
 
 function buildAgentIdentity(
   existing: AgentIdentity | undefined,
-  transition: ZergAgentRuntimeTransition,
+  transition: ClankersAgentRuntimeTransition,
   status: AgentStatus,
-  runtime: ZergRuntimeState,
+  runtime: ClankersRuntimeState,
 ): AgentIdentity {
   return {
     ...(existing ?? {}),
@@ -1067,9 +1068,9 @@ function buildAgentIdentity(
 
 function buildTeamIdentity(
   existing: TeamIdentity | undefined,
-  transition: ZergTeamRuntimeTransition,
+  transition: ClankersTeamRuntimeTransition,
   status: AgentStatus,
-  runtime: ZergRuntimeState,
+  runtime: ClankersRuntimeState,
 ): TeamIdentity {
   return {
     ...(existing ?? {}),
@@ -1093,11 +1094,11 @@ function appendRuntimeEvent(events: readonly HookLifecycleEvent[], event: HookLi
   return [...cloneEvents(events), cloneEvent(event)].slice(-Math.max(1, maxEvents));
 }
 
-function formatRuntimeEventMessage(transition: ZergRuntimeTransition, activity: string): string {
+function formatRuntimeEventMessage(transition: ClankersRuntimeTransition, activity: string): string {
   return `${transition.entity} ${transition.id} ${transition.action}: ${activity}`;
 }
 
-function resolveTransitionSubstate(transition: ZergRuntimeTransition, activity: string): ZergLifecycleSubstate {
+function resolveTransitionSubstate(transition: ClankersRuntimeTransition, activity: string): ClankersLifecycleSubstate {
   if (isLifecycleSubstate(transition.substate)) {
     return transition.substate;
   }
@@ -1124,7 +1125,7 @@ function resolveTransitionSubstate(transition: ZergRuntimeTransition, activity: 
   }
 }
 
-function inferLifecycleSubstateFromActivity(activity: string, fallback: ZergLifecycleSubstate): ZergLifecycleSubstate {
+function inferLifecycleSubstateFromActivity(activity: string, fallback: ClankersLifecycleSubstate): ClankersLifecycleSubstate {
   const normalized = activity.toLowerCase();
   if (normalized.includes('permission')) return 'waiting-permission';
   if (normalized.includes('input')) return 'waiting-input';
@@ -1134,7 +1135,7 @@ function inferLifecycleSubstateFromActivity(activity: string, fallback: ZergLife
   return fallback;
 }
 
-function isLifecycleSubstate(value: unknown): value is ZergLifecycleSubstate {
+function isLifecycleSubstate(value: unknown): value is ClankersLifecycleSubstate {
   return value === 'queued'
     || value === 'spawning'
     || value === 'starting'
@@ -1168,7 +1169,7 @@ function sanitizeLifecycleSubstateReason(reason: string | undefined): string | u
   return sanitized || undefined;
 }
 
-function defaultRuntimeActivity(action: ZergRuntimeTransition['action']): string {
+function defaultRuntimeActivity(action: ClankersRuntimeTransition['action']): string {
   switch (action) {
     case 'create':
       return 'created';
@@ -1185,11 +1186,11 @@ function defaultRuntimeActivity(action: ZergRuntimeTransition['action']): string
   }
 }
 
-function isAgentKind(value: ZergRuntimeTransition['kind']): value is AgentKind {
+function isAgentKind(value: ClankersRuntimeTransition['kind']): value is AgentKind {
   return value === 'subagent' || value === 'teammate' || value === 'team-leader';
 }
 
-function isTeamKind(value: ZergRuntimeTransition['kind']): value is TeamKind {
+function isTeamKind(value: ClankersRuntimeTransition['kind']): value is TeamKind {
   return value === 'team' || value === 'squad' || value === 'worktree';
 }
 
@@ -1219,9 +1220,9 @@ function dedupeSortedTools(tools: string[] | undefined): string[] | undefined {
   return deduped.length > 0 ? deduped : undefined;
 }
 
-const SUBAGENT_RUN_ID_PREFIX = 'zerg-';
+const SUBAGENT_RUN_ID_PREFIX = 'clankers-';
 
-function getSubagentRunById(state: ZergState, runId: string): ZergSubagentRunSnapshot | undefined {
+function getSubagentRunById(state: ClankersState, runId: string): ClankersSubagentRunSnapshot | undefined {
   const agent = state.agents[runId];
   if (!agent || !isPiSubagentRunAgentId(agent.id)) {
     return undefined;
@@ -1231,10 +1232,10 @@ function getSubagentRunById(state: ZergState, runId: string): ZergSubagentRunSna
 }
 
 function isPiSubagentRunAgentId(id: string): boolean {
-  return id.startsWith(SUBAGENT_RUN_ID_PREFIX);
+  return hasRunIdPrefix(id, SUBAGENT_RUN_ID_PREFIX);
 }
 
-function cloneSubagentRunSnapshot(run: ZergSubagentRunSnapshot): ZergSubagentRunSnapshot {
+function cloneSubagentRunSnapshot(run: ClankersSubagentRunSnapshot): ClankersSubagentRunSnapshot {
   return {
     ...run,
     ...(run.nativeSessions !== undefined ? { nativeSessions: normalizeNativeSessionReferences(run.nativeSessions, run.runId) } : {}),
@@ -1243,10 +1244,10 @@ function cloneSubagentRunSnapshot(run: ZergSubagentRunSnapshot): ZergSubagentRun
 }
 
 /** Validate only scalar identity data; paths remain inert locators. Last exact member wins. */
-function normalizeNativeSessionReferences(value: unknown, parentRunId: string): ZergNativeSessionReference[] | undefined {
+function normalizeNativeSessionReferences(value: unknown, parentRunId: string): ClankersNativeSessionReference[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) return [];
-  const references = new Map<string, ZergNativeSessionReference>();
+  const references = new Map<string, ClankersNativeSessionReference>();
   const text = (input: unknown): input is string => typeof input === 'string'
     && input.trim().length > 0 && input.length <= 8192 && !/[\u0000-\u001f\u007f]/.test(input);
   const timestamp = (input: unknown): input is string => text(input) && Number.isFinite(Date.parse(input));
@@ -1261,7 +1262,7 @@ function normalizeNativeSessionReferences(value: unknown, parentRunId: string): 
       schemaVersion: 1, parentRunId, memberRunId: entry.memberRunId,
       agentDefinitionId: entry.agentDefinitionId, piSessionId: entry.piSessionId,
       sessionFile: entry.sessionFile, cwd: entry.cwd, createdAt: entry.createdAt,
-      attachment: entry.attachment as ZergNativeSessionReference['attachment'],
+      attachment: entry.attachment as ClankersNativeSessionReference['attachment'],
       ...(entry.disposedAt !== undefined ? { disposedAt: entry.disposedAt as string } : {}),
       ...(entry.recoveredAt !== undefined ? { recoveredAt: entry.recoveredAt as string } : {}),
     });
@@ -1269,7 +1270,7 @@ function normalizeNativeSessionReferences(value: unknown, parentRunId: string): 
   return [...references.values()];
 }
 
-function cloneRunMetadata(metadata: ZergExtensionFields | undefined, parentRunId: string): ZergExtensionFields | undefined {
+function cloneRunMetadata(metadata: ClankersExtensionFields | undefined, parentRunId: string): ClankersExtensionFields | undefined {
   const cloned = cloneOptional(metadata, cloneExtensionFields);
   if (cloned && 'nativeSessions' in cloned) {
     const nativeSessions = normalizeNativeSessionReferences(cloned.nativeSessions, parentRunId);
@@ -1284,7 +1285,7 @@ function cloneRunMetadata(metadata: ZergExtensionFields | undefined, parentRunId
   return cloned;
 }
 
-export function normalizeNativeContinuationLineage(value: unknown): import('./types.js').ZergNativeContinuationLineage | undefined {
+export function normalizeNativeContinuationLineage(value: unknown): import('./types.js').ClankersNativeContinuationLineage | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const data = value as Record<string, unknown>;
   const fields = ['schemaVersion', 'source', 'entryId', 'sourceFingerprint', 'policyDigest', 'policy'];
@@ -1301,11 +1302,11 @@ export function normalizeNativeContinuationLineage(value: unknown): import('./ty
     const policyText = JSON.stringify(policy);
     const text = JSON.stringify(data);
     if (policyText.length > 32768 || text.length > 49152) return undefined;
-    return JSON.parse(text) as import('./types.js').ZergNativeContinuationLineage;
+    return JSON.parse(text) as import('./types.js').ClankersNativeContinuationLineage;
   } catch { return undefined; }
 }
 
-function fromAgentToRunSnapshot(agent: AgentIdentity): ZergSubagentRunSnapshot {
+function fromAgentToRunSnapshot(agent: AgentIdentity): ClankersSubagentRunSnapshot {
   const runtimeTask = agent.runtime?.lastActivity;
   const runtime = agent.runtime;
   const metadata = cloneRunMetadata(agent.metadata, agent.id);
@@ -1319,8 +1320,8 @@ function fromAgentToRunSnapshot(agent: AgentIdentity): ZergSubagentRunSnapshot {
     ? {
       recoveredAt: typeof metadata.recovery.recoveredAt === 'string' ? metadata.recovery.recoveredAt : '',
       reason: 'process-restart' as const,
-      previousStatus: typeof metadata.recovery.previousStatus === 'string' ? metadata.recovery.previousStatus as ZergSubagentRunSnapshot['status'] : undefined,
-      previousSubstate: typeof metadata.recovery.previousSubstate === 'string' ? metadata.recovery.previousSubstate as ZergSubagentRunSnapshot['substate'] : undefined,
+      previousStatus: typeof metadata.recovery.previousStatus === 'string' ? metadata.recovery.previousStatus as ClankersSubagentRunSnapshot['status'] : undefined,
+      previousSubstate: typeof metadata.recovery.previousSubstate === 'string' ? metadata.recovery.previousSubstate as ClankersSubagentRunSnapshot['substate'] : undefined,
       previousWriterSessionId: typeof metadata.recovery.previousWriterSessionId === 'string' ? metadata.recovery.previousWriterSessionId : undefined,
     }
     : undefined;
@@ -1342,27 +1343,27 @@ function fromAgentToRunSnapshot(agent: AgentIdentity): ZergSubagentRunSnapshot {
     finalSummary: typeof metadata?.finalSummary === 'string' ? metadata.finalSummary : undefined,
     errorSummary: typeof metadata?.errorSummary === 'string' ? metadata.errorSummary : undefined,
     ...(recovery?.recoveredAt ? { recovery } : {}),
-    memberProgress: Array.isArray(metadata?.memberProgress) ? metadata.memberProgress.map((member) => ({ ...(member as Record<string, unknown>) })) as unknown as ZergSubagentRunSnapshot['memberProgress'] : undefined,
+    memberProgress: Array.isArray(metadata?.memberProgress) ? metadata.memberProgress.map((member) => ({ ...(member as Record<string, unknown>) })) as unknown as ClankersSubagentRunSnapshot['memberProgress'] : undefined,
     ...(metadata?.nativeSessions !== undefined ? { nativeSessions: normalizeNativeSessionReferences(metadata.nativeSessions, agent.id) } : {}),
     ...(metadata?.nativeContinuation !== undefined ? { nativeContinuation: normalizeNativeContinuationLineage(metadata.nativeContinuation) } : {}),
     metadata,
   };
 }
 
-function readZergLogCandidate(state: ZergState): Partial<ZergLogState> | undefined {
-  const candidate = state.extensions[ZERG_LOG_EXTENSION_KEY];
-  return isPlainRecord(candidate) ? candidate as Partial<ZergLogState> : undefined;
+function readClankersLogCandidate(state: ClankersState): Partial<ClankersLogState> | undefined {
+  const candidate = state.extensions[CLANKERS_LOG_EXTENSION_KEY];
+  return isPlainRecord(candidate) ? candidate as Partial<ClankersLogState> : undefined;
 }
 
-function cloneZergLogState(
-  logState: Partial<ZergLogState> | undefined,
+function cloneClankersLogState(
+  logState: Partial<ClankersLogState> | undefined,
   fallbackMaxRecords: number,
-): ZergLogState {
-  const maxRecords = normalizeZergLogMax(logState?.maxRecords ?? fallbackMaxRecords);
+): ClankersLogState {
+  const maxRecords = normalizeClankersLogMax(logState?.maxRecords ?? fallbackMaxRecords);
   const rawRecords = Array.isArray(logState?.records) ? logState.records : [];
-  const records = trimZergLogRecords(rawRecords
-    .filter(isZergLogRecordLike)
-    .map((record) => cloneZergLogRecord(record)), maxRecords);
+  const records = trimClankersLogRecords(rawRecords
+    .filter(isClankersLogRecordLike)
+    .map((record) => cloneClankersLogRecord(record)), maxRecords);
   const lastRecordId = typeof logState?.lastRecordId === 'string' && logState.lastRecordId.trim()
     ? logState.lastRecordId.trim()
     : records.at(-1)?.id;
@@ -1374,7 +1375,7 @@ function cloneZergLogState(
   };
 }
 
-function cloneZergLogRecord(record: ZergLogRecord): ZergLogRecord {
+function cloneClankersLogRecord(record: ClankersLogRecord): ClankersLogRecord {
   return {
     id: record.id,
     source: record.source,
@@ -1386,58 +1387,58 @@ function cloneZergLogRecord(record: ZergLogRecord): ZergLogRecord {
     agentId: record.agentId,
     taskId: record.taskId,
     teamId: record.teamId,
-    data: sanitizeZergLogData(record.data),
+    data: sanitizeClankersLogData(record.data),
     sequence: record.sequence,
   };
 }
 
-function isZergLogRecordLike(value: unknown): value is ZergLogRecord {
+function isClankersLogRecordLike(value: unknown): value is ClankersLogRecord {
   if (!isPlainRecord(value)) {
     return false;
   }
 
   return typeof value.id === 'string'
-    && isZergLogSource(value.source)
-    && isZergLogLevel(value.level)
-    && isZergOutputKind(value.kind)
+    && isClankersLogSource(value.source)
+    && isClankersLogLevel(value.level)
+    && isClankersOutputKind(value.kind)
     && typeof value.message === 'string'
     && typeof value.createdAt === 'string';
 }
 
-function isZergLogLevel(value: unknown): value is ZergLogLevel {
+function isClankersLogLevel(value: unknown): value is ClankersLogLevel {
   return value === 'debug' || value === 'info' || value === 'warn' || value === 'error';
 }
 
-function isZergLogSource(value: unknown): value is ZergLogSource {
+function isClankersLogSource(value: unknown): value is ClankersLogSource {
   return value === 'command' || value === 'adapter' || value === 'permission' || value === 'lifecycle' || value === 'overlay' || value === 'pi-event';
 }
 
-function isZergOutputKind(value: unknown): value is ZergOutputKind {
+function isClankersOutputKind(value: unknown): value is ClankersOutputKind {
   return value === 'text' || value === 'json' || value === 'tool' || value === 'thinking' || value === 'result' || value === 'error';
 }
 
-function normalizeZergLogMax(value: number): number {
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_ZERG_LOG_MAX_RECORDS;
+function normalizeClankersLogMax(value: number): number {
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_CLANKERS_LOG_MAX_RECORDS;
 }
 
-function normalizeZergLogLimit(value: number | undefined): number {
-  return Number.isFinite(value) && value !== undefined && value > 0 ? Math.floor(value) : DEFAULT_ZERG_LOG_MAX_RECORDS;
+function normalizeClankersLogLimit(value: number | undefined): number {
+  return Number.isFinite(value) && value !== undefined && value > 0 ? Math.floor(value) : DEFAULT_CLANKERS_LOG_MAX_RECORDS;
 }
 
-function trimZergLogRecords(records: ZergLogRecord[], maxRecords: number): ZergLogRecord[] {
-  return records.map(cloneZergLogRecord).slice(-normalizeZergLogMax(maxRecords));
+function trimClankersLogRecords(records: ClankersLogRecord[], maxRecords: number): ClankersLogRecord[] {
+  return records.map(cloneClankersLogRecord).slice(-normalizeClankersLogMax(maxRecords));
 }
 
-function sanitizeZergLogId(value: string | undefined): string {
-  return sanitizeZergLogMessage(value ?? '').replace(/\s+/g, '-');
+function sanitizeClankersLogId(value: string | undefined): string {
+  return sanitizeClankersLogMessage(value ?? '').replace(/\s+/g, '-');
 }
 
-function sanitizeZergLogMessage(value: string): string {
+function sanitizeClankersLogMessage(value: string): string {
   return value
     .replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, MAX_ZERG_LOG_MESSAGE_LENGTH);
+    .slice(0, MAX_CLANKERS_LOG_MESSAGE_LENGTH);
 }
 
 function sanitizeOptionalLogText(value: string | undefined, maxLength: number): string | undefined {
@@ -1445,29 +1446,29 @@ function sanitizeOptionalLogText(value: string | undefined, maxLength: number): 
     return undefined;
   }
 
-  const sanitized = sanitizeZergLogMessage(value).slice(0, maxLength);
+  const sanitized = sanitizeClankersLogMessage(value).slice(0, maxLength);
   return sanitized || undefined;
 }
 
-function sanitizeZergLogData(value: ZergExtensionFields | undefined): ZergExtensionFields | undefined {
+function sanitizeClankersLogData(value: ClankersExtensionFields | undefined): ClankersExtensionFields | undefined {
   if (!value) {
     return undefined;
   }
 
-  const sanitized = sanitizeZergLogDataValue(value, 0, new Set());
+  const sanitized = sanitizeClankersLogDataValue(value, 0, new Set());
   return isPlainRecord(sanitized) && Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-function sanitizeZergLogDataValue(value: unknown, depth: number, seen: Set<object>): unknown {
+function sanitizeClankersLogDataValue(value: unknown, depth: number, seen: Set<object>): unknown {
   if (value === null || typeof value === 'boolean' || typeof value === 'number') {
     return Number.isNaN(value) ? undefined : value;
   }
 
   if (typeof value === 'string') {
-    return sanitizeZergLogMessage(value).slice(0, MAX_ZERG_LOG_DATA_STRING_LENGTH);
+    return sanitizeClankersLogMessage(value).slice(0, MAX_CLANKERS_LOG_DATA_STRING_LENGTH);
   }
 
-  if (typeof value !== 'object' || depth >= MAX_ZERG_LOG_DATA_DEPTH) {
+  if (typeof value !== 'object' || depth >= MAX_CLANKERS_LOG_DATA_DEPTH) {
     return undefined;
   }
 
@@ -1478,8 +1479,8 @@ function sanitizeZergLogDataValue(value: unknown, depth: number, seen: Set<objec
   seen.add(value);
   if (Array.isArray(value)) {
     const output = value
-      .slice(0, MAX_ZERG_LOG_DATA_ARRAY_ITEMS)
-      .map((item) => sanitizeZergLogDataValue(item, depth + 1, seen))
+      .slice(0, MAX_CLANKERS_LOG_DATA_ARRAY_ITEMS)
+      .map((item) => sanitizeClankersLogDataValue(item, depth + 1, seen))
       .filter((item) => item !== undefined);
     seen.delete(value);
     return output;
@@ -1490,15 +1491,15 @@ function sanitizeZergLogDataValue(value: unknown, depth: number, seen: Set<objec
     return undefined;
   }
 
-  const entries = Object.entries(value).slice(0, MAX_ZERG_LOG_DATA_KEYS);
+  const entries = Object.entries(value).slice(0, MAX_CLANKERS_LOG_DATA_KEYS);
   const output: Record<string, unknown> = {};
   for (const [key, nested] of entries) {
-    const sanitizedKey = sanitizeZergLogMessage(key).slice(0, 64);
+    const sanitizedKey = sanitizeClankersLogMessage(key).slice(0, 64);
     if (!sanitizedKey) {
       continue;
     }
 
-    const sanitizedValue = sanitizeZergLogDataValue(nested, depth + 1, seen);
+    const sanitizedValue = sanitizeClankersLogDataValue(nested, depth + 1, seen);
     if (sanitizedValue !== undefined) {
       output[sanitizedKey] = sanitizedValue;
     }
@@ -1507,15 +1508,15 @@ function sanitizeZergLogDataValue(value: unknown, depth: number, seen: Set<objec
   return output;
 }
 
-function readPermissionQueueCandidate(state: ZergState): Partial<ZergPermissionQueueState> | undefined {
-  const candidate = state.extensions[ZERG_PERMISSION_EXTENSION_KEY];
-  return isPlainRecord(candidate) ? candidate as Partial<ZergPermissionQueueState> : undefined;
+function readPermissionQueueCandidate(state: ClankersState): Partial<ClankersPermissionQueueState> | undefined {
+  const candidate = state.extensions[CLANKERS_PERMISSION_EXTENSION_KEY];
+  return isPlainRecord(candidate) ? candidate as Partial<ClankersPermissionQueueState> : undefined;
 }
 
 function clonePermissionQueueState(
-  queue: Partial<ZergPermissionQueueState> | undefined,
+  queue: Partial<ClankersPermissionQueueState> | undefined,
   fallbackMaxRequests: number,
-): ZergPermissionQueueState {
+): ClankersPermissionQueueState {
   const maxRequests = normalizePermissionQueueMax(queue?.maxRequests ?? fallbackMaxRequests);
   const rawRequests = Array.isArray(queue?.requests) ? queue.requests : [];
   const requests = trimPermissionRequests(rawRequests
@@ -1533,7 +1534,7 @@ function clonePermissionQueueState(
   };
 }
 
-function clonePermissionRequest(request: ZergPermissionRequest): ZergPermissionRequest {
+function clonePermissionRequest(request: ClankersPermissionRequest): ClankersPermissionRequest {
   return {
     id: request.id,
     kind: request.kind,
@@ -1553,7 +1554,7 @@ function clonePermissionRequest(request: ZergPermissionRequest): ZergPermissionR
   };
 }
 
-function isPermissionRequestLike(value: unknown): value is ZergPermissionRequest {
+function isPermissionRequestLike(value: unknown): value is ClankersPermissionRequest {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -1566,23 +1567,23 @@ function isPermissionRequestLike(value: unknown): value is ZergPermissionRequest
     && typeof value.createdAt === 'string';
 }
 
-function isPermissionRequestKind(value: unknown): value is ZergPermissionRequestKind {
+function isPermissionRequestKind(value: unknown): value is ClankersPermissionRequestKind {
   return value === 'run' || value === 'interrupt' || value === 'tool' || value === 'mode' || value === 'intervention' || value === 'adapter';
 }
 
-function isPermissionRequestStatus(value: unknown): value is ZergPermissionRequestStatus {
+function isPermissionRequestStatus(value: unknown): value is ClankersPermissionRequestStatus {
   return value === 'pending' || value === 'approved' || value === 'denied' || value === 'cancelled' || value === 'expired';
 }
 
-function isPermissionRequester(value: unknown): value is ZergPermissionRequester {
-  return value === 'operator' || value === 'pi' || value === 'zerg' || value === 'adapter';
+function isPermissionRequester(value: unknown): value is ClankersPermissionRequester {
+  return value === 'operator' || value === 'pi' || value === 'clankers' || value === 'adapter';
 }
 
 function normalizePermissionQueueMax(value: number): number {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_PERMISSION_QUEUE_MAX_REQUESTS;
 }
 
-function trimPermissionRequests(requests: ZergPermissionRequest[], maxRequests: number): ZergPermissionRequest[] {
+function trimPermissionRequests(requests: ClankersPermissionRequest[], maxRequests: number): ClankersPermissionRequest[] {
   const normalizedMax = normalizePermissionQueueMax(maxRequests);
   const cloned = requests.map(clonePermissionRequest);
   if (cloned.length <= normalizedMax) {
@@ -1600,7 +1601,7 @@ function trimPermissionRequests(requests: ZergPermissionRequest[], maxRequests: 
   return cloned.filter((request) => selected.has(request));
 }
 
-function countPendingPermissionRequests(requests: readonly ZergPermissionRequest[]): number {
+function countPendingPermissionRequests(requests: readonly ClankersPermissionRequest[]): number {
   return requests.filter((request) => request.status === 'pending').length;
 }
 
@@ -1625,7 +1626,7 @@ function sanitizeOptionalPermissionText(value: string | undefined, maxLength: nu
   return sanitized || undefined;
 }
 
-function permissionStatusForDecision(decision: ZergPermissionDecision): Exclude<ZergPermissionRequestStatus, 'pending'> {
+function permissionStatusForDecision(decision: ClankersPermissionDecision): Exclude<ClankersPermissionRequestStatus, 'pending'> {
   switch (decision) {
     case 'approve':
       return 'approved';
@@ -1638,16 +1639,16 @@ function permissionStatusForDecision(decision: ZergPermissionDecision): Exclude<
   }
 }
 
-function formatPermissionRequestEventMessage(request: ZergPermissionRequest): string {
+function formatPermissionRequestEventMessage(request: ClankersPermissionRequest): string {
   const target = request.targetId ? ` ${request.targetId}` : '';
   return `permission requested: ${request.id} ${request.kind}${target} - ${request.summary}`;
 }
 
-function formatPermissionResolutionEventMessage(request: ZergPermissionRequest, decision: ZergPermissionDecision, reason: string | undefined): string {
+function formatPermissionResolutionEventMessage(request: ClankersPermissionRequest, decision: ClankersPermissionDecision, reason: string | undefined): string {
   return `permission ${decision}: ${request.id}${reason ? ` - ${reason}` : ''}`;
 }
 
-function cloneAgentDefinitions(definitions: Record<string, ZergAgentDefinition> = {}): Record<string, ZergAgentDefinition> {
+function cloneAgentDefinitions(definitions: Record<string, ClankersAgentDefinition> = {}): Record<string, ClankersAgentDefinition> {
   return Object.fromEntries(Object.entries(definitions).map(([id, definition]) => [id, cloneAgentDefinition(definition)]));
 }
 
@@ -1663,7 +1664,7 @@ function cloneTeams(teams: Record<string, TeamIdentity> = {}): Record<string, Te
   return Object.fromEntries(Object.entries(teams).map(([id, team]) => [id, cloneTeam(team)]));
 }
 
-function cloneTree(tree: Record<string, ZergTreeNode> = {}): Record<string, ZergTreeNode> {
+function cloneTree(tree: Record<string, ClankersTreeNode> = {}): Record<string, ClankersTreeNode> {
   return Object.fromEntries(Object.entries(tree).map(([id, node]) => [id, cloneTreeNode(node)]));
 }
 
@@ -1683,7 +1684,7 @@ function cloneAgent(agent: AgentIdentity): AgentIdentity {
   };
 }
 
-function cloneAgentDefinition(definition: ZergAgentDefinition): ZergAgentDefinition {
+function cloneAgentDefinition(definition: ClankersAgentDefinition): ClankersAgentDefinition {
   const { result_schema, may_write, ...baseDefinition } = definition;
   return {
     ...baseDefinition,
@@ -1717,7 +1718,7 @@ function cloneTeam(team: TeamIdentity): TeamIdentity {
   };
 }
 
-function cloneTreeNode(node: ZergTreeNode): ZergTreeNode {
+function cloneTreeNode(node: ClankersTreeNode): ClankersTreeNode {
   return {
     ...node,
     childIds: [...node.childIds],
@@ -1735,14 +1736,14 @@ function cloneEvent(event: HookLifecycleEvent): HookLifecycleEvent {
   };
 }
 
-function cloneRuntimeState(runtime: ZergRuntimeState): ZergRuntimeState {
+function cloneRuntimeState(runtime: ClankersRuntimeState): ClankersRuntimeState {
   return {
     ...runtime,
     mode: cloneRuntimeMode(runtime.mode),
   };
 }
 
-function cloneRuntimeMode(mode: ZergRuntimeModeContext): ZergRuntimeModeContext {
+function cloneRuntimeMode(mode: ClankersRuntimeModeContext): ClankersRuntimeModeContext {
   return {
     ...mode,
     activeIntervention: cloneOptional(mode.activeIntervention, clonePermissionModeIntervention),
@@ -1789,7 +1790,7 @@ function clonePermissionModeSnapshot(snapshot?: PermissionModeSnapshot): Permiss
   return cloned;
 }
 
-function cloneContext(context?: ZergContext): ZergContext | undefined {
+function cloneContext(context?: ClankersContext): ClankersContext | undefined {
   if (!context) {
     return undefined;
   }
@@ -1800,7 +1801,7 @@ function cloneContext(context?: ZergContext): ZergContext | undefined {
   };
 }
 
-function cloneMetadata(metadata: Partial<ZergState['metadata']> = {}): ZergState['metadata'] {
+function cloneMetadata(metadata: Partial<ClankersState['metadata']> = {}): ClankersState['metadata'] {
   return {
     createdAt: metadata.createdAt ?? DEFAULT_TIMESTAMP,
     updatedAt: metadata.updatedAt ?? metadata.createdAt ?? DEFAULT_TIMESTAMP,
@@ -1816,7 +1817,7 @@ interface CloneExtensionContext {
   work: number;
 }
 
-function cloneExtensionFields(fields: ZergExtensionFields = {}): ZergExtensionFields {
+function cloneExtensionFields(fields: ClankersExtensionFields = {}): ClankersExtensionFields {
   const context = createExtensionCloneContext();
   context.active.add(fields);
   try {
@@ -1880,8 +1881,8 @@ function cloneExtensionValue(value: unknown, context: CloneExtensionContext = cr
   return value;
 }
 
-function cloneExtensionRecordEntries(record: Record<string, unknown>, context: CloneExtensionContext, depth: number): ZergExtensionFields {
-  const output: ZergExtensionFields = {};
+function cloneExtensionRecordEntries(record: Record<string, unknown>, context: CloneExtensionContext, depth: number): ClankersExtensionFields {
+  const output: ClankersExtensionFields = {};
   for (const [key, nested] of Object.entries(record)) {
     const value = cloneExtensionValue(nested, context, depth + 1);
     // This fresh plain output is not exposed during recursion. Assignment makes

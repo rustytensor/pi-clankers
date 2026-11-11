@@ -13,7 +13,7 @@ import { assertAncestorIsolation, cleanHostEnvironment, guardSource, readFixture
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi CLI required');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-workflow-loop-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-workflow-loop-pty-'));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const results = [];
 
@@ -23,10 +23,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { visibleWidth, CURSOR_MARKER } from '@earendil-works/pi-tui';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
 import { workflowStepEntries } from ${JSON.stringify(join(repo, 'workflow-model.ts'))};
-import { createZergPersistenceManager } from ${JSON.stringify(join(repo, 'persistence.ts'))};
-import { ZergWorkflowComponent } from ${JSON.stringify(join(repo, 'ui/workflow-overlay.ts'))};
+import { createClankersPersistenceManager } from ${JSON.stringify(join(repo, 'persistence.ts'))};
+import { ClankersWorkflowComponent } from ${JSON.stringify(join(repo, 'ui/workflow-overlay.ts'))};
 const root=${JSON.stringify(root)}, phaseDir=${JSON.stringify(phaseDir)}, restarting=${JSON.stringify(restarting)};
 const put=(name,value)=>writeFileSync(join(phaseDir,name),JSON.stringify(value));
 const phase=(name,extra={})=>put('phase.json',{name,...extra});
@@ -36,8 +36,8 @@ const units=run=>workflowStepEntries(run).flatMap(({step})=>step.units);
 async function until(check,label){const end=Date.now()+30000;while(Date.now()<end){if(await check())return;await sleep(20);}throw Error('Timeout: '+label);}
 export default function(pi){
   let handler, registrations=0, started=false, cleaned=false;
-  const proxy=new Proxy(pi,{get(target,key){if(key==='registerCommand')return(name,options)=>{if(name==='zerg'){handler=options.handler;registrations++;}return target.registerCommand(name,options);};const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;}});
-  const registration=registerZergSwarmExtension(proxy,{persistence:{enabled:true,snapshotFile:join(root,'snapshot.json')}});
+  const proxy=new Proxy(pi,{get(target,key){if(key==='registerCommand')return(name,options)=>{if(name==='clankers'){handler=options.handler;registrations++;}return target.registerCommand(name,options);};const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value;}});
+  const registration=registerClankersExtension(proxy,{persistence:{enabled:true,snapshotFile:join(root,'snapshot.json')}});
   const control=registration.control;
   const get=id=>control.getState().extensions.workflows.runs.find(run=>run.workflowRunId===id);
   const components=[];
@@ -49,7 +49,7 @@ export default function(pi){
   function safe(line,width){const plain=line.split(CURSOR_MARKER).join('').replace(/\\u001b\\[[0-9;]*m/g,'');assert(!/[\\u001b\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f]/.test(plain),'Unsafe terminal control');assert(!line.includes('\\n')&&!line.includes('\\r'));assert(visibleWidth(line)<=width);}
   function observedContext(ctx){const ui=new Proxy(ctx.ui,{get(target,key){if(key==='custom')return(factory,options)=>target.custom((tui,theme,kb,done)=>{
       const component=factory(tui,theme,kb,done);assert(component&&typeof component.render==='function','Real public component');
-      const item={workflow:component instanceof ZergWorkflowComponent,frames:0,styled:false,disposed:false,component};components.push(item);
+      const item={workflow:component instanceof ClankersWorkflowComponent,frames:0,styled:false,disposed:false,component};components.push(item);
       const render=component.render.bind(component),dispose=component.dispose?.bind(component);
       component.render=(width,height)=>{const lines=render(width,height);for(const line of lines)safe(line,Math.min(width,tui.terminal?.columns??width));if(height!==undefined)assert(lines.length<=height);if(tui.terminal?.rows!==undefined)assert(lines.length<=tui.terminal.rows);item.frames++;item.styled ||=lines.some(line=>/\\u001b\\[[0-9;]*m/.test(line));return lines;};
       component.dispose=()=>{dispose?.();item.disposed=true;};return component;
@@ -133,7 +133,7 @@ export default function(pi){
     cleanup();assert.equal(JSON.stringify(saved),checkpoint,'Detached REAL in-flight checkpoint unchanged');
     const hashes=files.map(file=>[file,digest(file)]),hookFile=join(root,'hook-events.json'),hookEvents=JSON.parse(readFileSync(hookFile,'utf8'));
     assert.equal(hookEvents.startup,5);assert.equal(hookEvents.read,5);hashes.push([hookFile,digest(hookFile)],[join(root,'work/a.txt'),digest(join(root,'work/a.txt'))]);
-    createZergPersistenceManager({enabled:true,snapshotFile:join(root,'snapshot.json')}).save(saved);assert.equal(JSON.stringify(saved),checkpoint);
+    createClankersPersistenceManager({enabled:true,snapshotFile:join(root,'snapshot.json')}).save(saved);assert.equal(JSON.stringify(saved),checkpoint);
     writeFileSync(join(root,'expected.json'),JSON.stringify({workflowRunId:recover.workflowRunId,unitId:savedUnit.id,key:key(savedRef),activeUnits,hashes}));
     assert(components.every(item=>item.frames>0&&item.disposed));assert(components.filter(item=>item.workflow).some(item=>item.styled),'Real Pi theme retained');
     put('result.json',{ok:true,restarting:false,laterConvergence:true,pausedAdmission:true,cancelled:true,realInflightCheckpoint:true,workflowRunId:recover.workflowRunId,instances:components.length,hookEvents});phase('complete');ctx.shutdown();

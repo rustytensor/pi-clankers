@@ -5,8 +5,8 @@ import { once } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergStateContainer } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersStateContainer } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash } from '../workflow-model.js';
 import type { RecoveryWriterOwnerEvidence } from '../persistence.js';
@@ -15,7 +15,7 @@ import type { RecoveryWriterOwnerEvidence } from '../persistence.js';
 for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second-write', 'third-write'] as const) test(`multi-file application ${boundary}: actual owner SIGKILL binds only canonical prior receipts`, { timeout: 20000 }, async t => {
   const paths = ['src/a.txt', 'src/b.txt', 'src/c.txt'];
   const satisfied = boundary === 'third-write' ? paths : boundary === 'second-write' ? paths.slice(0, 2) : paths.slice(0, 1);
-  const root = mkdtempSync(join(tmpdir(), 'zerg-multifile-artifact-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-multifile-artifact-'));
   const artifacts = (): Record<string, string> => {
     const files: Record<string, string> = {};
     const walk = (dir: string) => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) walk(path); else { assert.ok(entry.isFile(), path); files[path] = readFileSync(path).toString('base64'); } } };
@@ -38,8 +38,8 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
     import { syncBuiltinESMExports } from 'node:module';
     import { join } from 'node:path';
     import { createWorkflowService } from ${JSON.stringify(runtimeUrl)};
-    import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(stateUrl)};
-    import { createZergPersistenceManager } from ${JSON.stringify(persistUrl)};
+    import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(stateUrl)};
+    import { createClankersPersistenceManager } from ${JSON.stringify(persistUrl)};
     import { workflowHash } from ${JSON.stringify(modelUrl)};
     const projectRoot=process.argv[1], stagingParent=process.argv[2], snapshotFile=process.argv[3];
     const boundary=${JSON.stringify(boundary)};
@@ -56,10 +56,10 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
       {id:'apply',kind:'coding',dependsOn:['review'],inputs:{},outputSchema:object({status:str,candidateHash:str,appliedPaths:array(str),rejectedPaths:array(str),diagnostics:array(str),outcomeHash:str}),coding:{operation:'apply',policy}}
     ]};
     const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-    const base=createZergStateContainer({agentDefinitions:agents});
-    const store=createZergPersistenceManager({snapshotFile}); store.hydrate(base);
+    const base=createClankersStateContainer({agentDefinitions:agents});
+    const store=createClankersPersistenceManager({snapshotFile}); store.hydrate(base);
     const afterSave=state=>{if(boundary==='first-receipt' && state.extensions.workflows?.runs?.some(r=>r.recovery?.operations.at(-1)?.kind==='application' && r.recovery.operations.at(-1).result?.status==='completed'))pause();};
-    const container={...base, replace(next){const value=createZergState(next);store.save(value);afterSave(value);return base.replace(value);}, update(patch,options){const next=updateZergState(base.read(),patch,options);store.save(next);afterSave(next);return base.replace(next);}};
+    const container={...base, replace(next){const value=createClankersState(next);store.save(value);afterSave(value);return base.replace(value);}, update(patch,options){const next=updateClankersState(base.read(),patch,options);store.save(next);afterSave(next);return base.replace(next);}};
     let runId='', approval;
     const keepAlive=setInterval(()=>{},1000);
     const native={preflight(){},async execute(req){
@@ -97,8 +97,8 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
   assert.equal(ready.owner.pid, child.pid);
   const before = readFileSync(snapshotFile);
   const originalArtifacts = artifacts();
-  const store = createZergPersistenceManager({ snapshotFile })!;
-  const container = createZergStateContainer(); store.hydrate(container);
+  const store = createClankersPersistenceManager({ snapshotFile })!;
+  const container = createClankersStateContainer(); store.hydrate(container);
   let forbiddenCalls = 0;
   const forbidden = () => { forbiddenCalls++; throw new Error('recovery preparation attempted execution'); };
   let ownerHook = () => {};
@@ -200,7 +200,7 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
       const corrupt = structuredClone(container.snapshot());
       const workspace = (corrupt.extensions[WORKFLOW_EXTENSION_KEY] as any).runs[0].steps[3].units[0].coding.workspace;
       if (field === 'missing-intent') delete workspace.latestIntent; else workspace.latestIntent[field] = 'mismatch';
-      const corruptService = createWorkflowService(createZergStateContainer(corrupt), native, options);
+      const corruptService = createWorkflowService(createClankersStateContainer(corrupt), native, options);
       try {
         const mismatch = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections });
         assertEvidenceBlocked(mismatch.assessment, field);
@@ -229,7 +229,7 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
         } else if (field === 'competing-application') {
           run.recovery.operations.push({ ...structuredClone(current), id: current.id + ':competing', sequence: run.recovery.operations.length }); run.recovery.sequence += current.result ? 2 : 1;
         } else workspace.latestObservation[field] = 'mismatch';
-        const corruptService = createWorkflowService(createZergStateContainer(corrupt), native, options);
+        const corruptService = createWorkflowService(createClankersStateContainer(corrupt), native, options);
         try {
           const mismatch = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections });
           assertEvidenceBlocked(mismatch.assessment, field);
@@ -242,7 +242,7 @@ for (const boundary of ['first-write', 'first-receipt', 'second-intent', 'second
           const previous = workspace.recoveryManifest.effects.find((record: any) => record.kind === 'destination-write');
           if (field === 'malformed-effects') workspace.recoveryManifest.effects = 'mismatch';
           else previous[field] = field === 'afterSaved' || field === 'beforeCalled' ? false : field === 'status' ? 'uncertain' : '0'.repeat(64);
-          const corruptService = createWorkflowService(createZergStateContainer(corrupt), native, options);
+          const corruptService = createWorkflowService(createClankersStateContainer(corrupt), native, options);
           try {
             const mismatch = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections });
             assertEvidenceBlocked(mismatch.assessment, 'manifest prior application ' + field);

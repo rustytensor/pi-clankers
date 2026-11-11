@@ -3,7 +3,7 @@ import test from 'node:test';
 import { setImmediate as tick } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { createJiti } from 'jiti';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 
 const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
 const jiti = createJiti(import.meta.url, { fsCache: false, alias: { './tmux-runner.js': fakePath, './tmux-worker-policy.js': fakePath } });
@@ -17,7 +17,7 @@ async function until(check: () => boolean) {
 }
 function fixture() {
   fake.launches.length = 0;
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   for (const id of ['a', 'b', 'c', 'lead', 'solo']) state.replace(upsertAgentDefinition(state.read(), { id, label: id, source: 'user', prompt: id, tools: [], model: 'fixture/fixed' }));
   const next = state.read();
   next.teams.team = { id: 'team', label: 'Team', kind: 'team', status: 'idle', leaderAgentId: 'lead', memberAgentIds: ['a', 'b', 'a', 'c', 'lead'] };

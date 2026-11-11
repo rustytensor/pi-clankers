@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { createNativeTranscriptService, sanitizeNativeTranscriptText, type NativeTranscriptReadFacade } from '../../native-transcript.js';
-import type { ZergNativeSessionReference } from '../../types.js';
+import type { ClankersNativeSessionReference } from '../../types.js';
 
 const tick = () => new Promise((done) => setTimeout(done, 45));
-const ref = (extra: Partial<ZergNativeSessionReference> = {}): ZergNativeSessionReference => ({ schemaVersion: 1,
-  parentRunId: 'zerg-parent', memberRunId: 'zerg-member', agentDefinitionId: 'worker', piSessionId: 'native-id',
+const ref = (extra: Partial<ClankersNativeSessionReference> = {}): ClankersNativeSessionReference => ({ schemaVersion: 1,
+  parentRunId: 'clankers-parent', memberRunId: 'clankers-member', agentDefinitionId: 'worker', piSessionId: 'native-id',
   sessionFile: '/missing/native-id.jsonl', cwd: '/fixture', createdAt: '2026-10-02T00:00:00.000Z', attachment: 'attached', ...extra });
 function fake() {
   let entries: any[] = [], leaf: string | null = null; let calls = 0;
@@ -113,13 +113,13 @@ test('terminal controls, image/signature/unknown payloads are omitted without lo
   release(); view.dispose(); service.shutdown();
 });
 
-async function savedFixture(fn: (context: { ref: ZergNativeSessionReference; service: ReturnType<typeof createNativeTranscriptService>; rows: any[]; write(rows: any[]): Promise<void>; dir: string }) => Promise<void>) {
-  const dir = await mkdtemp(join(tmpdir(), 'zerg-transcript-unit-')), cwd = resolve(dir, 'workspace'), agentDir = join(dir, 'agent');
+async function savedFixture(fn: (context: { ref: ClankersNativeSessionReference; service: ReturnType<typeof createNativeTranscriptService>; rows: any[]; write(rows: any[]): Promise<void>; dir: string }) => Promise<void>) {
+  const dir = await mkdtemp(join(tmpdir(), 'clankers-transcript-unit-')), cwd = resolve(dir, 'workspace'), agentDir = join(dir, 'agent');
   const group = `--${cwd.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')}--`, folder = join(agentDir, 'sessions', group);
   await mkdir(folder, { recursive: true }); const reference = ref({ cwd, sessionFile: join(folder, 'native-id.jsonl'), attachment: 'disposed' });
   const { attachment: _attachment, ...identity } = reference;
   const rows: any[] = [{ type: 'session', version: 3, id: reference.piSessionId, cwd },
-    { type: 'custom', id: 'marker', parentId: null, customType: 'pi-zerg-swarm/native-session/v1', data: identity },
+    { type: 'custom', id: 'marker', parentId: null, customType: 'pi-clankers/native-session/v1', data: identity },
     message('user', 'marker', 'user', 'original'), message('left', 'user', 'assistant', 'left branch'),
     message('root2', null, 'user', 'second root'), message('right', 'user', 'assistant', 'right branch'),
     { type: 'compaction', id: 'compact', parentId: 'right', summary: 'summary', firstKeptEntryId: 'right' },

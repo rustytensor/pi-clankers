@@ -1,29 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CURSOR_MARKER, visibleWidth } from '@earendil-works/pi-tui';
-import type { StructuralPiCommandContext, ZergSessionMessageKey, ZergTimelineEntry, ZergTimelineFilter, ZergTimelineSnapshot } from '../../types.js';
-import { openZergTeamTimeline, ZergTeamTimelineComponent, type ZergTeamTimelineOptions } from '../../ui/team-timeline.js';
+import type { StructuralPiCommandContext, ClankersSessionMessageKey, ClankersTimelineEntry, ClankersTimelineFilter, ClankersTimelineSnapshot } from '../../types.js';
+import { openClankersTeamTimeline, ClankersTeamTimelineComponent, type ClankersTeamTimelineOptions } from '../../ui/team-timeline.js';
 const key = { parentRunId: 'parent-a', memberRunId: 'member-a', piSessionId: 'pi-a' };
-const row = (id: string, patch: Partial<ZergTimelineEntry> = {}): ZergTimelineEntry => ({
+const row = (id: string, patch: Partial<ClankersTimelineEntry> = {}): ClankersTimelineEntry => ({
   id, kind: 'operator-receipt', timestamp: '2026-10-03T00:00:00Z', timestampMeaning: 'created',
   summary: id, bodyPreview: `body ${id}`, clipped: false, teamId: 'team-a', ...key, exactKey: { ...key },
   messageId: `msg-${id}`, mode: 'followUp', status: 'queued', persistence: 'memory', updatedAt: '2026-10-03T00:00:01Z', ...patch,
-} as ZergTimelineEntry);
-function snap(entries: ZergTimelineEntry[], filter: ZergTimelineFilter = {}): ZergTimelineSnapshot {
+} as ClankersTimelineEntry);
+function snap(entries: ClankersTimelineEntry[], filter: ClankersTimelineFilter = {}): ClankersTimelineSnapshot {
   return { schemaVersion: 1, revision: 1, filter, entries, omittedEntries: 0, clippedEntries: 0, limitations: ['retained sources only; unknown completeness'] };
 }
-function fixture(initial = [row('a'), row('b')], patch: Partial<ZergTeamTimelineOptions> = {}) {
+function fixture(initial = [row('a'), row('b')], patch: Partial<ClankersTeamTimelineOptions> = {}) {
   let rows = initial; let listener: () => void = () => undefined; let reads = 0; let renders = 0; let unsubscribed = 0; let done = 0; let result: unknown;
-  const filters: ZergTimelineFilter[] = [];
-  const options: ZergTeamTimelineOptions = {
-    getSnapshot: (filter) => { reads++; filters.push(filter); return snap(rows.filter((entry) => ['teamId', 'parentRunId', 'memberRunId', 'piSessionId'].every((field) => filter[field as keyof ZergTimelineFilter] === undefined || filter[field as keyof ZergTimelineFilter] === entry[field as keyof ZergTimelineEntry])), filter); },
+  const filters: ClankersTimelineFilter[] = [];
+  const options: ClankersTeamTimelineOptions = {
+    getSnapshot: (filter) => { reads++; filters.push(filter); return snap(rows.filter((entry) => ['teamId', 'parentRunId', 'memberRunId', 'piSessionId'].every((field) => filter[field as keyof ClankersTimelineFilter] === undefined || filter[field as keyof ClankersTimelineFilter] === entry[field as keyof ClankersTimelineEntry])), filter); },
     subscribe: (next) => { listener = next; return () => { unsubscribed++; }; }, viewCoding: async () => undefined, ...patch,
   };
-  const component = new ZergTeamTimelineComponent({ requestRender: () => { renders++; } }, undefined, (value) => { done++; result = value; }, options);
-  return { component, options, filters, update: (next: ZergTimelineEntry[]) => { rows = next; listener(); }, late: () => listener(),
-    get reads() { return reads; }, get renders() { return renders; }, get done() { return done; }, get result() { return result as { key: ZergSessionMessageKey; state: { selectedId?: string; filter: ZergTimelineFilter; follow: boolean; detail: boolean } } | undefined; }, get unsubscribed() { return unsubscribed; } };
+  const component = new ClankersTeamTimelineComponent({ requestRender: () => { renders++; } }, undefined, (value) => { done++; result = value; }, options);
+  return { component, options, filters, update: (next: ClankersTimelineEntry[]) => { rows = next; listener(); }, late: () => listener(),
+    get reads() { return reads; }, get renders() { return renders; }, get done() { return done; }, get result() { return result as { key: ClankersSessionMessageKey; state: { selectedId?: string; filter: ClankersTimelineFilter; follow: boolean; detail: boolean } } | undefined; }, get unsubscribed() { return unsubscribed; } };
 }
-const out = (component: ZergTeamTimelineComponent, width = 180, height = 30) => component.render(width, height).join('\n');
+const out = (component: ClankersTeamTimelineComponent, width = 180, height = 30) => component.render(width, height).join('\n');
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test('timeline distinguishes receipt/output/events/current snapshots and unknown time with full scrollable identity', () => {
@@ -101,7 +101,7 @@ test('subscriber storms only mark dirty, read once per render; cleanup/disposal 
 
 test('faulty projection/subscribe/redraw/theme/dispose callbacks are bounded and isolated', () => {
   let done = 0;
-  const component = new ZergTeamTimelineComponent({ requestRender: () => { throw new Error('redraw'); } }, { fg: () => { throw new Error('theme'); } }, () => { done++; throw new Error('done'); }, {
+  const component = new ClankersTeamTimelineComponent({ requestRender: () => { throw new Error('redraw'); } }, { fg: () => { throw new Error('theme'); } }, () => { done++; throw new Error('done'); }, {
     getSnapshot: () => { throw new Error('\x1b]52;c;bad\x07projection'); }, subscribe: () => { throw new Error('subscribe'); },
   });
   assert.doesNotThrow(() => component.handleInput('home')); assert.doesNotThrow(() => out(component)); component.dispose(); component.dispose(); assert.equal(done, 1);
@@ -118,7 +118,7 @@ test('bounded rows/text/lines, sanitization before wrapping, Unicode/narrow heig
   assert.ok(out(f.component, 512).includes('256 retained')); f.component.handleInput('enter');
   for (let i = 0; i < 100; i++) f.component.handleInput('pagedown'); assert.ok(f.component.render(1, 128).length <= 128);
   f.component.invalidate(); f.component.dispose();
-  let theme = 'first'; const c = new ZergTeamTimelineComponent(undefined, { fg: (_token, text) => `${theme}:${text}` }, undefined, { getSnapshot: () => snap([row('a')]), subscribe: () => () => undefined });
+  let theme = 'first'; const c = new ClankersTeamTimelineComponent(undefined, { fg: (_token, text) => `${theme}:${text}` }, undefined, { getSnapshot: () => snap([row('a')]), subscribe: () => () => undefined });
   assert.match(out(c), /first:/); theme = 'second'; c.invalidate(); assert.match(out(c), /second:/); c.dispose();
 });
 
@@ -129,32 +129,32 @@ test('closing and read-only shortcuts never call viewCoding or mutate runtime', 
 });
 
 test('fresh custom roundtrip preserves filter/stable selection/detail/pause and no watcher while coding', async () => {
-  let rows = [row('a'), row('b')]; let listeners = 0; let phase = 0; let reads = 0; const keys: ZergSessionMessageKey[] = [];
-  const options: ZergTeamTimelineOptions = {
+  let rows = [row('a'), row('b')]; let listeners = 0; let phase = 0; let reads = 0; const keys: ClankersSessionMessageKey[] = [];
+  const options: ClankersTeamTimelineOptions = {
     initialFilter: { memberRunId: key.memberRunId }, getSnapshot: (filter) => { reads++; return snap(rows, filter); },
     subscribe: () => { listeners++; return () => { listeners--; }; },
     viewCoding: async (exact) => { assert.equal(listeners, 0); keys.push(exact); rows = [row('new'), row('a', { status: 'delivered' }), row('b')]; await tick(); },
   };
   const context: StructuralPiCommandContext = { mode: 'tui', hasUI: true, ui: { custom(factory) {
     return new Promise<void>((resolve) => {
-      const c = (factory as Exclude<typeof factory, (width: number) => string>)(undefined, undefined, undefined, () => resolve()) as ZergTeamTimelineComponent;
+      const c = (factory as Exclude<typeof factory, (width: number) => string>)(undefined, undefined, undefined, () => resolve()) as ClankersTeamTimelineComponent;
       if (phase++ === 0) { out(c); c.handleInput('home'); c.handleInput('enter'); out(c); c.handleInput('v'); }
       else { assert.match(out(c), /row id: a/); assert.match(out(c), /scroll paused/); assert.match(out(c), /delivered/); assert.match(out(c), /memberRunId=member-a/); c.handleInput('q'); }
     });
   } } };
-  await openZergTeamTimeline(context, options); assert.equal(phase, 2); assert.deepEqual(keys, [key]); assert.equal(listeners, 0); assert.ok(reads >= 3);
+  await openClankersTeamTimeline(context, options); assert.equal(phase, 2); assert.deepEqual(keys, [key]); assert.equal(listeners, 0); assert.ok(reads >= 3);
 });
 
 test('failed exact coding callback returns a fresh timeline with visible bounded error; RPC rejects', async () => {
   let phase = 0; let subscriptions = 0;
-  const options: ZergTeamTimelineOptions = { getSnapshot: () => snap([row('a')]), subscribe: () => { subscriptions++; return () => { subscriptions--; }; }, viewCoding: () => { throw new Error('\x1b]52;c;evil\x07host failure'); } };
-  await openZergTeamTimeline({ ui: { custom(factory) {
+  const options: ClankersTeamTimelineOptions = { getSnapshot: () => snap([row('a')]), subscribe: () => { subscriptions++; return () => { subscriptions--; }; }, viewCoding: () => { throw new Error('\x1b]52;c;evil\x07host failure'); } };
+  await openClankersTeamTimeline({ ui: { custom(factory) {
     return new Promise<void>((resolve) => {
-      const c = (factory as Exclude<typeof factory, (width: number) => string>)(undefined, undefined, undefined, () => resolve()) as ZergTeamTimelineComponent;
+      const c = (factory as Exclude<typeof factory, (width: number) => string>)(undefined, undefined, undefined, () => resolve()) as ClankersTeamTimelineComponent;
       out(c); if (phase++ === 0) c.handleInput('v'); else { assert.match(out(c), /host failure/); assert.doesNotMatch(out(c), /evil|\x1b/); c.handleInput('q'); }
     });
   } } }, options);
-  assert.equal(subscriptions, 0); await assert.rejects(() => openZergTeamTimeline({ mode: 'rpc', hasUI: true, ui: { custom: () => undefined } }, options), /interactive Pi TUI/);
+  assert.equal(subscriptions, 0); await assert.rejects(() => openClankersTeamTimeline({ mode: 'rpc', hasUI: true, ui: { custom: () => undefined } }, options), /interactive Pi TUI/);
 });
 
 test('v pins the previously displayed tail row before dirty refresh; never drills an unseen newer row', () => {
@@ -175,17 +175,17 @@ test('large composite IDs retain full identities and selection; UI key copies co
   const extraKey = { ...exact, privileged: { dispose: () => { throw new Error('must not retain'); } } };
   const entry = row(id, { ...exact, exactKey: extraKey, summary: 'max composite retained', bodyPreview: 'max composite retained' });
   const f = fixture([entry]); assert.match(out(f.component), /max composite retained/);
-  f.component.handleInput('home'); f.update([row('before'), { ...entry, status: 'delivered' } as ZergTimelineEntry]);
+  f.component.handleInput('home'); f.update([row('before'), { ...entry, status: 'delivered' } as ClankersTimelineEntry]);
   out(f.component); f.component.handleInput('v'); assert.deepEqual(f.result?.key, exact); assert.equal(f.result?.state.selectedId, id);
   assert.deepEqual(Object.keys(f.result?.key ?? {}).sort(), ['memberRunId', 'parentRunId', 'piSessionId']);
 });
 
 test('unknown initial fields never silently broaden; undefined extras alone do not create scope', () => {
   for (const filter of [{ runId: 'parent-a' }, { team: 'team-a' }, { targetId: 'x' }, { memberRunID: 'member-a' }]) {
-    const f = fixture(undefined, { initialFilter: filter as ZergTimelineFilter });
+    const f = fixture(undefined, { initialFilter: filter as ClankersTimelineFilter });
     assert.match(out(f.component), /Unsupported timeline filter field/); assert.equal(f.reads, 0); f.component.handleInput('v'); assert.equal(f.done, 0); f.component.dispose();
   }
-  const undefinedExtra = fixture(undefined, { initialFilter: { memberRunId: key.memberRunId, runId: undefined } as ZergTimelineFilter });
+  const undefinedExtra = fixture(undefined, { initialFilter: { memberRunId: key.memberRunId, runId: undefined } as ClankersTimelineFilter });
   out(undefinedExtra.component); assert.deepEqual(undefinedExtra.filters.at(-1), { memberRunId: key.memberRunId }); undefinedExtra.component.dispose();
 });
 
@@ -195,7 +195,7 @@ test('UI independently clamps tab expansion/aggregate budget newest-first, prese
     ...(index === 255 ? { summary: 'LATEST actual communication', bodyPreview: 'TAIL BODY LATEST actual communication' } : {}),
   })));
   assert.match(out(f.component), /LATEST actual communication/); assert.match(out(f.component), /UI text\/row bound/);
-  const entries = (f.component as unknown as { entries: ZergTimelineEntry[] }).entries;
+  const entries = (f.component as unknown as { entries: ClankersTimelineEntry[] }).entries;
   const retainedText = entries.reduce((sum, entry) => sum + entry.summary.length + entry.bodyPreview.length, 0);
   assert.ok(retainedText <= 256 * 1024, retainedText.toString());
   for (const entry of entries) { assert.ok(entry.summary.length <= 256); assert.ok(entry.bodyPreview.length <= 1024); }
@@ -216,7 +216,7 @@ test('detail line clipping is explicit; notice remains scrollable without replac
 test('async/sync custom host failures after factory always dispose once; noncoercible errors stay contained', async () => {
   for (const sync of [true, false]) {
     let unsubs = 0;
-    await assert.rejects(() => openZergTeamTimeline({ ui: { custom(factory) {
+    await assert.rejects(() => openClankersTeamTimeline({ ui: { custom(factory) {
       (factory as Exclude<typeof factory, (width: number) => string>)(undefined, undefined, undefined, () => undefined);
       if (sync) throw new Error('host postfactory failure');
       return Promise.reject(new Error('host postfactory failure'));

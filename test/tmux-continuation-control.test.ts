@@ -7,7 +7,7 @@ import { setTimeout as pause } from 'node:timers/promises';
 import { createJiti } from 'jiti';
 import { ProjectTrustStore } from '@earendil-works/pi-coding-agent';
 import { prepareTmuxContinuationPolicy } from '../tmux-worker-policy.js';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 
 // ANSWER=42 is settled source DATA. The only new assignment is Explain only.
 // Actual control and installed SDK metadata resolver; only process transport is fake.
@@ -32,7 +32,7 @@ test('continuation retains exact closed source, inventories local managed resour
   await writeFile(globalSettings, originalGlobal); await writeFile(projectSettings, originalProject);
   new ProjectTrustStore(agentDir).set(cwd, true);
   await writeFile(join(agentDir, 'models.json'), JSON.stringify({ providers: { synthetic: { api: 'openai-completions', baseUrl: 'https://synthetic.invalid', models: [{ id: 'fixed', input: ['text'], contextWindow: 4096, maxTokens: 128 }] } } }));
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   const definition = { id: 'solo', label: 'Solo', source: 'user' as const, prompt: 'Preserve caller scope.', tools: [], model: 'synthetic/fixed' };
   state.replace(upsertAgentDefinition(state.read(), definition));
   const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
@@ -140,7 +140,7 @@ test('continuation startup failure observes only the live exact owner after revo
   await mkdir(cwd); await mkdir(agentDir);
   process.env.HOME = join(root, 'home');
   await writeFile(join(agentDir, 'models.json'), JSON.stringify({ providers: { synthetic: { api: 'openai-completions', baseUrl: 'https://synthetic.invalid', models: [{ id: 'fixed', input: ['text'], contextWindow: 4096, maxTokens: 128 }] } } }));
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   state.replace(upsertAgentDefinition(state.read(), { id: 'solo', label: 'Solo', source: 'user', prompt: 'Synthetic only.', tools: [], model: 'synthetic/fixed' }));
   const fakePath = fileURLToPath(new URL('./fixtures/tmux-multiworker-fake.ts', import.meta.url));
   const jiti = createJiti(import.meta.url, { fsCache: false, alias: { './tmux-runner.js': fakePath } });

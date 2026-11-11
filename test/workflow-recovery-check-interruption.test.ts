@@ -101,8 +101,8 @@ import fs from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { createWorkflowService } from ${JSON.stringify(urls['workflow-runtime'])};
-import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(urls.state)};
-import { createZergPersistenceManager } from ${JSON.stringify(urls.persistence)};
+import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(urls.state)};
+import { createClankersPersistenceManager } from ${JSON.stringify(urls.persistence)};
 import { workflowHash } from ${JSON.stringify(urls['workflow-model'])};
 const root=process.argv[1], projectRoot=join(root,'project'), stagingParent=join(root,'stage'), snapshotFile=join(root,'state.json');
 const boundary=${JSON.stringify(boundary)};
@@ -124,7 +124,7 @@ const definition={id:'check-interruption',version:3,label:'Check interruption',i
 {id:'review',kind:'coding',dependsOn:['check'],inputs:{},outputSchema:obj({passed:{type:'boolean'},candidateHash:str,reviewer:str,findings:arr(obj({}))}),coding:{operation:'review',policy}}
 ]};
 const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-const base=createZergStateContainer({agentDefinitions:agents}), store=createZergPersistenceManager({snapshotFile});store.hydrate(base);
+const base=createClankersStateContainer({agentDefinitions:agents}), store=createClankersPersistenceManager({snapshotFile});store.hydrate(base);
 let runId='',approval;
 function save(next){
  const run=next.extensions.workflows?.runs?.find(r=>r.workflowRunId===runId);
@@ -140,7 +140,7 @@ function save(next){
  store.save(next);
  if(durable?.ready) fs.writeFileSync(join(root,'ready.json'),JSON.stringify({runId,owner:store.inspectRecoveryOwnership().owner,producerIdentity:ident(),approvalId:approval.id,requestHash:approval.requestHash}),{mode:0o600});
 }
-const container={...base,replace(next){const value=createZergState(next);save(value);return base.replace(value);},update(patch,options){const value=updateZergState(base.read(),patch,options);save(value);return base.replace(value);}};
+const container={...base,replace(next){const value=createClankersState(next);save(value);return base.replace(value);},update(patch,options){const value=updateClankersState(base.read(),patch,options);save(value);return base.replace(value);}};
 const native={preflight(){},async execute(req){
  assert.equal(req.coding.operation,'stage-write','check must use real checker, not native callback');
  const identity={runId:'native-writer',taskId:'task-writer'};req.onIdentity(identity);req.coding.write('src/a.txt','new\\n');
@@ -163,12 +163,12 @@ function verifierSource(label: string, mode: 'live' | 'settled' | 'blocked', pro
   return `
 import assert from 'node:assert/strict';import fs from 'node:fs';import {join} from 'node:path';
 import {createWorkflowService} from ${JSON.stringify(urls['workflow-runtime'])};
-import {createZergStateContainer} from ${JSON.stringify(urls.state)};
-import {createZergPersistenceManager} from ${JSON.stringify(urls.persistence)};
+import {createClankersStateContainer} from ${JSON.stringify(urls.state)};
+import {createClankersPersistenceManager} from ${JSON.stringify(urls.persistence)};
 const root=process.argv[1], snapshotFile=join(root,'state.json'), ready=JSON.parse(fs.readFileSync(join(root,'ready.json'),'utf8'));
 assert.notEqual(process.pid,ready.owner.pid,'must be a fresh verifier PROCESS');
 const before=fs.readFileSync(snapshotFile), raw=JSON.parse(before), saved=raw.state.extensions.workflows.runs.find(r=>r.workflowRunId===ready.runId);
-const base=createZergStateContainer(),store=createZergPersistenceManager({snapshotFile});store.hydrate(base);
+const base=createClankersStateContainer(),store=createClankersPersistenceManager({snapshotFile});store.hydrate(base);
 const effects={acquire:0,save:0,native:0,check:0,cleanup:0};
 const forbidden=k=>()=>{effects[k]++;throw Error('inspection effect '+k);};
 const container={...base,replace:forbidden('save'),update:forbidden('save')};
@@ -217,7 +217,7 @@ try{
 
 for (const boundary of ['running', 'completed'] as const) {
   test(`workflow ${boundary} check: SIGKILL before receipt publication; fresh-process inert reconciliation`, { skip: process.platform !== 'linux', timeout: 90000 }, async t => {
-    const root = mkdtempSync(join(tmpdir(), 'zerg-workflow-check-interruption-'));
+    const root = mkdtempSync(join(tmpdir(), 'clankers-workflow-check-interruption-'));
     const previousTmpdir = process.env.TMPDIR;
     process.env.TMPDIR = root;
     let succeeded = false, ready: any, supervisor: DurableCheckProcessIdentity | undefined, command: DurableCheckProcessIdentity | undefined, grandchild: DurableCheckProcessIdentity | undefined;

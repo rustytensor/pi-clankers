@@ -7,7 +7,7 @@ import test from 'node:test';
 // No heavy fixture imports, SDK loads, sockets or live child processes before this gate.
 // Author-only tests below evaluate extracted pure protocol code, never Pi/driver modules.
 // A skip is NOT acceptance. These candidates are AUTHOR-ONLY until parent review.
-const approved = process.env.ZERG_BACKGROUND_ACTIVITY_ACCEPTANCE === 'parent-approved';
+const approved = process.env.CLANKERS_BACKGROUND_ACTIVITY_ACCEPTANCE === 'parent-approved';
 const required = (key: string) => {
   const value = process.env[key]; assert(value, `Explicit ${key} required; no checkout/host fallback`); return value;
 };
@@ -26,17 +26,17 @@ export const REQUIRED_HOST_ASSERTIONS = [
 ] as const;
 for (const mode of ['sdk', 'regular', 'fullscreen'] as const) {
   test(`Stage 9 actual isolated ${mode}`, {
-    skip: approved ? false : 'requires reviewed closure + ZERG_BACKGROUND_ACTIVITY_ACCEPTANCE=parent-approved; NOT acceptance passed',
+    skip: approved ? false : 'requires reviewed closure + CLANKERS_BACKGROUND_ACTIVITY_ACCEPTANCE=parent-approved; NOT acceptance passed',
     timeout: 200_000,
   }, async () => {
     // Runtime roots are explicit capabilities supplied ONLY by the reviewing parent.
-    const candidate = required('ZERG_BACKGROUND_ACTIVITY_CANDIDATE_ROOT');
-    const manifest = required('ZERG_BACKGROUND_ACTIVITY_MANIFEST');
-    const sdk = required('ZERG_BACKGROUND_ACTIVITY_SDK_ROOT');
-    const host = required('ZERG_BACKGROUND_ACTIVITY_HOST_ROOT');
-    const guards = required('ZERG_BACKGROUND_ACTIVITY_GUARDS_ROOT');
+    const candidate = required('CLANKERS_BACKGROUND_ACTIVITY_CANDIDATE_ROOT');
+    const manifest = required('CLANKERS_BACKGROUND_ACTIVITY_MANIFEST');
+    const sdk = required('CLANKERS_BACKGROUND_ACTIVITY_SDK_ROOT');
+    const host = required('CLANKERS_BACKGROUND_ACTIVITY_HOST_ROOT');
+    const guards = required('CLANKERS_BACKGROUND_ACTIVITY_GUARDS_ROOT');
     const safety = await import(new URL('file://' + guards + '/host-fixture-safety.mjs').href);
-    const root = mkdtempSync('/tmp/zerg-stage9-' + mode + '-');
+    const root = mkdtempSync('/tmp/clankers-stage9-' + mode + '-');
     safety.assertAncestorIsolation(root);
     mkdirSync(join(root, 'work')); mkdirSync(join(root, 'evidence'));
     const st = lstatSync(root);
@@ -204,7 +204,7 @@ test('Stage 9 author-only protocol: SDK ordered stage promises and exact ack val
 test('Stage 9 author-only protocol: immutable driver and exact ceilings/static barriers', async () => {
   const { createHash } = await import('node:crypto');
   const driver = authorSource('stage9-activity-sdk-acceptance.mjs');
-  assert.equal(createHash('sha256').update(driver).digest('hex'), '630d3b3fd8a508b87046537a344e76fe5a3f83128936b62d9a1b098a74c8e2d2');
+  assert.equal(createHash('sha256').update(driver).digest('hex'), '3aa73e46b5ec89e5ed68631a9742e72e16cf4495f1bece61ff118a7120df4199');
   const fixture = authorSource('stage9-activity-host-fixture.ts'), controller = authorSource('stage9-activity-host-pty.py');
   for (const literal of ['maxRequests: 32', 'maxRequestBytes: 262144', 'maxOutputBytes: 1048576', 'timeoutMs: 165000',
     'responseBytes <= 131072', '2e9ea3e178365b12af84ba2ae2ee191d5b28609546af7746641f06a8ab8e354a',
@@ -345,12 +345,12 @@ test('Stage 9 author-only explicit UI commands: exact main hook entries, no work
   const before = JSON.stringify(fake.state), result = {}; fake.result = result;
   assert.equal(JSON.stringify(h.snapshot()), JSON.stringify({ prompts: 3, starts: 3, sessions: 3 }));
   fake.onCheckpoint = () => {
-    for (const command of ['/zerg config', '/s9modal']) assert.equal(main.prompt(command), result);
+    for (const command of ['/clankers config', '/s9modal']) assert.equal(main.prompt(command), result);
     // Still render through the actual witness after intentional main entries.
     context.witnessComponent(h.receiver, 'management').render(240);
   };
   await h.window(0);
-  assert.deepEqual(fake.forwards.slice(3).map((row: any) => row.args), [['/zerg config'], ['/s9modal']]);
+  assert.deepEqual(fake.forwards.slice(3).map((row: any) => row.args), [['/clankers config'], ['/s9modal']]);
   for (let i = 3; i < 5; i++) {
     assert.equal(fake.forwards[i].receiver, main); assert.equal(fake.forwards[i].counterAtEntry, i + 1);
   }
@@ -399,7 +399,7 @@ test('Stage 9 author-only observer: exact window placement, limitations and revi
   const { createHash } = await import('node:crypto');
   const source = authorSource('stage9-activity-host-fixture.ts');
   assert.equal(createHash('sha256').update(authorSource('stage9-activity-host-pty.py')).digest('hex'),
-    '1e99a2e0f0a07a7661b05a584da77ebfca181987741493dd98d5c000f0d06b8a');
+    '42ad54fd3d9116ac78c6b943cc9696bab2124e75c6e87769e51094a19588e450');
   assert.equal(source.match(/shared\.promptCalls\+\+/g)?.length, 1);
   assert(source.indexOf('shared.promptCalls++;') < source.indexOf('if (this === shared.mainSession)'));
   assert(source.includes('initiation: initiationSnapshot()'));
@@ -434,7 +434,7 @@ assert ast.literal_eval(calls(clear, 'draft')[0].args[0]) == ''
 assert len(calls(tree, 'clear_draft')) == 6
 assert not any(isinstance(n, ast.Constant) and isinstance(n.value, bytes) and 3 in n.value for n in ast.walk(tree)), 'Ctrl+C can exit Pi'
 commands = [ast.literal_eval(n.args[0]) for n in calls(tree, 'key') if isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, bytes) and n.args[0].value.startswith(b'/')]
-assert commands == [b'/zerg config\\r', b'/s9modal\\r', b'/reload\\r']
+assert commands == [b'/clankers config\\r', b'/s9modal\\r', b'/reload\\r']
 for name, value, drafts in [
  ('live_ui', 'S9 DRAFT 一\\nsecond line', ['value', 'value', 'value', "value + 'Z'", 'value', 'value']),
  ('reload_ui', 'S9 RELOAD DRAFT 一\\nnever submitted to model', ['value', 'value', 'value', 'value', "value + 'Z'"])
@@ -467,7 +467,7 @@ test('Stage 9 author-only publication: exact JS publishers, old-or-new, scope an
     const selected = ast.statements.filter((n: any) => ts.isFunctionDeclaration(n) && names.includes(n.name!.text)
       || ts.isVariableStatement(n) && n.declarationList.declarations.some((d: any) => ['EVIDENCE_NAMES', 'EVIDENCE_PENDING'].includes(d.name.getText(ast))));
     assert.equal(selected.length, names.length + 2);
-    const root = fs.mkdtempSync('/tmp/zerg-stage9-publication-');
+    const root = fs.mkdtempSync('/tmp/clankers-stage9-publication-');
     const evidence = join(root, 'evidence'); fs.mkdirSync(evidence, { mode: 0o700 });
     let target = '', writes = 0, unlinks = 0, failWrite = false, failRename = false;
     const observed: any[] = [];
@@ -564,7 +564,7 @@ functions = {'evidence_stat', 'evidence_path', 'put', 'load'}
 nodes = [n for n in tree.body if (isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id in names for t in n.targets)) or (isinstance(n, ast.FunctionDef) and n.name in functions)]
 assert len(nodes) == 6
 exec(compile(ast.Module(body=nodes, type_ignores=[]), '<pure-publication>', 'exec'))
-root = tempfile.mkdtemp(prefix='zerg-stage9-publication-', dir='/tmp')
+root = tempfile.mkdtemp(prefix='clankers-stage9-publication-', dir='/tmp')
 os.mkdir(root + '/evidence', 0o700)
 target = root + '/evidence/ui-live.json'
 pending = root + '/evidence/' + EVIDENCE_PENDING
@@ -707,7 +707,7 @@ print(json.dumps({'ok': True, 'freshFormGates': 3, 'conflictProposals': 3}))
 // An explicit candidate root permits private authoring without copying/editing runtime.
 test('Stage 9 author-only settings: actual Tab/o/Input, caret-end clear and no authority dispatch', { timeout: 5000 }, async () => {
   const ts = await import('typescript'), vm = await import('node:vm'), tui = await import('@earendil-works/pi-tui');
-  const uiRoot = process.env.ZERG_BACKGROUND_ACTIVITY_CANDIDATE_ROOT ?? fileURLToPath(new URL('../', import.meta.url));
+  const uiRoot = process.env.CLANKERS_BACKGROUND_ACTIVITY_CANDIDATE_ROOT ?? fileURLToPath(new URL('../', import.meta.url));
   const context = vm.createContext({ ...tui, matchesPiKey: tui.matchesKey });
   const shortcutContext = vm.createContext({ ...tui }); // Keep Pi matchesKey distinct from UI state.matchesKey.
   const extract = (file: string, names?: string[], target = context) => {
@@ -725,8 +725,8 @@ test('Stage 9 author-only settings: actual Tab/o/Input, caret-end clear and no a
   extract('preferences', ['normalizeManagementShortcut'], shortcutContext);
   extract('management-shortcut', ['namedKeys', 'otherKey', 'packets', 'equivalents', 'bindingEntries', 'validateManagementShortcut'], shortcutContext);
   for (const file of ['state', 'components', 'tree-pane', 'detail-pane', 'chat-pane', 'footer', 'settings-pane']) extract(file);
-  extract('management-overlay', ['viewerError', 'ZergManagementOverlayComponent']);
-  const Component: any = vm.runInContext('ZergManagementOverlayComponent', context);
+  extract('management-overlay', ['viewerError', 'ClankersManagementOverlayComponent']);
+  const Component: any = vm.runInContext('ClankersManagementOverlayComponent', context);
   const state = { mode: { readOnly: true, automation: 'manual', controller: 'operator' }, extensions: {}, teams: {}, agents: {}, tasks: {}, tree: {}, lifecycle: 'ready', revision: 0 };
   const before = JSON.stringify(state);
   let actions = 0, saves = 0, closes = 0;
@@ -776,7 +776,7 @@ test('Stage 9 author-only settings: actual Tab/o/Input, caret-end clear and no a
 // extracted fixture/UI/latch declarations execute: no SDK/Jiti/product startup.
 test('Stage 9 author-only cached reload: fresh delegate, real component/latch, late old owner', { timeout: 5000 }, async () => {
   const ts = await import('typescript'), vm = await import('node:vm'), tui = await import('@earendil-works/pi-tui');
-  const uiRoot = process.env.ZERG_BACKGROUND_ACTIVITY_CANDIDATE_ROOT ?? fileURLToPath(new URL('../', import.meta.url));
+  const uiRoot = process.env.CLANKERS_BACKGROUND_ACTIVITY_CANDIDATE_ROOT ?? fileURLToPath(new URL('../', import.meta.url));
   const sourceAt = (path: string) => {
     const st = lstatSync(path); assert(st.isFile() && !st.isSymbolicLink() && st.nlink === 1);
     return readFileSync(path, 'utf8');
@@ -798,9 +798,9 @@ test('Stage 9 author-only cached reload: fresh delegate, real component/latch, l
   };
   extractUi('preferences', ['DEFAULT_MANAGEMENT_SHORTCUT']);
   for (const file of ['state', 'components', 'tree-pane', 'detail-pane', 'chat-pane', 'footer', 'settings-pane']) extractUi(file);
-  extractUi('management-overlay', ['viewerError', 'openZergManagementOverlay', 'ZergManagementOverlayComponent']);
-  const Component = run('ZergManagementOverlayComponent', ui);
-  const realOpen = ui.openZergManagementOverlay;
+  extractUi('management-overlay', ['viewerError', 'openClankersManagementOverlay', 'ClankersManagementOverlayComponent']);
+  const Component = run('ClankersManagementOverlayComponent', ui);
+  const realOpen = ui.openClankersManagementOverlay;
   const indexAst = astOf(sourceAt(join(uiRoot, 'index.ts'))), indexNodes: any[] = [];
   const visitIndex = (n: any) => { indexNodes.push(n); ts.forEachChild(n, visitIndex); }; visitIndex(indexAst);
   const latch = indexNodes.filter(n => ts.isVariableStatement(n) && n.declarationList.declarations.some((d: any) =>
@@ -824,7 +824,7 @@ test('Stage 9 author-only cached reload: fresh delegate, real component/latch, l
   const factory = astOf(currentSource).statements.find((n: any) => ts.isFunctionDeclaration(n) && n.name?.text === 'stage9HostFixture')!;
   const factoryStatements = (factory as any).body.statements.map((n: any) => n.getText());
   const delegateIndex = factoryStatements.findIndex((s: string) => s.startsWith('g.witnessedContext ='));
-  const registerIndex = factoryStatements.findIndex((s: string) => s.includes('zerg.registerZergSwarmExtension(proxy,'));
+  const registerIndex = factoryStatements.findIndex((s: string) => s.includes('clankers.registerClankersExtension(proxy,'));
   assert(delegateIndex >= 0 && delegateIndex < registerIndex, 'Fresh delegate installed BEFORE product registration');
   const scenario = async (source: string, fixed: boolean) => {
     const ast = astOf(source), nodes: any[] = [];
@@ -841,7 +841,7 @@ test('Stage 9 author-only cached reload: fresh delegate, real component/latch, l
     const delegate = exact(n => ts.isExpressionStatement(n) && n.getText(ast).startsWith('g.witnessedContext ='));
     const registrar = exact(n => ts.isVariableStatement(n) && n.getText(ast).startsWith('const proxy = new Proxy(pi,') && n.getText(ast).includes('g.shortcuts.push'));
     const shared: any = { current: undefined, generations: [], promptCalls: 0 };
-    const managementModule: any = { ZergManagementOverlayComponent: Component, openZergManagementOverlay: realOpen };
+    const managementModule: any = { ClankersManagementOverlayComponent: Component, openClankersManagementOverlay: realOpen };
     const backgroundModule: any = { createBackgroundActivityController: (o: any) => o };
     const preferencesModule: any = { createUiPreferences: (...args: any[]) => args };
     const publications: any[] = [], handlers: any[] = [], shortcuts: any[] = [];
@@ -863,33 +863,33 @@ test('Stage 9 author-only cached reload: fresh delegate, real component/latch, l
         hash: (value: any) => JSON.stringify(value), requests: () => 0, tui, queueMicrotask,
         put: (_name: string, row: any) => publications.push(JSON.parse(JSON.stringify(row))),
         setTimeout, clearTimeout, Date, handle: undefined, widget: undefined,
-        normalizeZergCommandInput: (input: string) => { entries++; return { topic: input }; },
-        dispatch: (_input: string, c: any) => managementModule.openZergManagementOverlay(c, options),
+        normalizeClankersCommandInput: (input: string) => { entries++; return { topic: input }; },
+        dispatch: (_input: string, c: any) => managementModule.openClankersManagementOverlay(c, options),
         pi: { registerCommand: (_name: string, row: any) => handlers.push(row.handler),
           registerShortcut: (_key: string, row: any) => shortcuts.push(row.handler), on() {} },
       });
       shared.generations.push(g); shared.current = g;
       run(functions + '\n' + declarations + '\n' + seams + '\n' + delegate + '\n' + registrar, context);
-      const latchContext = vm.createContext({ dispatch: context.dispatch, normalizeZergCommandInput: context.normalizeZergCommandInput });
+      const latchContext = vm.createContext({ dispatch: context.dispatch, normalizeClankersCommandInput: context.normalizeClankersCommandInput });
       run(latchCode, latchContext);
       const handler = context.handler = run('handler', latchContext);
-      run("proxy.registerCommand('zerg', { handler }); proxy.registerShortcut('alt+j', { handler });", context);
+      run("proxy.registerCommand('clankers', { handler }); proxy.registerShortcut('alt+j', { handler });", context);
       g.registration = { control }; assert.equal(g.handler ?? handler, handler);
       assert.equal(handlers.at(-1), handler); assert.equal(shortcuts.at(-1), handler);
       return { g, context, ctx, handler, uiTarget, invalidate: () => { invalid = true; }, close: () => resolveClose(),
         status: () => ({ reads, entries, customCalls, staleReads, actual, inputRemove, widgetFactory }) };
     };
-    const one = evaluate(1), firstExport = managementModule.openZergManagementOverlay;
+    const one = evaluate(1), firstExport = managementModule.openClankersManagementOverlay;
     const pendingOld = one.handler('config', one.ctx);
     await Promise.resolve(); await Promise.resolve();
     assert.equal(one.status().customCalls, 1); assert(one.status().actual instanceof Component);
     assert.equal(one.status().entries, 2); // Genuine queued canonical handler reentry hits exact product latch.
     const oldUi = one.context.witnessedContext(one.ctx);
     const removeOldInput = oldUi.ui.onTerminalInput(() => {});
-    oldUi.ui.setWidget('pi-zerg-swarm.background-activity', () => ({ render: () => ['old widget'] }));
+    oldUi.ui.setWidget('pi-clankers.background-activity', () => ({ render: () => ['old widget'] }));
     const oldWidget = one.status().widgetFactory({ terminal: { rows: 45 } });
     if (!fixed) { one.close(); await pendingOld; }
-    const two = evaluate(2); assert.equal(managementModule.openZergManagementOverlay, firstExport);
+    const two = evaluate(2); assert.equal(managementModule.openClankersManagementOverlay, firstExport);
     one.invalidate();
     const pendingNew = two.handler('config', two.ctx);
     if (!fixed) {

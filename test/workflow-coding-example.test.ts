@@ -8,8 +8,8 @@ import { validateWorkflowDefinition } from '../workflow-model.js';
 import { validateCodingPolicy } from '../workflow-coding.js';
 
 test('public trusted coding example constructs a valid v3 definition and host coding config', () => {
-  const projectRoot = mkdtempSync(join(tmpdir(), 'zerg-example-root-'));
-  const stagingParent = mkdtempSync(join(tmpdir(), 'zerg-example-stage-'));
+  const projectRoot = mkdtempSync(join(tmpdir(), 'clankers-example-root-'));
+  const stagingParent = mkdtempSync(join(tmpdir(), 'clankers-example-stage-'));
   const example = buildTrustedCodingWorkflowExample({ projectRoot, stagingParent, model: 'fake/model' });
   mkdirSync(join(projectRoot, 'src'));
   for (const [path, text] of Object.entries(example.initialFiles)) writeFileSync(join(projectRoot, path), text);

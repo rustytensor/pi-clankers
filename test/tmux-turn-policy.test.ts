@@ -22,7 +22,7 @@ test('two-request budget blocks third before dispatch and explicitly resets for 
   assert.equal(config.maxTurns, 2);
   assert.deepEqual(config.tools, ['fixture_custom']);
   assert.equal(Object.isFrozen(config), true);
-  assert.deepEqual(resolveTmuxToolPolicy(['fixture_custom', 'clankers_control', 'larra_zerg_control', 'write'], ['write']).tools, ['fixture_custom']);
+  assert.deepEqual(resolveTmuxToolPolicy(['fixture_custom', 'clankers_control', 'larra_clankers_control', 'write'], ['write']).tools, ['fixture_custom']);
   assert.throws(() => resolveTmuxToolPolicy(['mcp__other__write']), /Unsupported/);
   // This tests data admission and the pre-dispatch counter, not SDK settlement.
   // Trusted extension existence/exact callable policy is attested by child readiness.

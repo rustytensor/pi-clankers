@@ -7,7 +7,7 @@ import { createJiti } from 'jiti';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createTmuxWorker, TmuxLaunchError, type TmuxLaunchOptions, type TmuxWorkerHandle } from './tmux-runner.js';
 import { TMUX_TEXT_BYTES, type TmuxJobResult, type TmuxSnapshot } from './tmux-protocol.js';
-import type { ZergAgentDefinition, ZergCommandResult, ZergStateContainer, ZergSubagentLaunchRequest } from './types.js';
+import type { ClankersAgentDefinition, ClankersCommandResult, ClankersStateContainer, ClankersSubagentLaunchRequest } from './types.js';
 import { applyRuntimeTransition, getAgentDefinition, upsertTask } from './state.js';
 import { AGENT_RESULTS_KEY, captureAssistantResultText, normalizeMayWrite, normalizeResultSchema, projectAgentResult, retainAgentResult, validateAgentResult, type AgentResult, type AgentResultLedger } from './agent-results.js';
 
@@ -43,7 +43,7 @@ interface TeamRun {
 
 interface Worker {
   workerId: string;
-  definition: ZergAgentDefinition;
+  definition: ClankersAgentDefinition;
   model: string;
   selection?: TmuxModelSelection;
   handle?: TmuxWorkerHandle;
@@ -58,7 +58,7 @@ interface Worker {
 }
 
 /** Separate owner: never a native adapter, transcript or workflow capability. */
-export function createTmuxControl(container: ZergStateContainer, options: Options) {
+export function createTmuxControl(container: ClankersStateContainer, options: Options) {
   // Trusted transport configuration is owner-scoped, never mutable control JSON.
   options = { ...options, trusted: options.trusted ? structuredClone(options.trusted) : undefined };
   // Entries include setup, idle and unconfirmed cleanup, not just running jobs.
@@ -180,7 +180,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     const next = applyRuntimeTransition(current, { entity: 'agent', action: state === 'running' ? 'create' : state === 'done' ? 'stop' : 'fail', id: job.runId, label: target.definition.label, kind: 'subagent', status: state, activity: reason, substate: state === 'done' ? 'completed' : state === 'running' ? 'executing' : state, substateReason: reason, metadata }, { now: () => new Date(time) });
     container.replace(upsertTask(next, { id: job.taskId, title: task, status: state, ownerAgentId: job.runId, updatedAt: time, substate: state === 'done' ? 'completed' : state === 'running' ? 'executing' : state, substateReason: reason, substateUpdatedAt: time, metadata }));
   };
-  const begin = (target: Worker, task: string, signal?: AbortSignal, binding?: TeamBinding, literalTask = task): ZergCommandResult => {
+  const begin = (target: Worker, task: string, signal?: AbortSignal, binding?: TeamBinding, literalTask = task): ClankersCommandResult => {
     authority(signal);
     if (!ownsWorker(target) || target.current || target.closing || target.handle?.isClosed) throw new Error('Tmux worker busy, closing or closed.');
     if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 131072 UTF-8 bytes.');
@@ -285,7 +285,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     void completion.then(() => { jobs.delete(job.runId); });
     return { ok: true, ...ids, output: `tmux job admitted (${ids.runId}) task:${ids.taskId} worker:${target.workerId}; not completed` };
   };
-  const startTeam = (request: ZergSubagentLaunchRequest, signal?: AbortSignal): ZergCommandResult => {
+  const startTeam = (request: ClankersSubagentLaunchRequest, signal?: AbortSignal): ClankersCommandResult => {
     const state = container.read();
     const teamDefinition = structuredClone(state.teams[request.agent]);
     const leader = getAgentDefinition(state, request.agent) ?? getAgentDefinition(state, teamDefinition.leaderAgentId ?? '');
@@ -483,7 +483,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     jobs.set(team.runId, completion);
     return { ok: true, ...parentIds, output: `Tmux team admitted (${team.runId}); ${prepared.length} persistent slots reserved, concurrency ${concurrency}; not completed.` };
   };
-  const continuation = createTmuxContinuationService<ZergCommandResult>({
+  const continuation = createTmuxContinuationService<ClankersCommandResult>({
     source: key => sources.get(key.workerId + '/' + key.jobId),
     assertAuthority: authority,
     policy: agentId => {
@@ -511,7 +511,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
     if (!definition.model) throw new Error('Continuation requires current explicit model');
     return { cwd: options.cwd, agentDir, sdkModulePath, modelSpec: definition.model, definitionPrompt: definition.prompt, tools, disallowedTools, maxTurns: definition.maxTurns, fallbackModels: definition.fallbackModels, fixtureExtensionPaths: options.trusted?.fixtureExtensionPaths };
   }
-  const start = (request: ZergSubagentLaunchRequest, signal?: AbortSignal, admission?: TmuxContinuationAdmission): ZergCommandResult => {
+  const start = (request: ClankersSubagentLaunchRequest, signal?: AbortSignal, admission?: TmuxContinuationAdmission): ClankersCommandResult => {
       authority(signal);
       if (typeof request.task !== 'string' || !request.task.trim() || Buffer.byteLength(request.task, 'utf8') > TMUX_TEXT_BYTES) throw new Error('Tmux task must be nonempty and at most 131072 UTF-8 bytes.');
       const allowed = new Set(['backend', 'agent', 'task', 'background', 'fork', 'launchMode', 'concurrency', 'model', 'fallbackModels', 'maxTurns']);
@@ -579,7 +579,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
       catch (error) { void closeOwned(target); throw error; }
   };
   return {
-    start(request: ZergSubagentLaunchRequest, signal?: AbortSignal) { return start(request, signal); },
+    start(request: ClankersSubagentLaunchRequest, signal?: AbortSignal) { return start(request, signal); },
     async prepare(workerId: string, jobId: string, task: string) {
       authority();
       const source = sources.get(workerId + '/' + jobId);
@@ -628,7 +628,7 @@ export function createTmuxControl(container: ZergStateContainer, options: Option
       const reply = await target.handle.steer(job.jobId, body);
       return { ok: reply.status !== 'refused', status: reply.status }; // Never serialize private response identity.
     },
-    interrupt(runId: string): ZergCommandResult {
+    interrupt(runId: string): ClankersCommandResult {
       authority();
       const team = teams.get(runId);
       if (team) {

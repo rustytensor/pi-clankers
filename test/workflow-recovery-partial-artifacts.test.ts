@@ -14,7 +14,7 @@ const inputPaths = ['src/a.txt', 'src/b.txt', 'src/ro.txt'];
 const writablePaths = ['src/a.txt', 'src/b.txt'];
 
 async function interrupted(mode: 'initial' | 'changed' | 'two', run: (f: { root: string; project: string; stage: string; options: InspectPartialArtifactsOptions; msg: any }) => void) {
-  const root = mkdtempSync(join(tmpdir(), `zerg-partial-${mode}-`));
+  const root = mkdtempSync(join(tmpdir(), `clankers-partial-${mode}-`));
   const oldTmp = process.env.TMPDIR;
   process.env.TMPDIR = root; // Same isolated lease root for producer AND verifier.
   const project = join(root, 'project'), staging = join(root, 'staging');
@@ -149,7 +149,7 @@ test('SIGKILL negatives: readonly project/stage drift, nested extras, symlinks, 
 });
 
 test('uncertain root-ready publication retains root and leases without file effects or cleanup', () => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-rootready-error-')), oldTmp = process.env.TMPDIR;
+  const root = mkdtempSync(join(tmpdir(), 'clankers-rootready-error-')), oldTmp = process.env.TMPDIR;
   process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage');
   mkdirSync(projectRoot); mkdirSync(stagingParent); writeFileSync(join(projectRoot, 'a'), 'old');
@@ -165,7 +165,7 @@ test('uncertain root-ready publication retains root and leases without file effe
 
 
 test('successful root-ready publication followed by authority revocation retains all published evidence', () => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-rootready-revoked-')), oldTmp = process.env.TMPDIR;
+  const root = mkdtempSync(join(tmpdir(), 'clankers-rootready-revoked-')), oldTmp = process.env.TMPDIR;
   process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage');
   mkdirSync(projectRoot); mkdirSync(stagingParent); writeFileSync(join(projectRoot, 'a'), 'old');
@@ -181,7 +181,7 @@ test('successful root-ready publication followed by authority revocation retains
 });
 
 test('capacity projection bounds full constructor evidence and deep newly created stage directories', () => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-capacity-')), oldTmp = process.env.TMPDIR;
+  const root = mkdtempSync(join(tmpdir(), 'clankers-capacity-')), oldTmp = process.env.TMPDIR;
   process.env.TMPDIR = root;
   const projectRoot = join(root, 'project'), stagingParent = join(root, 'stage');
   const missing = 'new/a/b/c/d/e/f/g/h/file.txt';

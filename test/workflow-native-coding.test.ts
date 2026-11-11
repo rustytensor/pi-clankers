@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { __zergNativeTestInternals } from '../index.js';
+import { __clankersNativeTestInternals } from '../index.js';
 import type { WorkflowNativeRequest } from '../workflow-model.js';
 
 function fakeSdk(host: Record<string, any>) {
@@ -62,7 +62,7 @@ function request(operation: 'investigate' | 'stage-write' | 'review', writes: st
 test('normal native sessions preserve existing package and extension resources in settings overrides', async () => {
   const host: Record<string, any> = {};
   const agent = { id: 'normal', label: 'Normal', prompt: 'Use ordinary tools.', source: 'runtime' as const, model: 'fake/model', tools: ['read'] };
-  await __zergNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, agent, 'task', '/project', 'fake/model');
+  await __clankersNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, agent, 'task', '/project', 'fake/model');
   assert.equal(host.settings.retry.enabled, true);
   assert.deepEqual(host.settings.defaultTools, ['read']);
   assert.equal(Object.hasOwn(host.settings, 'packages'), false);
@@ -72,7 +72,7 @@ test('normal native sessions preserve existing package and extension resources i
 test('workflow coding stage-write uses sealed loader and controlled custom read/write tools only', async () => {
   const host: Record<string, any> = {}; const events: string[] = [];
   const admission = { request: request('stage-write', events), tools: ['read'], aborts: [], failures: [], cleanupSettled: true, assert() { events.push('admission'); } };
-  const { session, tools } = await __zergNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
+  const { session, tools } = await __clankersNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
   assert.deepEqual(tools, ['workflow_stage_read', 'workflow_stage_write', 'workflow_stage_inspect']);
   assert.deepEqual(host.options.tools, tools);
   assert.equal(host.options.excludeTools.length, 0);
@@ -90,7 +90,7 @@ test('workflow coding stage-write uses sealed loader and controlled custom read/
 test('workflow coding review exposes read/inspect without write', async () => {
   const host: Record<string, any> = {}; const events: string[] = [];
   const admission = { request: request('review', events), tools: ['read'], aborts: [], failures: [], cleanupSettled: true, assert() { events.push('admission'); } };
-  await __zergNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
+  await __clankersNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
   assert.deepEqual(host.options.tools, ['workflow_stage_read', 'workflow_stage_inspect']);
   assert.equal(host.options.customTools.some((tool: any) => tool.name === 'workflow_stage_write'), false);
 });
@@ -98,7 +98,7 @@ test('workflow coding review exposes read/inspect without write', async () => {
 test('workflow coding investigation exposes readonly sealed snapshot tools before implementation approval', async () => {
   const host: Record<string, any> = {}; const events: string[] = [];
   const admission = { request: request('investigate', events), tools: ['read'], aborts: [], failures: [], cleanupSettled: true, assert() { events.push('admission'); } };
-  await __zergNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
+  await __clankersNativeTestInternals.createPiNativeSession(fakeSdk(host) as never, admission.request.agent, 'task', '/project', 'fake/model', undefined, admission as never);
   assert.deepEqual(host.options.tools, ['workflow_stage_read', 'workflow_stage_inspect']);
   assert.equal(host.options.customTools.some((tool: any) => tool.name === 'workflow_stage_write'), false);
 });

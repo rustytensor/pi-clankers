@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { workflowHash } from '../workflow-model.js';
 import type { WorkflowDefinition, WorkflowJson, WorkflowNativeOutcome, WorkflowNativePort, WorkflowNativeRequest, WorkflowRun, WorkflowSchema, WorkflowService } from '../workflow-model.js';
@@ -20,7 +20,7 @@ function fakePort() {
   return { port, requests, finish, done(index: number, text = '"ok"', status: WorkflowNativeOutcome['status'] = 'completed', cleanupSettled = true) { finish[index]({ status, text, cleanupSettled }); } };
 }
 function harness(fanout = 4) {
-  const container = createZergStateContainer({ agentDefinitions: { reviewer: { id: 'reviewer', label: 'Reviewer', source: 'builtin', prompt: 'Readonly', model: 'fake/model', tools: ['read'], permissionMode: 'inherit' } } });
+  const container = createClankersStateContainer({ agentDefinitions: { reviewer: { id: 'reviewer', label: 'Reviewer', source: 'builtin', prompt: 'Readonly', model: 'fake/model', tools: ['read'], permissionMode: 'inherit' } } });
   const fake = fakePort(); let seq = 0;
   const service = createWorkflowService(container, fake.port, { idFactory: () => `workflow-${++seq}`, now: () => new Date('2026-10-04T00:00:00.000Z') });
   return { container, fake, service, def: definition(fanout) };
@@ -143,7 +143,7 @@ test('policy drift after publication blocks port/provider admission without inva
 test('recovery is nonexecuting and unreconnected running work cannot resume/retry/forget', async () => {
   const h = harness(), id = await start(h, ['a'], 1); const ledger = h.container.read().extensions.workflows;
   const recovered = recoverWorkflowState(ledger); assert.equal(recovered.runs[0].status, 'needs-attention'); assert.equal(recovered.runs[0].steps[0].units[0].status, 'unverified'); assert.equal(recovered.runs[0].cleanupSettled, false);
-  const other = createZergStateContainer(h.container.snapshot()); const newService = createWorkflowService(other, h.fake.port); await turns(); assert.equal(h.fake.requests.length, 1);
+  const other = createClankersStateContainer(h.container.snapshot()); const newService = createWorkflowService(other, h.fake.port); await turns(); assert.equal(h.fake.requests.length, 1);
   for (const action of ['workflows.resume', 'workflows.retry', 'workflows.forget'] as const) assert.equal((await newService.execute({ action, workflowRunId: id })).ok, false);
   h.fake.done(0); await h.service.drain(); h.service.dispose(); newService.dispose();
 });
@@ -156,7 +156,7 @@ test('old completions after disposal/recreation cannot overwrite recovered owner
 
 test('corrupt/oversized recovery fails closed without replacing historical namespace', () => {
   for (const ledger of [{ version: 2, definitions: [], runs: [] }, { version: 1, definitions: [], runs: ['wrong'] }, { version: 1, definitions: [], runs: [], raw: 'x'.repeat(2100000) }]) {
-    const container = createZergStateContainer({ extensions: { workflows: ledger } }); const before = JSON.stringify(container.read().extensions.workflows);
+    const container = createClankersStateContainer({ extensions: { workflows: ledger } }); const before = JSON.stringify(container.read().extensions.workflows);
     assert.throws(() => createWorkflowService(container, fakePort().port)); assert.equal(JSON.stringify(container.read().extensions.workflows), before);
   }
 });
@@ -174,7 +174,7 @@ test('action getters never execute and unknown cleanup recovery closes all new a
   const h = harness(); let calls = 0;
   const hostile = Object.defineProperty({}, 'action', { enumerable: true, get() { calls++; return 'workflows.start'; } });
   assert.equal((await h.service.execute(hostile as never)).ok, false); assert.equal(calls, 0);
-  const id = await start(h, ['a'], 1); const other = createZergStateContainer(h.container.snapshot());
+  const id = await start(h, ['a'], 1); const other = createClankersStateContainer(h.container.snapshot());
   const recovered = createWorkflowService(other, h.fake.port);
   assert.equal((await recovered.execute({ action: 'workflows.start', definitionId: 'simple', inputs: ['b'] })).ok, false);
   assert.equal(run(recovered, id).status, 'needs-attention'); await assert.rejects(recovered.drain(), /cleanup/);
@@ -512,7 +512,7 @@ test('repeat runtime ledger budget fails before admitting an oversized next fano
 async function assertInertRecovery(raw: unknown) {
   const recovered = recoverWorkflowState(raw);
   assert.deepEqual(recoverWorkflowState(recovered), recovered);
-  const container = createZergStateContainer({ extensions: { workflows: raw } } as never);
+  const container = createClankersStateContainer({ extensions: { workflows: raw } } as never);
   let requests = 0;
   const service = createWorkflowService(container, { preflight() {}, async execute() { requests++; throw new Error('Recovery replay'); } });
   if (recovered.runs.some(r => !r.cleanupSettled)) await assert.rejects(service.drain(), /cleanup settlement is uncertain/);
@@ -523,7 +523,7 @@ async function assertInertRecovery(raw: unknown) {
 function assertRejectedRecovery(raw: unknown, pattern: RegExp) {
   assert.throws(() => recoverWorkflowState(raw), pattern);
   let requests = 0;
-  const container = createZergStateContainer({ extensions: { workflows: raw } } as never);
+  const container = createClankersStateContainer({ extensions: { workflows: raw } } as never);
   assert.throws(() => createWorkflowService(container, { preflight() {}, async execute() { requests++; throw new Error('Recovery replay'); } }), pattern);
   assert.equal(requests, 0);
 }

@@ -1529,7 +1529,7 @@ function validateIdentity(v: any, label: string): void { assertPlainObject(v, la
 
 function expectedLeaseRootExisting(): string {
   const uid = typeof process.getuid === 'function' ? process.getuid() : userInfo().uid;
-  const dir = join(tmpdir(), `pi-zerg-swarm-coding-leases-${uid}`);
+  const dir = join(tmpdir(), `pi-clankers-coding-leases-${uid}`);
   assertNoSymlinkComponents(dir);
   const st = checkedLstat(dir, 'leaseRoot');
   if (!st.isDirectory() || st.isSymbolicLink() || st.uid !== uid || (st.mode & 0o077) !== 0) throw new Error('unsafe lease root');
@@ -1537,7 +1537,7 @@ function expectedLeaseRootExisting(): string {
 }
 function ensureLeaseRoot(): string {
   const uid = typeof process.getuid === 'function' ? process.getuid() : userInfo().uid;
-  const dir = join(tmpdir(), `pi-zerg-swarm-coding-leases-${uid}`);
+  const dir = join(tmpdir(), `pi-clankers-coding-leases-${uid}`);
   if (!existsNoFollow(dir)) mkdirSync(dir, { mode: 0o700 });
   return expectedLeaseRootExisting();
 }

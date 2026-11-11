@@ -14,8 +14,8 @@ const { ProjectTrustStore } = await import(pathToFileURL(sdkPath).href);
 // Trust only this gate-owned synthetic workspace in its isolated agentDir.
 new ProjectTrustStore(path.join(root, 'agent')).set(path.join(root, 'workspace'), true);
 const jiti = createJiti(import.meta.url, { interopDefault: true });
-const { createZergControl } = await jiti.import(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../index.ts'));
-const control = createZergControl({ mode: { automation: 'automatic', readOnly: false } }, {
+const { createClankersControl } = await jiti.import(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../index.ts'));
+const control = createClankersControl({ mode: { automation: 'automatic', readOnly: false } }, {
   cwd: path.join(root, 'workspace'),
   trustedTmux: { rootDir: path.join(root, 'workers'), agentDir: path.join(root, 'agent'),
     sdkModulePath: sdkPath,

@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi CLI required');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-team-timeline-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-team-timeline-pty-'));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const messageId = 'timeline-exact-operator-001';
 const operatorBody = 'TIMELINE_OPERATOR_LITERAL: follow up only in worker A';
@@ -25,7 +25,7 @@ function extensionSource(root, phaseDir, restarting) {
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
 const root = ${JSON.stringify(root)}, phaseDir = ${JSON.stringify(phaseDir)};
 const restarting = ${JSON.stringify(restarting)};
 const messageId = ${JSON.stringify(messageId)}, operatorBody = ${JSON.stringify(operatorBody)};
@@ -44,13 +44,13 @@ export default function (pi) {
   // Capture only real registration; all UI/custom/input callbacks remain intact.
   const proxy = new Proxy(pi, { get(target, key) {
     if (key === 'registerCommand') return (name, options) => {
-      if (name === 'zerg') { handler = options.handler; registrations++; }
+      if (name === 'clankers') { handler = options.handler; registrations++; }
       return target.registerCommand(name, options);
     };
     const value = Reflect.get(target, key);
     return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const registration = registerZergSwarmExtension(proxy, { persistence: { enabled: true, snapshotFile: join(root, 'snapshot.json') } });
+  const registration = registerClankersExtension(proxy, { persistence: { enabled: true, snapshotFile: join(root, 'snapshot.json') } });
   const control = registration.control;
   let cleaned = false, started = false;
   function cleanup() { if (cleaned) return; cleaned = true; registration.dispose(); registration.dispose(); }
@@ -161,7 +161,7 @@ export default function (pi) {
     await until(async () => { const done = await show(launched.runId); return done.status === 'done' && done.nativeSessions.length === 3 && done.nativeSessions.every(ref => ref.attachment === 'disposed'); }, 'workers settled, leader finished, SDK disposed independently');
     const done = await show(launched.runId), beforeHashes = hashes(done.nativeSessions);
     const native = readFileSync(a.sessionFile, 'utf8').trim().split('\\n').map(line => JSON.parse(line));
-    const operators = native.filter(entry => entry.type === 'custom_message' && entry.customType === 'pi-zerg-swarm/operator/v1');
+    const operators = native.filter(entry => entry.type === 'custom_message' && entry.customType === 'pi-clankers/operator/v1');
     assert.equal(operators.length, 1); assert.equal(operators[0].details.messageId, messageId); assert.equal(operators[0].content, operatorBody);
     assert(native.some(entry => entry.type === 'message' && entry.message.role === 'toolResult' && entry.message.toolName === 'read'));
     const all = await timeline({ parentRunId: launched.runId });
@@ -412,7 +412,7 @@ async function runMode(mode) {
         const text = message => typeof message.content === 'string' ? message.content : message.content?.map(block => block.text ?? '').join('');
         assert.equal(input.messages.filter(message => message.role === 'user' && text(message) === operatorBody).length, 1);
         assert(!JSON.stringify(input.messages).includes(messageId), 'Receipt ID leaked into model context');
-        assert(!JSON.stringify(input.messages).includes('pi-zerg-swarm/operator/v1'), 'Private metadata leaked');
+        assert(!JSON.stringify(input.messages).includes('pi-clankers/operator/v1'), 'Private metadata leaked');
         emit({ content: 'FOLLOWUP_WORKER_A: literal operator input consumed\n' });
         const deadline = Date.now() + 100000;
         while (!existsSync(join(root, 'release-reply')) && !res.destroyed && Date.now() < deadline) await sleep(25);

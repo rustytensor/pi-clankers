@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Real public Pi SDK, isolated resources/credentials, loopback-only model traffic.
-const dir = mkdtempSync(join(tmpdir(), 'zerg-session-host-'));
+const dir = mkdtempSync(join(tmpdir(), 'clankers-session-host-'));
 const agentDir = join(dir, 'agent');
 mkdirSync(agentDir);
 mkdirSync(join(dir, '.pi'));
@@ -64,8 +64,8 @@ writeFileSync(join(dir, '.pi', 'settings.json'), JSON.stringify({ packages: [], 
 assert.deepEqual(JSON.parse(readFileSync(join(agentDir, 'settings.json'))).packages, []);
 
 const sdk = await import('@earendil-works/pi-coding-agent');
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(sdk);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const stateApi = await import(new URL('../../state.ts', import.meta.url).href);
 const persistenceApi = await import(new URL('../../persistence.ts', import.meta.url).href);
 const originalBind = sdk.AgentSession.prototype.bindExtensions;
@@ -86,7 +86,7 @@ Map.prototype.set = function (key, value) {
   return originalMapSet.call(this, key, value);
 };
 let promptCalls = 0;
-const markerType = 'pi-zerg-swarm/native-session/v1';
+const markerType = 'pi-clankers/native-session/v1';
 sdk.AgentSession.prototype.bindExtensions = async function (...args) {
   await bindHook?.(this);
   return originalBind.apply(this, args);
@@ -109,7 +109,7 @@ sdk.SessionManager.prototype.appendCustomEntry = function (...args) {
   return originalAppend.apply(this, args);
 };
 const controls = [];
-function control(seed, options) { const value = zerg.createZergControl(seed, options); controls.push(value); return value; }
+function control(seed, options) { const value = clankers.createClankersControl(seed, options); controls.push(value); return value; }
 async function agent(owner, id, model = 'ok', extra = {}) {
   const result = await owner.execute({ action: 'agents.create', id, model: `fixture/${model}`, tools: [], prompt: 'Concise status only. No tools or edits.', ...extra });
   assert(result.ok, JSON.stringify(result));
@@ -206,7 +206,7 @@ try {
   verifyFile((await done(owner, failure.runId, 'failed')).nativeSessions[0], { assistant: false });
 
   for (const mode of ['bind', 'subscribe', 'marker', 'publication', 'registry']) {
-    const store = stateApi.createZergStateContainer();
+    const store = stateApi.createClankersStateContainer();
     const local = control(store);
     await agent(local, 'startup');
     const count = requests.length;
@@ -265,7 +265,7 @@ try {
   for (const mode of ['interrupt', 'dispose', 'shutdown']) {
     const shutdownHooks = [];
     let nativeTool;
-    const registered = zerg.registerZergSwarmExtension({ events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'zerg_control') nativeTool = value; }, on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); } });
+    const registered = clankers.registerClankersExtension({ events: eventBus(), registerCommand() {}, registerTool(value) { if (value.name === 'clankers_control') nativeTool = value; }, on(name, hook) { if (name === 'session_shutdown') shutdownHooks.push(hook); } });
     controls.push(registered.control);
     const local = registered.control;
     let resume; let bound = 0;
@@ -316,8 +316,8 @@ try {
     { ...singleRun.nativeSessions[0], memberRunId: `${single.runId}-missing`, piSessionId: 'missing-id', sessionFile: missing, attachment: 'attached', disposedAt: undefined },
     { ...singleRun.nativeSessions[0], memberRunId: `${single.runId}-corrupt`, piSessionId: 'corrupt-id', sessionFile: corrupt, attachment: 'attached', disposedAt: undefined },
   ];
-  const manager = persistenceApi.createZergPersistenceManager({ enabled: true, snapshotFile });
-  manager.save(stateApi.createZergState(seed));
+  const manager = persistenceApi.createClankersPersistenceManager({ enabled: true, snapshotFile });
+  manager.save(stateApi.createClankersState(seed));
   const transcriptBytes = readFileSync(singleRun.nativeSessions[0].sessionFile, 'utf8');
   const beforeRestore = requests.length; const beforeRestorePrompts = promptCalls;
   const restored = control({}, { persistence: { enabled: true, snapshotFile } });
@@ -327,7 +327,7 @@ try {
   assert(recovered.nativeSessions.every((ref) => ref.attachment === 'unavailable' && ref.recoveredAt && ref.disposedAt === undefined));
   assert.equal(recovered.nativeSessions[0].piSessionId, singleRun.nativeSessions[0].piSessionId);
   assert((await restored.execute({ action: 'runs.list' })).data.runs.some((run) => run.nativeSessions?.length === 3));
-  const slash = zerg.createZergCommandHandler(stateApi.createZergStateContainer(restored.getState()))('runs show ' + single.runId);
+  const slash = clankers.createClankersCommandHandler(stateApi.createClankersStateContainer(restored.getState()))('runs show ' + single.runId);
   assert.match(slash.output, /native-sessions: 3/); assert.match(slash.output, /unavailable/);
   await sleep(100);
   assert.equal(requests.length, beforeRestore); assert.equal(promptCalls, beforeRestorePrompts);

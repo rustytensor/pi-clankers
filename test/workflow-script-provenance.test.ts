@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
-import { createZergStateContainer } from '../state.js';
+import { createClankersStateContainer } from '../state.js';
 import { createWorkflowService, recoverWorkflowState } from '../workflow-runtime.js';
 import { validateWorkflowDefinition, workflowHash, workflowView, workflowUnitHash, workflowRecoverySourceContract } from '../workflow-model.js';
 import type { WorkflowDefinition, WorkflowNativePort, WorkflowRecoveryDurablePort, WorkflowSchema, WorkflowState } from '../workflow-model.js';
@@ -36,7 +36,7 @@ function invalid(mutate: (def: any) => void, message?: RegExp): void {
 }
 const agent = { id: 'agent', label: 'Agent', prompt: 'Read only', source: 'project' as const, model: 'fake/model', tools: ['read'], permissionMode: 'inherit' as const };
 function fixture(definition = authored(), recovery = false, repeatTwice = false) {
-  const container = createZergStateContainer({ agentDefinitions: { agent } });
+  const container = createClankersStateContainer({ agentDefinitions: { agent } });
   let nativeCalls = 0, acquisitions = 0, publications = 0;
   const owner = { bootId: 'test', pid: 1, startTimeTicks: '2', writerSessionId: 'test', generation: 'test' };
   const durable: WorkflowRecoveryDurablePort = {
@@ -154,7 +154,7 @@ test('frozen provenance/checkpoints roundtrip inertly without parser/provider or
   const restored = recoverWorkflowState(JSON.parse(saved));
   assert.deepEqual(restored.runs[0].definition.authoring, run.definition.authoring);
   assert.equal(restored.runs[0].recovered, true);
-  const container = createZergStateContainer({ agentDefinitions: { agent }, extensions: { workflows: restored as any } });
+  const container = createClankersStateContainer({ agentDefinitions: { agent }, extensions: { workflows: restored as any } });
   let admissions = 0; const inert: WorkflowNativePort = { preflight() { admissions++; }, async execute() { admissions++; throw new Error('No replay'); } };
   const service = createWorkflowService(container, inert, f.options); await service.drain();
   assert.equal(admissions, 0); assert.equal(service.approvals.inspect().length, 0);

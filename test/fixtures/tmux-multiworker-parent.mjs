@@ -16,8 +16,8 @@ const hostJiti = createJiti(sdk, { fsCache: false });
 const jiti = createJiti(import.meta.url, { fsCache: false, interopDefault: true, alias: {
   '@earendil-works/pi-tui': hostJiti.esmResolve('@earendil-works/pi-tui'), '@earendil-works/pi-coding-agent': sdk,
 } });
-const { createZergControl } = await jiti.import(fileURLToPath(new URL('../../index.ts', import.meta.url)));
-const control = createZergControl({ mode: { automation: 'automatic', readOnly: false } }, {
+const { createClankersControl } = await jiti.import(fileURLToPath(new URL('../../index.ts', import.meta.url)));
+const control = createClankersControl({ mode: { automation: 'automatic', readOnly: false } }, {
   cwd: path.join(root, 'workspace'), trustedTmux: {
     rootDir: path.join(root, 'workers'), agentDir: path.join(root, 'agent'), sdkModulePath: sdk,
     fixtureNodeImportPath: path.join(root, 'no-network.mjs'), fixtureExtensionPaths: [path.join(root, 'provider.ts')],

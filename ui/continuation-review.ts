@@ -68,7 +68,7 @@ function policyJson(value: unknown): string {
 }
 
 /** A new-task authorization flow; this owns no runner, session, or cancellation signal. */
-export class ZergContinuationReviewComponent implements StructuralPiCustomComponent, Focusable {
+export class ClankersContinuationReviewComponent implements StructuralPiCustomComponent, Focusable {
   private disposed = false;
   private phase: 'edit' | 'review' | 'starting' | 'result' = 'edit';
   private field: 'body' | 'model' = 'body';

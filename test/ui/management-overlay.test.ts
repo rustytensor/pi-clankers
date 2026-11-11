@@ -8,24 +8,24 @@ import { renderManagementFooter } from '../../ui/footer.js';
 import { renderSettingsPane, createSettingsPaneState } from '../../ui/settings-pane.js';
 import { createManagementUiState } from '../../ui/state.js';
 import { renderTreePane, createTreePaneState } from '../../ui/tree-pane.js';
-import { createZergState, createZergStateContainer } from '../../state.js';
-import type { StructuralPiCommandContext, ZergManagementTargetKind } from '../../types.js';
-import { openZergManagementOverlay, ZergManagementOverlayComponent, type ZergManagementOverlayActions } from '../../ui/management-overlay.js';
+import { createClankersState, createClankersStateContainer } from '../../state.js';
+import type { StructuralPiCommandContext, ClankersManagementTargetKind } from '../../types.js';
+import { openClankersManagementOverlay, ClankersManagementOverlayComponent, type ClankersManagementOverlayActions } from '../../ui/management-overlay.js';
 
 test('M9 management overlay uses ctx.ui.custom component path and disposes subscription exactly once', () => {
-  const container = createZergStateContainer();
+  const container = createClankersStateContainer();
   let requestRenderCount = 0;
   let doneCount = 0;
   let component: { render(width?: number, height?: number): string[]; handleInput?(data: string): void; dispose?(): void; invalidate(): void } | undefined;
   let optionsSeen: Record<string, unknown> | undefined;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-05-01T00:00:00.000Z'),
     toggleReadOnly: () => 'readonly toggled',
     setAutomation: (mode) => `mode ${mode}`,
     setController: (controller) => `controller ${controller}`,
     approvePermission: (requestId) => `approved ${requestId}`,
     denyPermission: (requestId) => `denied ${requestId}`,
-    selectTarget: (target: { id: string; kind: ZergManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
+    selectTarget: (target: { id: string; kind: ClankersManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
     interruptSelected: () => 'interrupt unavailable',
     sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'transport unavailable' }),
   };
@@ -45,7 +45,7 @@ test('M9 management overlay uses ctx.ui.custom component path and disposes subsc
     },
   };
 
-  openZergManagementOverlay(context, {
+  openClankersManagementOverlay(context, {
     getSnapshot: () => container.snapshot(),
     subscribe: (listener) => container.subscribe?.(listener) ?? (() => undefined),
     adapterKind: 'unavailable',
@@ -69,8 +69,8 @@ test('M9 management overlay uses ctx.ui.custom component path and disposes subsc
   assert.equal(requestRenderCount, afterDispose);
 });
 
-test('M9 management overlay preserves existing selected target and shows zerg control controller', async () => {
-  const container = createZergStateContainer(createZergState({
+test('M9 management overlay preserves existing selected target and shows clankers control controller', async () => {
+  const container = createClankersStateContainer(createClankersState({
     selectedNodeId: 'node-b',
     agents: {
       a: { id: 'a', label: 'Alpha', kind: 'subagent', status: 'idle' },
@@ -80,23 +80,23 @@ test('M9 management overlay preserves existing selected target and shows zerg co
       'node-b': { id: 'node-b', label: 'Beta', kind: 'agent', refId: 'b', childIds: [] },
     },
     extensions: {
-      zergControl: { controller: 'pi' },
+      clankersControl: { controller: 'pi' },
     },
   }));
   let component: { render(width?: number, height?: number): string[]; dispose?(): void } | undefined;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-05-01T00:00:00.000Z'),
     toggleReadOnly: () => 'readonly toggled',
     setAutomation: (mode) => `mode ${mode}`,
     setController: (controller) => `controller ${controller}`,
     approvePermission: (requestId) => `approved ${requestId}`,
     denyPermission: (requestId) => `denied ${requestId}`,
-    selectTarget: (target: { id: string; kind: ZergManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
+    selectTarget: (target: { id: string; kind: ClankersManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
     interruptSelected: () => 'interrupt unavailable',
     sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'transport unavailable' }),
   };
 
-  void openZergManagementOverlay({
+  void openClankersManagementOverlay({
     ui: {
       custom(factory) {
         component = (factory as () => typeof component)();
@@ -119,25 +119,25 @@ test('M9 management overlay preserves existing selected target and shows zerg co
 });
 
 test('M9 management overlay keeps tree navigation usable after default selection render', async () => {
-  const container = createZergStateContainer(createZergState({
+  const container = createClankersStateContainer(createClankersState({
     agents: {
       a: { id: 'a', label: 'Alpha', kind: 'subagent', status: 'idle' },
       b: { id: 'b', label: 'Beta', kind: 'subagent', status: 'idle' },
     },
   }));
   let component: { render(width?: number, height?: number): string[]; handleInput?(data: string): void; dispose?(): void } | undefined;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-05-01T00:00:00.000Z'),
     toggleReadOnly: () => 'readonly toggled',
     setAutomation: (mode) => `mode ${mode}`,
     setController: (controller) => `controller ${controller}`,
     approvePermission: (requestId) => `approved ${requestId}`,
     denyPermission: (requestId) => `denied ${requestId}`,
-    selectTarget: (target: { id: string; kind: ZergManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
+    selectTarget: (target: { id: string; kind: ClankersManagementTargetKind }) => `selected ${target.kind} ${target.id}`,
     interruptSelected: () => 'interrupt unavailable',
     sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'transport unavailable' }),
   };
-  void openZergManagementOverlay({ ui: { custom(factory) { component = (factory as () => typeof component)(); return undefined; } } }, {
+  void openClankersManagementOverlay({ ui: { custom(factory) { component = (factory as () => typeof component)(); return undefined; } } }, {
     getSnapshot: () => container.snapshot(),
     subscribe: () => () => undefined,
     adapterKind: 'fake',
@@ -154,11 +154,11 @@ test('M9 management overlay keeps tree navigation usable after default selection
 });
 
 test('M9 management overlay routes focus and chat keys through focused pane', () => {
-  const container = createZergStateContainer({
+  const container = createClankersStateContainer({
     agents: { worker: { id: 'worker', label: 'Worker', kind: 'subagent', status: 'running' } },
   });
   let component: { render(width?: number, height?: number): string[]; handleInput?(data: string): void; dispose?(): void } | undefined;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-05-01T00:00:00.000Z'),
     toggleReadOnly: () => 'readonly toggled',
     setAutomation: (mode) => `mode ${mode}`,
@@ -169,7 +169,7 @@ test('M9 management overlay routes focus and chat keys through focused pane', ()
     interruptSelected: () => 'interrupt unavailable',
     sendOperatorMessage: (_target, body) => ({ status: 'intervention-recorded', statusDetail: `intervention recorded: ${body}`, routedTargetId: 'worker' }),
   };
-  openZergManagementOverlay({ ui: { custom(factory) { component = (factory as () => typeof component)(); return undefined; } } }, {
+  openClankersManagementOverlay({ ui: { custom(factory) { component = (factory as () => typeof component)(); return undefined; } } }, {
     getSnapshot: () => container.snapshot(),
     subscribe: () => () => undefined,
     adapterKind: 'fake',
@@ -189,11 +189,11 @@ test('M9 management overlay routes focus and chat keys through focused pane', ()
   assert.ok((component?.render(110) ?? []).length <= 32);
 });
 
-function codingManagementFixture(viewCoding?: (target: { id: string; kind: ZergManagementTargetKind } | undefined) => Promise<void>, onRender?: () => void, viewTimeline?: (target: { id: string; kind: ZergManagementTargetKind } | undefined) => Promise<void>) {
-  const container = createZergStateContainer({ agents: { worker: { id: 'worker', label: 'Worker', kind: 'subagent', status: 'running' } } });
+function codingManagementFixture(viewCoding?: (target: { id: string; kind: ClankersManagementTargetKind } | undefined) => Promise<void>, onRender?: () => void, viewTimeline?: (target: { id: string; kind: ClankersManagementTargetKind } | undefined) => Promise<void>) {
+  const container = createClankersStateContainer({ agents: { worker: { id: 'worker', label: 'Worker', kind: 'subagent', status: 'running' } } });
   let mutations = 0;
   let renders = 0;
-  const actions: ZergManagementOverlayActions = {
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-10-02T00:00:00Z'),
     toggleReadOnly: () => { mutations += 1; return 'toggle'; },
     setAutomation: () => { mutations += 1; return 'mode'; },
@@ -203,7 +203,7 @@ function codingManagementFixture(viewCoding?: (target: { id: string; kind: ZergM
     selectTarget: () => 'selected', interruptSelected: () => { mutations += 1; return 'interrupt'; },
     sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'unavailable' }),
   };
-  const component = new ZergManagementOverlayComponent({ requestRender: () => { renders += 1; onRender?.(); } }, undefined, undefined, {
+  const component = new ClankersManagementOverlayComponent({ requestRender: () => { renders += 1; onRender?.(); } }, undefined, undefined, {
     getSnapshot: () => container.snapshot(), subscribe: () => () => undefined, adapterKind: 'fake', actions, viewCoding, viewTimeline,
   });
   component.render(110, 30);
@@ -212,7 +212,7 @@ function codingManagementFixture(viewCoding?: (target: { id: string; kind: ZergM
 const codingTick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test('coding view is separate from mutations, guards nested opens and preserves exact selected target', async () => {
-  const targets: Array<{ id: string; kind: ZergManagementTargetKind } | undefined> = [];
+  const targets: Array<{ id: string; kind: ClankersManagementTargetKind } | undefined> = [];
   let finish: () => void = () => undefined;
   const f = codingManagementFixture((target) => { targets.push(target); return new Promise<void>((resolve) => { finish = resolve; }); });
   f.component.handleInput('v');
@@ -307,7 +307,7 @@ test('nested coding management survives injected redraw throws without unhandled
 });
 
 test('timeline t is read-only tree/detail navigation, shares open guard, preserves draft and scoped target', async () => {
-  const targets: Array<{ id: string; kind: ZergManagementTargetKind } | undefined> = [];
+  const targets: Array<{ id: string; kind: ClankersManagementTargetKind } | undefined> = [];
   let finish: () => void = () => undefined; let coding = 0;
   const f = codingManagementFixture(async () => { coding++; }, undefined, (target) => { targets.push(target); return new Promise<void>((resolve) => { finish = resolve; }); });
   f.component.handleInput('t'); f.component.handleInput('t'); f.component.handleInput('v');
@@ -336,8 +336,8 @@ test('timeline callback faults/absence/disposal never launch a fallback coding v
 
 test('shared viewer callbacks keep options receiver and contain noncoercible thrown values/redraw failures', async () => {
   let coding = 0; let timeline = 0;
-  const container = createZergStateContainer({ agents: { worker: { id: 'worker', label: 'Worker', kind: 'subagent', status: 'running' } } });
-  const actions: ZergManagementOverlayActions = {
+  const container = createClankersStateContainer({ agents: { worker: { id: 'worker', label: 'Worker', kind: 'subagent', status: 'running' } } });
+  const actions: ClankersManagementOverlayActions = {
     now: () => new Date('2026-10-03T00:00:00Z'), toggleReadOnly: () => '', setAutomation: () => '', setController: () => '', approvePermission: () => '', denyPermission: () => '', selectTarget: () => '', interruptSelected: () => '', sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: '' }),
   };
   const options = {
@@ -345,7 +345,7 @@ test('shared viewer callbacks keep options receiver and contain noncoercible thr
     async viewCoding() { assert.equal(this.marker, 'options-receiver'); coding++; },
     async viewTimeline() { assert.equal(this.marker, 'options-receiver'); timeline++; },
   };
-  const c = new ZergManagementOverlayComponent(undefined, undefined, undefined, options); c.render(110, 30);
+  const c = new ClankersManagementOverlayComponent(undefined, undefined, undefined, options); c.render(110, 30);
   c.handleInput('v'); await codingTick(); c.handleInput('t'); await codingTick(); assert.equal(coding, 1); assert.equal(timeline, 1); c.dispose();
   for (const synchronous of [true, false]) {
     const nonText = Object.assign(Object.create(null), { toString: null });
@@ -356,7 +356,7 @@ test('shared viewer callbacks keep options receiver and contain noncoercible thr
 });
 
 
-function hardeningActions(): ZergManagementOverlayActions {
+function hardeningActions(): ClankersManagementOverlayActions {
   return { now: () => new Date('2026-10-03T00:00:00Z'), toggleReadOnly: () => 'toggle', setAutomation: () => 'mode', setController: () => 'controller', approvePermission: () => 'approve', denyPermission: () => 'deny', selectTarget: () => 'select', interruptSelected: () => 'interrupt', sendOperatorMessage: () => ({ status: 'transport-unavailable', statusDetail: 'unavailable' }) };
 }
 
@@ -364,15 +364,15 @@ test('management host sync/async failure disposes every observer and completes d
   for (const sync of [true, false]) {
     let watchers = 0; let unsubs = 0; let done = 0; let renders = 0;
     let listener: () => void = () => undefined;
-    let component: ZergManagementOverlayComponent | undefined;
+    let component: ClankersManagementOverlayComponent | undefined;
     const error = Object.create(null);
-    const promise = openZergManagementOverlay({ ui: { custom(factory) {
-      component = (factory as (tui: { requestRender(): void }, theme: undefined, keys: undefined, done: () => void) => ZergManagementOverlayComponent)(
+    const promise = openClankersManagementOverlay({ ui: { custom(factory) {
+      component = (factory as (tui: { requestRender(): void }, theme: undefined, keys: undefined, done: () => void) => ClankersManagementOverlayComponent)(
         { requestRender: () => { renders++; } }, undefined, undefined, () => { done++; throw error; });
       if (sync) throw error;
       return Promise.reject(error);
     } } }, {
-      getSnapshot: () => createZergState(), subscribe: (next) => { watchers++; listener = next; return () => { watchers--; unsubs++; throw error; }; }, adapterKind: 'fake', actions: hardeningActions(),
+      getSnapshot: () => createClankersState(), subscribe: (next) => { watchers++; listener = next; return () => { watchers--; unsubs++; throw error; }; }, adapterKind: 'fake', actions: hardeningActions(),
     });
     await assert.rejects(promise);
     const before = renders; const state = component!.getStateForTests();
@@ -384,16 +384,16 @@ test('management host sync/async failure disposes every observer and completes d
 
 test('management subscribe failures are readable and cannot prevent close', () => {
   let done = 0;
-  const c = new ZergManagementOverlayComponent(undefined, undefined, () => { done++; }, {
-    getSnapshot: () => createZergState(), subscribe: () => { throw Object.create(null); }, adapterKind: 'fake', actions: hardeningActions(),
+  const c = new ClankersManagementOverlayComponent(undefined, undefined, () => { done++; }, {
+    getSnapshot: () => createClankersState(), subscribe: () => { throw Object.create(null); }, adapterKind: 'fake', actions: hardeningActions(),
   });
   assert.match(c.render(180, 30).join('\n'), /Unknown failure/);
   c.dispose(); c.dispose(); assert.equal(done, 1);
 });
 
 test('management render honors narrow/tiny/Unicode geometry and retains normal Pi Input focus marker', () => {
-  const state = createZergState({ agents: { a: { id: 'a', label: '界👩‍💻é', kind: 'subagent', status: 'running' } } });
-  const c = new ZergManagementOverlayComponent({ terminal: { rows: 5 } }, undefined, undefined, {
+  const state = createClankersState({ agents: { a: { id: 'a', label: '界👩‍💻é', kind: 'subagent', status: 'running' } } });
+  const c = new ClankersManagementOverlayComponent({ terminal: { rows: 5 } }, undefined, undefined, {
     getSnapshot: () => state, subscribe: () => () => undefined, adapterKind: 'fake', actions: hardeningActions(),
   });
   for (const width of [1, 2, 10, 42, 71, 72, 100, 180, 512]) {
@@ -414,10 +414,10 @@ test('management render honors narrow/tiny/Unicode geometry and retains normal P
 test('retained malicious fields are bounded/sanitized before styling without stripping trusted Pi ANSI', () => {
   // Fake strings only: never send these controls to a terminal or print raw payloads in assertions.
   const attack = 'safe\x1b]52;c;FAKE_OSC\x07\x1b[2J\x9b2J\x9d8;;FAKE_C1\x9c\x1b_GFAKE_APC\x1b\\\nforged\rrow';
-  const state = createZergState();
+  const state = createClankersState();
   state.agents[attack] = { id: attack, label: attack, kind: 'subagent', status: 'idle' };
-  state.extensions.zergPermissions = { requests: [{ id: attack, kind: attack, summary: attack, status: 'pending', targetId: attack }] };
-  state.extensions.zergLogs = { records: [{ id: attack, level: 'warn', source: attack, message: attack, agentId: attack }] };
+  state.extensions.clankersPermissions = { requests: [{ id: attack, kind: attack, summary: attack, status: 'pending', targetId: attack }] };
+  state.extensions.clankersLogs = { records: [{ id: attack, level: 'warn', source: attack, message: attack, agentId: attack }] };
   const ui = createManagementUiState(); ui.selectedTargetId = attack; ui.selectedTargetKind = 'agent'; ui.statusMessage = attack;
   ui.messages = [{ id: 'fake', targetId: attack, targetKind: 'agent', routedTargetId: attack, body: attack, status: 'queued-local', statusDetail: attack, createdAt: attack }];
   ui.chatDraft = attack;

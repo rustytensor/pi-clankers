@@ -1,10 +1,11 @@
+import { hasRunIdPrefix } from './legacy-names.js';
 import { sanitizeNativeTranscriptText } from './native-transcript.js';
-import { createZergSubagentRunSnapshot } from './state.js';
+import { createClankersSubagentRunSnapshot } from './state.js';
 import { getSessionMessageReceipts, validateSessionMessageKey } from './session-messages.js';
-import type { ZergNativeSessionReference, ZergSessionMessageKey, ZergState, ZergTimelineEntry, ZergTimelineFilter, ZergTimelineSnapshot } from './types.js';
+import type { ClankersNativeSessionReference, ClankersSessionMessageKey, ClankersState, ClankersTimelineEntry, ClankersTimelineFilter, ClankersTimelineSnapshot } from './types.js';
 
-export const ZERG_TIMELINE_DEFAULT_LIMIT = 128;
-export const ZERG_TIMELINE_MAX_LIMIT = 256;
+export const CLANKERS_TIMELINE_DEFAULT_LIMIT = 128;
+export const CLANKERS_TIMELINE_MAX_LIMIT = 256;
 const RUN_SCAN = 512;
 const PER_RUN_SCAN = 64;
 const RECORD_SCAN = 2048;
@@ -15,9 +16,9 @@ const optionalId = (value: unknown): string | undefined => identity(value) ? val
 const time = (value: unknown): string | undefined => typeof value === 'string' && value.length <= 64 && !/[\x00-\x1f\x7f-\x9f]/.test(value) && Number.isFinite(Date.parse(value)) ? value : undefined;
 const stableId = (...parts: string[]): string => JSON.stringify(parts);
 const shortStatus = (value: unknown): string => typeof value === 'string' ? sanitizeNativeTranscriptText(value.slice(0, 64)).replace(/\s+/g, ' ') : 'unknown';
-const keyOf = (key: ZergSessionMessageKey): string => stableId(key.parentRunId, key.memberRunId, key.piSessionId);
+const keyOf = (key: ClankersSessionMessageKey): string => stableId(key.parentRunId, key.memberRunId, key.piSessionId);
 
-export function validateZergTimelineFilter(value: unknown): ZergTimelineFilter {
+export function validateClankersTimelineFilter(value: unknown): ClankersTimelineFilter {
   if (!record(value)) throw new Error('Timeline filters must be an object.');
   const allowed = new Set(['teamId', 'parentRunId', 'memberRunId', 'piSessionId', 'limit']);
   let fields = 0;
@@ -25,7 +26,7 @@ export function validateZergTimelineFilter(value: unknown): ZergTimelineFilter {
     if (!Object.hasOwn(value, field)) continue;
     if (++fields > 16 || (!allowed.has(field) && value[field] !== undefined)) throw new Error('Unsupported timeline filter field. Use teamId, parentRunId, memberRunId, piSessionId and limit.');
   }
-  const filter: ZergTimelineFilter = {};
+  const filter: ClankersTimelineFilter = {};
   for (const field of ['teamId', 'parentRunId', 'memberRunId', 'piSessionId'] as const) {
     if (value[field] !== undefined) {
       if (!identity(value[field])) throw new Error(`Timeline ${field} requires an exact ID (1..256 characters, no whitespace or controls).`);
@@ -33,24 +34,24 @@ export function validateZergTimelineFilter(value: unknown): ZergTimelineFilter {
     }
   }
   if (value.limit !== undefined) {
-    if (!Number.isSafeInteger(value.limit) || (value.limit as number) < 1 || (value.limit as number) > ZERG_TIMELINE_MAX_LIMIT) throw new Error('Timeline limit must be an integer 1..256.');
+    if (!Number.isSafeInteger(value.limit) || (value.limit as number) < 1 || (value.limit as number) > CLANKERS_TIMELINE_MAX_LIMIT) throw new Error('Timeline limit must be an integer 1..256.');
     filter.limit = value.limit as number;
   }
   return filter;
 }
 
 /** Pure, owner-state-only projection. No transcript/adapter access, replay or caches. */
-export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}): ZergTimelineSnapshot {
-  const filter = validateZergTimelineFilter(input);
+export function getClankersTimeline(state: ClankersState, input: ClankersTimelineFilter = {}): ClankersTimelineSnapshot {
+  const filter = validateClankersTimelineFilter(input);
   const limitations = [
     'Bounded retained state only; not a complete conversation or delivery history.',
     'Operator receipts show current transport/persistence status. Native output is NOT an addressed reply.',
     'Snapshots show current state, NOT recorded historical events. Unknown times have deterministic ID order, not inferred chronology.',
   ];
-  const runs = new Map<string, { agent: ZergState['agents'][string]; metadata: Record<string, unknown>; teamId?: string }>();
-  const references = new Map<string, ZergNativeSessionReference>();
+  const runs = new Map<string, { agent: ClankersState['agents'][string]; metadata: Record<string, unknown>; teamId?: string }>();
+  const references = new Map<string, ClankersNativeSessionReference>();
   const blockedMembers = new Set<string>();
-  const memberRefs = new Map<string, ZergNativeSessionReference>();
+  const memberRefs = new Map<string, ClankersNativeSessionReference>();
   const notice = (message: string) => { if (!limitations.includes(message)) limitations.push(message); };
   let runIds: string[];
   if (filter.parentRunId !== undefined) {
@@ -65,7 +66,7 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
   }
   for (const id of runIds) {
     const agent = state.agents[id];
-    if (!identity(id) || !id.startsWith('zerg-') || !agent || agent.id !== id) continue;
+    if (!identity(id) || !hasRunIdPrefix(id, 'clankers-') || !agent || agent.id !== id) continue;
     const metadata = record(agent.metadata) ? agent.metadata : {};
     if (metadata.runId !== undefined && metadata.runId !== id) continue;
     runs.set(id, { agent, metadata, teamId: optionalId(metadata.teamId) });
@@ -77,8 +78,8 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
     const boundedLedger = ledger.filter((candidate) => record(candidate)
       && ['parentRunId', 'memberRunId', 'agentDefinitionId', 'piSessionId', 'sessionFile', 'cwd', 'createdAt', 'disposedAt', 'recoveredAt']
         .every((field) => candidate[field] === undefined || (typeof candidate[field] === 'string' && (candidate[field] as string).length <= 8192)));
-    const normalized = createZergSubagentRunSnapshot({ runId: id, agentId: id, status: agent.status,
-      nativeSessions: boundedLedger as ZergNativeSessionReference[] }).nativeSessions ?? [];
+    const normalized = createClankersSubagentRunSnapshot({ runId: id, agentId: id, status: agent.status,
+      nativeSessions: boundedLedger as ClankersNativeSessionReference[] }).nativeSessions ?? [];
     for (const ref of normalized) {
       if (!validateSessionMessageKey(ref) || !identity(ref.agentDefinitionId)) continue;
       const member = stableId(id, ref.memberRunId);
@@ -90,20 +91,20 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
       memberRefs.set(member, ref);
     }
   }
-  const corroborate = (key: unknown, definition?: unknown): ZergNativeSessionReference | undefined => {
+  const corroborate = (key: unknown, definition?: unknown): ClankersNativeSessionReference | undefined => {
     if (!validateSessionMessageKey(key)) return undefined;
     const id = keyOf(key), ref = references.get(id);
     if (!ref || blockedMembers.has(stableId(key.parentRunId, key.memberRunId))) return undefined;
     if (definition !== undefined && definition !== ref.agentDefinitionId) return undefined;
     return ref;
   };
-  const attribution = (ref: ZergNativeSessionReference | undefined) => ref ? {
+  const attribution = (ref: ClankersNativeSessionReference | undefined) => ref ? {
     parentRunId: ref.parentRunId, memberRunId: ref.memberRunId, piSessionId: ref.piSessionId, agentDefinitionId: ref.agentDefinitionId,
     exactKey: { parentRunId: ref.parentRunId, memberRunId: ref.memberRunId, piSessionId: ref.piSessionId },
   } : {};
   // Candidate count/work is bounded before any preview sanitization. Text stays
   // as references until the final bounded tail has been selected.
-  type Candidate = ZergTimelineEntry;
+  type Candidate = ClankersTimelineEntry;
   const candidates: Candidate[] = [];
   const add = (entry: Candidate) => {
     if (filter.teamId !== undefined && entry.teamId !== filter.teamId) return;
@@ -112,7 +113,7 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
     if (filter.piSessionId !== undefined && entry.piSessionId !== filter.piSessionId) return;
     candidates.push(entry);
   };
-  const receiptLedger = record(state.extensions.zergSessionMessages) ? state.extensions.zergSessionMessages : undefined;
+  const receiptLedger = record(state.extensions.clankersSessionMessages) ? state.extensions.clankersSessionMessages : undefined;
   // Reader already bounds and validates receipt payloads; additionally reject
   // duplicate source IDs rather than allowing a malformed collision to retarget.
   const receiptCounts = new Map<string, number>();
@@ -129,7 +130,7 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
       bodyPreview: receipt.body, clipped: false, messageId: receipt.messageId, mode: receipt.mode, status: receipt.status, persistence: receipt.persistence,
       updatedAt: time(receipt.updatedAt) ?? '' });
   }
-  const logState = record(state.extensions.zergLogs) ? state.extensions.zergLogs : undefined;
+  const logState = record(state.extensions.clankersLogs) ? state.extensions.clankersLogs : undefined;
   const logs = logState && Array.isArray(logState.records) ? logState.records : [];
   const readWindow = (values: unknown[], label: string) => {
     if (values.length > RECORD_SCAN) limitations.push(`${label} input capped at last 2048 records; matching omissions outside the window are unknown.`);
@@ -192,7 +193,7 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
   }
   // Unknown times precede known times; only known source timestamps order events.
   candidates.sort((a, b) => (a.timestamp ? Date.parse(a.timestamp) : -Infinity) - (b.timestamp ? Date.parse(b.timestamp) : -Infinity) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const chosen = candidates.slice(-(filter.limit ?? ZERG_TIMELINE_DEFAULT_LIMIT));
+  const chosen = candidates.slice(-(filter.limit ?? CLANKERS_TIMELINE_DEFAULT_LIMIT));
   let remaining = TEXT_BUDGET;
   const preview = (text: string, maximum: number) => {
     // Slice BEFORE regex work; sanitize again after slice so partial terminal
@@ -203,7 +204,7 @@ export function getZergTimeline(state: ZergState, input: ZergTimelineFilter = {}
     remaining -= safe.length;
     return { text: safe, clipped: text.length > bounded.length || safe.length < sanitized.length };
   };
-  const entries: ZergTimelineEntry[] = [];
+  const entries: ClankersTimelineEntry[] = [];
   // Preserve the latest real communication text. Older rows that cannot fit
   // even a summary are omitted explicitly, never silently blank the tail.
   for (let index = chosen.length - 1; index >= 0; index--) {

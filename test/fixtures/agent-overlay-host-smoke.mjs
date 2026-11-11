@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi CLI required');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-overlay-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-overlay-pty-'));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const results = [];
 
@@ -22,7 +22,7 @@ function extensionSource(root) {
   return `import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
 const root = ${JSON.stringify(root)};
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, label) {
@@ -36,13 +36,13 @@ export default function (pi) {
   let registrations = 0;
   const proxy = new Proxy(pi, { get(target, key) {
     if (key === 'registerCommand') return (name, options) => {
-      if (name === 'zerg') { handler = options.handler; registrations++; }
+      if (name === 'clankers') { handler = options.handler; registrations++; }
       return target.registerCommand(name, options);
     };
     const value = Reflect.get(target, key);
     return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const registration = registerZergSwarmExtension(proxy);
+  const registration = registerClankersExtension(proxy);
   const control = registration.control;
   let cleaned = false;
   function cleanup() {

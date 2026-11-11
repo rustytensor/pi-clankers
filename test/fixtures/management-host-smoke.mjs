@@ -7,20 +7,20 @@ import { assertAncestorIsolation, cleanHostEnvironment, guardSource, spawnOwnedC
 
 // Only run from an approved allowlisted source snapshot AFTER parent grant.
 // Two real Pi CLI PTYs, public registered config handler, ZERO model requests.
-// /reload is Pi's built-in lifecycle command, never terminal-driven /zerg.
+// /reload is Pi's built-in lifecycle command, never terminal-driven /clankers.
 // Renderer/input/resize evidence is NOT manual visual/pixel acceptance.
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi required (no installation)');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-management-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-management-pty-'));
 const results = [];
 function extensionSource(root) {
   return `import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { visibleWidth, CURSOR_MARKER } from '@earendil-works/pi-tui';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
-import { createZergState, replaceSharedZergState } from ${JSON.stringify(join(repo, 'state.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { createClankersState, replaceSharedClankersState } from ${JSON.stringify(join(repo, 'state.ts'))};
 const root = ${JSON.stringify(root)};
 const put = (name, value) => writeFileSync(join(root, name), JSON.stringify(value));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -29,16 +29,16 @@ export default function(pi) {
   assert(generation <= 2, 'Unexpected reload generation'); put('generation.json', generation);
   // Synthetic retained data only. NEVER print these strings, even on failure.
   const attack = '\\u001b]52;c;U1lOVEhFVElDX09OTFk=\\u0007\\u001b[2J\\u009d52;c;fake\\u009c\\nFAKE_RETAINED';
-  replaceSharedZergState(createZergState({
+  replaceSharedClankersState(createClankersState({
     agents: { 'management-retained': { id: 'management-retained', label: attack + ' SYNTHETIC_AGENT', kind: 'teammate', status: 'idle' } },
-    extensions: { zergPermissions: { requests: [{ id: 'management-synthetic', status: 'pending', kind: 'tool', summary: attack }] } },
+    extensions: { clankersPermissions: { requests: [{ id: 'management-synthetic', status: 'pending', kind: 'tool', summary: attack }] } },
   }));
   let handler, registrations = 0;
   const proxy = new Proxy(pi, { get(target, key) {
-    if (key === 'registerCommand') return (name, options) => { if (name === 'zerg') { handler = options.handler; registrations++; } return target.registerCommand(name, options); };
+    if (key === 'registerCommand') return (name, options) => { if (name === 'clankers') { handler = options.handler; registrations++; } return target.registerCommand(name, options); };
     const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const registration = registerZergSwarmExtension(proxy);
+  const registration = registerClankersExtension(proxy);
   const control = registration.control;
   let cleaned = false, started = false;
   const components = [], checks = [];
@@ -191,7 +191,7 @@ try:
             key(b'\x1b')
         if generation == 1:
             until(lambda: phase('await-reload')); pause()
-            key(b'/reload\r') # only Pi built-in lifecycle, NOT /zerg automation
+            key(b'/reload\r') # only Pi built-in lifecycle, NOT /clankers automation
     until(lambda: read('result.json').get('ok') is True)
     until(lambda: proc.poll() is not None)
     assert proc.returncode == 0

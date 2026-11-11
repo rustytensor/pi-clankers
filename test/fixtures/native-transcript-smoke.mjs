@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Actual public SDK with isolated resources and strictly loopback-only model traffic.
-const dir = mkdtempSync(join(tmpdir(), 'zerg-transcript-sdk-'));
+const dir = mkdtempSync(join(tmpdir(), 'clankers-transcript-sdk-'));
 const agentDir = join(dir, 'agent'); mkdirSync(agentDir); mkdirSync(join(dir, '.pi'));
 process.env.PI_CODING_AGENT_DIR = agentDir; process.env.PI_OFFLINE = '1'; process.chdir(dir);
 const target = join(dir, 'fixture.txt'); writeFileSync(target, 'tool result fixture');
@@ -49,8 +49,8 @@ writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { fixtu
 writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ defaultProvider: 'fixture', defaultModel: 'tool', packages: [], extensions: [], noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true }));
 writeFileSync(join(dir, '.pi', 'settings.json'), JSON.stringify({ packages: [], extensions: [], noExtensions: true }));
 const sdk = await import('@earendil-works/pi-coding-agent');
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(sdk);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const state = await import(new URL('../../state.ts', import.meta.url).href);
 const { createNativeTranscriptService } = await import(new URL('../../native-transcript.ts', import.meta.url).href);
 const originalDispose = sdk.AgentSession.prototype.dispose, originalPrompt = sdk.AgentSession.prototype.prompt, originalAbort = sdk.AgentSession.prototype.abort;
@@ -59,10 +59,10 @@ sdk.AgentSession.prototype.dispose = function (...args) { disposed.push(this.ses
 sdk.AgentSession.prototype.prompt = function (...args) { promptCalls++; return originalPrompt.apply(this, args); };
 sdk.AgentSession.prototype.abort = function (...args) { abortCalls++; return originalAbort.apply(this, args); };
 const owners = [], services = [];
-const container = state.createZergStateContainer();
+const container = state.createClankersStateContainer();
 const references = () => state.getSubagentRunSnapshots(container.read()).flatMap((run) => run.nativeSessions ?? []);
 const service = createNativeTranscriptService({ getReferences: references, agentDir }); services.push(service);
-const owner = zerg.createZergControl(container, { nativeTranscriptService: service }); owners.push(owner);
+const owner = clankers.createClankersControl(container, { nativeTranscriptService: service }); owners.push(owner);
 const releaseAll = () => { for (const gate of gates.splice(0)) gate.resolve(); };
 const deadline = setTimeout(() => { console.error('Transcript fixture timeout'); process.exit(1); }, 60000);
 try {
@@ -78,7 +78,7 @@ try {
   view.subscribe(() => { throw Error('fixture viewer failure'); }); view.subscribe(() => notifications++);
   for (let i = 0; i < 5; i++) { gates[0].emit({ content: ` delta-${i}` }); await sleep(15); }
   await until(() => JSON.stringify(view.getSnapshot().blocks).includes('delta-4'), 'live deltas');
-  assert.equal(container.read().revision, revision, 'transcript deltas must not publish ZergState'); assert(notifications > 0);
+  assert.equal(container.read().revision, revision, 'transcript deltas must not publish ClankersState'); assert(notifications > 0);
   const calls = promptCalls, aborts = abortCalls, disposals = disposed.length;
   const closed = await service.open(ref); closed.dispose(); closed.dispose();
   assert.equal(promptCalls, calls); assert.equal(abortCalls, aborts); assert.equal(disposed.length, disposals);
@@ -108,9 +108,9 @@ try {
   // Bridge fallback must use the extension owner's same observer instance.
   const busListeners = new Map();
   const events = { on(name, fn) { const listeners = busListeners.get(name) ?? new Set(); listeners.add(fn); busListeners.set(name, listeners); return () => listeners.delete(fn); }, emit(name, data) { for (const fn of busListeners.get(name) ?? []) fn(data); } };
-  state.replaceSharedZergState(state.createZergState()); let registration;
+  state.replaceSharedClankersState(state.createClankersState()); let registration;
   const bridge = createNativeTranscriptService({ getReferences: () => state.getSubagentRunSnapshots(registration.state).flatMap((run) => run.nativeSessions ?? []), agentDir }); services.push(bridge);
-  registration = zerg.registerZergSwarmExtension({ cwd: dir, events, registerCommand() {}, registerTool() {} }, { nativeTranscriptService: bridge }); owners.push(registration);
+  registration = clankers.registerClankersExtension({ cwd: dir, events, registerCommand() {}, registerTool() {} }, { nativeTranscriptService: bridge }); owners.push(registration);
   assert((await registration.control.execute({ action: 'agents.create', id: 'bridge-observer', model: 'fixture/tool', tools: ['read'], prompt: 'Read then report.' })).ok);
   const bridgeRun = await registration.control.execute({ action: 'run', agent: 'bridge-observer', task: 'Bridge fallback.', background: true }); assert(bridgeRun.ok);
   await until(() => gates.length === 1 && bridge.list().length === 1, 'bridge stream');

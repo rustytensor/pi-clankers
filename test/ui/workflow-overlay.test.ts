@@ -3,7 +3,7 @@ import test from 'node:test';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import type { StructuralPiCommandContext, StructuralPiCustomFactory } from '../../types.js';
 import type { WorkflowAction, WorkflowReply, WorkflowRun, WorkflowService, WorkflowUnit, WorkflowView } from '../../workflow-model.js';
-import { openZergWorkflowOverlay, ZergWorkflowComponent, type ZergWorkflowOverlayOptions } from '../../ui/workflow-overlay.js';
+import { openClankersWorkflowOverlay, ClankersWorkflowComponent, type ClankersWorkflowOverlayOptions } from '../../ui/workflow-overlay.js';
 
 const unit = (id = 'unit-a', status: WorkflowUnit['status'] = 'completed'): WorkflowUnit => ({
   id, stepId: 'review', index: 0, status, inputHash: 'input-hash', inputs: {}, result: { findings: ['RESULT-ONLY-ON-DRILL'] },
@@ -21,24 +21,24 @@ function view(value: WorkflowRun): WorkflowView {
   return { workflowRunId: value.workflowRunId, familyId: value.familyId, attemptNo: value.attemptNo, definitionId: value.definition.id,
     status: value.status, createdAt: value.createdAt, updatedAt: value.updatedAt, cleanupSettled: value.cleanupSettled, recovered: value.recovered, counts, correlations };
 }
-function fixture(initial = [run()], optionsPatch: Partial<ZergWorkflowOverlayOptions> = {}, servicePatch: Partial<ZergWorkflowOverlayOptions['service']> = {}) {
+function fixture(initial = [run()], optionsPatch: Partial<ClankersWorkflowOverlayOptions> = {}, servicePatch: Partial<ClankersWorkflowOverlayOptions['service']> = {}) {
   let runs = initial; let listener: Parameters<WorkflowService['subscribe']>[0] = () => undefined;
   let renders = 0; let unsubscribed = 0; let done = 0; let result: unknown; let reads = 0;
   const actions: WorkflowAction[] = [];
-  const service: ZergWorkflowOverlayOptions['service'] = {
+  const service: ClankersWorkflowOverlayOptions['service'] = {
     list: () => runs.map(view), get: (id) => { reads++; return runs.find((row) => row.workflowRunId === id); },
     subscribe: (next) => { listener = next; return () => { unsubscribed++; }; },
     execute: async (action) => { actions.push(action); return { ok: true, action: action.action }; },
     approvals: { grant: (id, request) => ({ id, status: 'granted', createdAt: 'now', ...request }), grantFingerprint: (id) => { throw new Error(`unexpected grant ${id}`); }, reject: (id, request, reason) => ({ id, status: 'rejected', createdAt: 'now', reason, ...request }), revoke: (id, request, reason) => ({ id, status: 'revoked', createdAt: 'now', reason, ...request }), inspect: () => [] }, ...servicePatch,
   };
   const options = { service, onOpenNative: async () => undefined, ...optionsPatch };
-  const component = new ZergWorkflowComponent({ requestRender: () => { renders++; } }, undefined, (value) => { done++; result = value; }, options);
+  const component = new ClankersWorkflowComponent({ requestRender: () => { renders++; } }, undefined, (value) => { done++; result = value; }, options);
   return { component, service, options, actions, update: (next: WorkflowRun[]) => { runs = next; listener(next.map(view)); }, late: () => listener(runs.map(view)),
     get renders() { return renders; }, get done() { return done; }, get unsubscribed() { return unsubscribed; }, get result() { return result as { native: { runId: string; taskId: string } } | undefined; }, get reads() { return reads; } };
 }
-const out = (component: ZergWorkflowComponent, width = 512, height = 30) => component.render(width, height).join('\n');
+const out = (component: ClankersWorkflowComponent, width = 512, height = 30) => component.render(width, height).join('\n');
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
-function units(component: ZergWorkflowComponent): void { out(component); component.handleInput('enter'); out(component); component.handleInput('enter'); out(component); }
+function units(component: ClankersWorkflowComponent): void { out(component); component.handleInput('enter'); out(component); component.handleInput('enter'); out(component); }
 
 test('workflow lists counts, phases, distinct unit outcomes/reuse/cleanup; results only explicit drill', () => {
   const statuses: WorkflowUnit['status'][] = ['queued', 'running', 'completed', 'failed', 'cancelled', 'skipped', 'unverified'];
@@ -126,7 +126,7 @@ test('geometry grid, Unicode and untrusted OSC/CSI/C1 are safe before trusted th
   const source = run(); source.definition.label = '中文 é 👨‍👩‍👧‍👦 \x1b[31mred\x1b[0m \x1b]52;c;LABEL-OSC\x07';
   source.steps[0]!.error = '\x9b2Jphase \x9d52;c;ERROR-OSC\x9c'; source.steps[0]!.units[0]!.error = '\x1bPsecret\x1b\\safe unit';
   const f = fixture([source]); let color = 36;
-  const component = new ZergWorkflowComponent({ terminal: { rows: 1 } }, { fg: (_token, text) => { assert.doesNotMatch(text, /[\x00-\x1f\x7f-\x9f]/u); return `\x1b[${color}m${text}\x1b[0m`; } }, undefined, f.options);
+  const component = new ClankersWorkflowComponent({ terminal: { rows: 1 } }, { fg: (_token, text) => { assert.doesNotMatch(text, /[\x00-\x1f\x7f-\x9f]/u); return `\x1b[${color}m${text}\x1b[0m`; } }, undefined, f.options);
   component.focused = true; assert.equal(component.focused, true);
   for (const width of [1, 2, 3, 8, 20, 80, 512]) for (const height of [1, 2, 3, 5, 30, 128]) {
     const lines = component.render(width, height); assert.ok(lines.length <= height); for (const line of lines) assert.ok(visibleWidth(line) <= width, `${width}x${height}: ${visibleWidth(line)}`);
@@ -156,30 +156,30 @@ test('observer storms read only on render; throwing subscribe/redraw/theme/unsub
   const f = fixture(); out(f.component); const reads = f.reads; for (let i = 0; i < 100; i++) f.late(); assert.equal(f.reads, reads);
   f.component.dispose(); f.component.dispose(); const renders = f.renders; f.late(); assert.equal(f.renders, renders); assert.equal(f.unsubscribed, 1); assert.equal(f.done, 1);
   let done = 0; const g = fixture(undefined, {}, { subscribe: () => () => { throw new Error('unsubscribe'); } });
-  const component = new ZergWorkflowComponent({ requestRender: () => { throw new Error('redraw'); } }, { fg: () => { throw new Error('theme'); } }, () => { done++; throw new Error('done'); }, g.options);
+  const component = new ClankersWorkflowComponent({ requestRender: () => { throw new Error('redraw'); } }, { fg: () => { throw new Error('theme'); } }, () => { done++; throw new Error('done'); }, g.options);
   assert.doesNotThrow(() => out(component)); assert.doesNotThrow(() => component.handleInput('home')); component.dispose(); component.dispose(); assert.equal(done, 1); g.component.dispose();
   const h = fixture(undefined, {}, { subscribe: () => { throw new Error('subscribe'); } }); assert.match(out(h.component), /Observer unavailable/); h.component.dispose();
 });
 
 test('custom rejection/factory replacement/constructor failure and unsupported modes leave no watchers', async () => {
   const f = fixture(); f.component.dispose();
-  await assert.rejects(openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { await (factory as StructuralPiCustomFactory)(); throw new Error('custom rejected'); } } }, f.options), /custom rejected/);
+  await assert.rejects(openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { await (factory as StructuralPiCustomFactory)(); throw new Error('custom rejected'); } } }, f.options), /custom rejected/);
   assert.equal(f.unsubscribed, 2);
-  await openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { const create = factory as StructuralPiCustomFactory; await create(); const current = await create(); current.dispose?.(); } } }, f.options);
+  await openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { const create = factory as StructuralPiCustomFactory; await create(); const current = await create(); current.dispose?.(); } } }, f.options);
   assert.equal(f.unsubscribed, 4);
-  await assert.rejects(openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { await (factory as StructuralPiCustomFactory)(); } } }, { ...f.options, workflowRunId: 'bad id' }), /Invalid exact/); assert.equal(f.unsubscribed, 4);
-  for (const mode of ['rpc', 'json', 'print'] as const) await assert.rejects(openZergWorkflowOverlay({ mode, hasUI: true, ui: { custom: () => { throw new Error('must not call'); } } }, f.options), /interactive Pi TUI/);
-  await assert.rejects(openZergWorkflowOverlay({ hasUI: false }, f.options), /interactive Pi TUI/);
+  await assert.rejects(openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async (factory) => { await (factory as StructuralPiCustomFactory)(); } } }, { ...f.options, workflowRunId: 'bad id' }), /Invalid exact/); assert.equal(f.unsubscribed, 4);
+  for (const mode of ['rpc', 'json', 'print'] as const) await assert.rejects(openClankersWorkflowOverlay({ mode, hasUI: true, ui: { custom: () => { throw new Error('must not call'); } } }, f.options), /interactive Pi TUI/);
+  await assert.rejects(openClankersWorkflowOverlay({ hasUI: false }, f.options), /interactive Pi TUI/);
 });
 
 test('coding navigation uses exact native callback and fresh interaction after error/return, old listeners inert', async () => {
   const f = fixture(); f.component.dispose(); let customCalls = 0; const natives: Array<{ runId: string; taskId: string }> = [];
   const context: StructuralPiCommandContext = { mode: 'tui', ui: { custom: async (factory) => {
     const component = await (factory as StructuralPiCustomFactory)(); customCalls++;
-    if (customCalls === 1) { units(component as ZergWorkflowComponent); component.handleInput?.('c'); assert.equal(f.unsubscribed, 2); }
-    else { assert.match(out(component as ZergWorkflowComponent), /Exact coding viewer unavailable/); component.handleInput?.('\x03'); }
+    if (customCalls === 1) { units(component as ClankersWorkflowComponent); component.handleInput?.('c'); assert.equal(f.unsubscribed, 2); }
+    else { assert.match(out(component as ClankersWorkflowComponent), /Exact coding viewer unavailable/); component.handleInput?.('\x03'); }
   } } };
-  await openZergWorkflowOverlay(context, { ...f.options, onOpenNative: async (native) => { natives.push(native); assert.equal(f.unsubscribed, 2); throw new Error('closed native session'); } });
+  await openClankersWorkflowOverlay(context, { ...f.options, onOpenNative: async (native) => { natives.push(native); assert.equal(f.unsubscribed, 2); throw new Error('closed native session'); } });
   assert.equal(customCalls, 2); assert.deepEqual(natives, [{ runId: 'native-unit-a', taskId: 'task-unit-a' }]); assert.equal(f.unsubscribed, 3); assert.equal(f.actions.length, 0);
 });
 
@@ -229,15 +229,15 @@ function loopRun(): WorkflowRun {
     steps: [{ id: `loop@${index}/review`, status: 'completed', units: [{ ...unit(`loop@${index}/review:0`), stepId: `loop@${index}/review` }] }],
   })) }]; return value;
 }
-function loopUnits(component: ZergWorkflowComponent): void {
+function loopUnits(component: ClankersWorkflowComponent): void {
   units(component); // list -> steps -> iterations
   component.handleInput('end'); out(component); component.handleInput('enter'); out(component); // exact last iteration -> body
   component.handleInput('enter'); out(component); // body -> units
 }
 test('repeat monitor drills iteration/body/unit by exact qualified ID and returns from native despite reorder', async () => {
   const source = loopRun(); const f = fixture([source]); f.component.dispose(); let visits = 0;
-  await openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
-    const component = await (factory as StructuralPiCustomFactory)() as ZergWorkflowComponent;
+  await openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
+    const component = await (factory as StructuralPiCustomFactory)() as ClankersWorkflowComponent;
     if (++visits === 1) {
       out(component); component.handleInput('enter'); assert.match(out(component), /iteration 2\/3.*converged/);
       component.handleInput('enter'); assert.match(out(component), /iteration loop@1.*decision true/);
@@ -311,8 +311,8 @@ test('native return preserves exact repeat body spec across phase and body reord
   source.definition.steps[0]!.body!.push({ id: 'other', kind: 'aggregate', dependsOn: [], inputs: {} });
   for (const iteration of source.steps[0]!.iterations!) iteration.steps.push({ id: `${iteration.id}/other`, status: 'completed', units: [] });
   const f = fixture([source]); f.component.dispose(); let visits = 0;
-  await openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
-    const component = await (factory as StructuralPiCustomFactory)() as ZergWorkflowComponent;
+  await openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
+    const component = await (factory as StructuralPiCustomFactory)() as ClankersWorkflowComponent;
     if (++visits === 1) { loopUnits(component); component.handleInput('c'); }
     else {
       assert.match(out(component), /› unit loop@1\/review:0/);
@@ -330,8 +330,8 @@ test('native return preserves exact repeat body spec across phase and body reord
 
 test('native return refuses changed exact unit identity instead of silently accepting replacement', async () => {
   const source = loopRun(); const f = fixture([source]); f.component.dispose(); let visits = 0;
-  await openZergWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
-    const component = await (factory as StructuralPiCustomFactory)() as ZergWorkflowComponent;
+  await openClankersWorkflowOverlay({ mode: 'tui', ui: { custom: async factory => {
+    const component = await (factory as StructuralPiCustomFactory)() as ClankersWorkflowComponent;
     if (++visits === 1) { loopUnits(component); component.handleInput('c'); }
     else {
       assert.match(out(component), /Exact coding selection changed; no fallback/);

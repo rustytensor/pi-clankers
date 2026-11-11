@@ -220,7 +220,7 @@ def main():
         assert (spawn_path.read_bytes() if spawn_path.exists() else b'') == spawn_before, 'preflight spawned process'
 
     def stale_wire(change, action='cancel', job_id=None):
-        # Only negative identity probes use the private channel. All real work uses createZergControl.
+        # Only negative identity probes use the private channel. All real work uses createClankersControl.
         ident = dict(ready['identity'])
         ident['epoch'] = wait_for(show, 'current identity')['epoch']
         ident.update(change)
@@ -265,7 +265,7 @@ def main():
         for source, target in [('tmux-standalone-provider.ts', 'provider.ts'), ('tmux-standalone-observer.ts', 'observer.ts'), ('tmux-standalone-no-network.mjs', 'no-network.mjs')]:
             shutil.copyfile(HERE / source, root / target)
         extensions = []
-        for name in ['pi-clankers', 'pi-zerg-swarm']:
+        for name in ['pi-clankers', 'pi-clankers']:
             package = root / 'resources' / name
             package.mkdir()
             dump(package / 'package.json', {'name': name, 'type': 'module'})

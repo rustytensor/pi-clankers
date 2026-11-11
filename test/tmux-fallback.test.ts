@@ -7,7 +7,7 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { createJiti } from 'jiti';
 import { selectTmuxModel, attestTmuxModelSelection, preflightTmuxWorkerPolicy } from '../tmux-worker-policy.js';
 import { tmuxModelCandidates, parseTmuxModelSelection } from '../tmux-worker-config.js';
-import { createZergState, createZergStateContainer, upsertAgentDefinition } from '../state.js';
+import { createClankersState, createClankersStateContainer, upsertAgentDefinition } from '../state.js';
 
 // Independent input: A is absent, B and C present. Request order C,B must
 // select C, and B,C must select B, regardless of lexical/catalog order.
@@ -63,7 +63,7 @@ test('unselected fallback failure reports no actual model or launch', async () =
   const { createTmuxControl } = await jiti.import<typeof import('../tmux-control.js')>('../tmux-control.ts');
   const fake = await jiti.import<typeof import('./fixtures/tmux-multiworker-fake.js')>(fakePath);
   fake.launches.length = 0;
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   state.replace(upsertAgentDefinition(state.read(), { id: 'solo', label: 'Solo', source: 'user', prompt: 'synthetic', tools: [], model: specs[0] }));
   const control = createTmuxControl(state, { cwd: '/unused', trusted: { sdkModulePath: '/unused/sdk.js', agentDir: '/unused' }, assertAuthority() {}, ids: () => ({ runId: 'unselected-run', taskId: 'unselected-task' }) });
   try {
@@ -126,7 +126,7 @@ test('controller selects before launch, records chosen model, retains it on reus
   const { createTmuxControl } = await jiti.import<typeof import('../tmux-control.js')>('../tmux-control.ts');
   const fake = await jiti.import<typeof import('./fixtures/tmux-multiworker-fake.js')>(fakePath);
   fake.launches.length = 0;
-  const state = createZergStateContainer({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } });
+  const state = createClankersStateContainer({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } });
   state.replace(upsertAgentDefinition(state.read(), { id: 'solo', label: 'Solo', source: 'user', prompt: 'synthetic', tools: [], model: specs[0] }));
   let sequence = 0;
   const control = createTmuxControl(state, { cwd: root, trusted: { sdkModulePath: sdkPath, agentDir: root }, assertAuthority() {}, ids: () => ({ runId: `r-${++sequence}`, taskId: `t-${sequence}` }) });

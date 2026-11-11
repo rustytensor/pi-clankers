@@ -7,22 +7,22 @@ import { join, dirname } from 'node:path';
 import test from 'node:test';
 import * as sdk from '@earendil-works/pi-coding-agent';
 import { createNativeContinuationService, continuationDigest, nativeSourceIdentity, validateContinuationPrepare, importNativeContinuation, appendNativeContinuationMarker, captureNativeContinuationPolicySync, CONTINUATION_AUTHORITY_INSTRUCTION, type NativeContinuationAdmission, type NativeContinuationPolicy, type NativeContinuationPrepare } from '../native-continuation.js';
-import { parseNativeContinuationCommand, createZergControl } from '../index.js';
-import { createZergSubagentRunSnapshot, getSubagentRunSnapshot, getSubagentRunSnapshots, normalizeNativeContinuationLineage } from '../state.js';
-import { recoverZergStateAfterRestart } from '../persistence.js';
-import { createZergState, upsertTask, applyRuntimeTransition } from '../state.js';
+import { parseNativeContinuationCommand, createClankersControl } from '../index.js';
+import { createClankersSubagentRunSnapshot, getSubagentRunSnapshot, getSubagentRunSnapshots, normalizeNativeContinuationLineage } from '../state.js';
+import { recoverClankersStateAfterRestart } from '../persistence.js';
+import { createClankersState, upsertTask, applyRuntimeTransition } from '../state.js';
 import { readNativeHistory, type NativeHistory } from '../native-history.js';
-import type { ZergNativeSessionReference } from '../types.js';
+import type { ClankersNativeSessionReference } from '../types.js';
 
 function harness() {
   const id = randomUUID();
-  const ref: ZergNativeSessionReference = { schemaVersion: 1, parentRunId: `parent-${id}`, memberRunId: `member-${id}`,
+  const ref: ClankersNativeSessionReference = { schemaVersion: 1, parentRunId: `parent-${id}`, memberRunId: `member-${id}`,
     agentDefinitionId: 'worker', piSessionId: id, sessionFile: `/tmp/${id}.jsonl`, cwd: '/tmp', createdAt: '2026-10-03T12:00:00.000Z', attachment: 'disposed' };
   const policy: NativeContinuationPolicy = { schemaVersion: 1, definition: { id: 'worker', label: 'Worker', prompt: 'CURRENT policy', source: 'runtime', model: 'local/model', tools: ['read'], disallowedTools: ['bash'], permissionMode: 'automatic' },
     model: 'local/model', cwd: '/tmp', thinkingLevel: 'off', authorityInstruction: CONTINUATION_AUTHORITY_INSTRUCTION,
     toolPolicy: { tools: ['read'], excludeTools: ['bash'], activeTools: ['read'], customTools: [] }, resourcePolicy: 'normal-default-resource-loader', inputs: [], context: [] };
   const history: NativeHistory = { header: { type: 'session', version: 3, id, cwd: '/tmp', timestamp: ref.createdAt },
-    entries: [{ type: 'custom', id: 'marker', parentId: null, timestamp: ref.createdAt, customType: 'pi-zerg-swarm/native-session/v1', data: nativeSourceIdentity(ref) },
+    entries: [{ type: 'custom', id: 'marker', parentId: null, timestamp: ref.createdAt, customType: 'pi-clankers/native-session/v1', data: nativeSourceIdentity(ref) },
       { type: 'message', id: 'selected', parentId: 'marker', timestamp: ref.createdAt, message: { role: 'user', content: 'historical context', timestamp: 1 } }],
     fingerprint: { sha256: 'a'.repeat(64), dev: 1, ino: 1, size: 100, mtimeMs: 1, ctimeMs: 1 } };
   const input: NativeContinuationPrepare = { parentRunId: ref.parentRunId, memberRunId: ref.memberRunId, piSessionId: ref.piSessionId, entryId: 'selected', body: '  /skill:literal\nnew task\t  ' };
@@ -162,7 +162,7 @@ test('CLI continuation parity preserves exact literal whitespace and rejects amb
 
 test('unsupported custom adapter cannot silently launch a no-history continuation', async () => {
   let launches = 0;
-  const control = createZergControl({}, { subagentAdapter: { kind: 'fake', launch: () => { launches++; return { ok: true, message: 'bad' }; } } });
+  const control = createClankersControl({}, { subagentAdapter: { kind: 'fake', launch: () => { launches++; return { ok: true, message: 'bad' }; } } });
   try {
     const h = harness();
     const result = await control.execute({ action: 'session.continuation.prepare', ...h.input });
@@ -174,7 +174,7 @@ test('unsupported custom adapter cannot silently launch a no-history continuatio
 });
 
 test('exclusive destination import preserves original bytes/tree and records new identity/model/current-authority lineage', async () => {
-  const h = harness(), dir = mkdtempSync(join(tmpdir(), 'zerg-cont-copy-'));
+  const h = harness(), dir = mkdtempSync(join(tmpdir(), 'clankers-cont-copy-'));
   try {
     h.ref.cwd = dir; h.policy.cwd = dir; h.ref.sessionFile = join(dir, 'source.jsonl');
     h.history.header.cwd = dir;
@@ -191,10 +191,10 @@ test('exclusive destination import preserves original bytes/tree and records new
     assert.equal(manager.getEntries().some((entry) => entry.id === 'abandoned'), true);
     assert.equal(manager.buildSessionContext().model!.provider, 'local');
     assert.equal(manager.buildSessionContext().thinkingLevel, 'off');
-    const reference: ZergNativeSessionReference = { ...h.ref, parentRunId: 'new-parent', memberRunId: 'new-parent', piSessionId: manager.getSessionId(), sessionFile: manager.getSessionFile()! };
-    manager.appendCustomEntry('pi-zerg-swarm/native-session/v1', nativeSourceIdentity(reference));
+    const reference: ClankersNativeSessionReference = { ...h.ref, parentRunId: 'new-parent', memberRunId: 'new-parent', piSessionId: manager.getSessionId(), sessionFile: manager.getSessionFile()! };
+    manager.appendCustomEntry('pi-clankers/native-session/v1', nativeSourceIdentity(reference));
     appendNativeContinuationMarker(manager, h.admissions[0]!);
-    const own = manager.getEntries().filter((entry) => entry.type === 'custom' && entry.customType === 'pi-zerg-swarm/native-continuation/v1');
+    const own = manager.getEntries().filter((entry) => entry.type === 'custom' && entry.customType === 'pi-clankers/native-continuation/v1');
     assert.equal(own.length, 1);
     assert.equal(readFileSync(h.ref.sessionFile, 'utf8'), original);
   } finally { h.cleanup(); rmSync(dir, { recursive: true, force: true }); }
@@ -204,28 +204,28 @@ test('durable lineage is bounded defensive evidence and recovery never restores 
   const h = harness();
   try {
     const lineage = { schemaVersion: 1 as const, source: nativeSourceIdentity(h.ref), entryId: 'selected', sourceFingerprint: h.history.fingerprint.sha256, policyDigest: continuationDigest(h.policy), policy: h.policy };
-    const snapshot = createZergSubagentRunSnapshot({ runId: 'new', agentId: 'worker', taskId: 'task', status: 'running', metadata: { nativeContinuation: lineage } });
+    const snapshot = createClankersSubagentRunSnapshot({ runId: 'new', agentId: 'worker', taskId: 'task', status: 'running', metadata: { nativeContinuation: lineage } });
     assert.deepEqual(snapshot.nativeContinuation, lineage);
     assert.notEqual(snapshot.nativeContinuation!.policy, h.policy);
     assert.equal(normalizeNativeContinuationLineage({ ...lineage, reviewId: 'replay' }), undefined);
     assert.equal(normalizeNativeContinuationLineage({ ...lineage, policy: { ...h.policy, definition: { ...h.policy.definition, prompt: 'x'.repeat(40_000) } } }), undefined);
-    let state = upsertTask(createZergState(), { id: 'task', title: 'NEW task', ownerAgentId: 'zerg-new', status: 'running', updatedAt: h.ref.createdAt });
-    state = applyRuntimeTransition(state, { entity: 'agent', action: 'start', id: 'zerg-new', kind: 'subagent', metadata: { taskId: 'task', nativeContinuation: lineage } });
-    const projected = getSubagentRunSnapshot(state, 'zerg-new');
+    let state = upsertTask(createClankersState(), { id: 'task', title: 'NEW task', ownerAgentId: 'clankers-new', status: 'running', updatedAt: h.ref.createdAt });
+    state = applyRuntimeTransition(state, { entity: 'agent', action: 'start', id: 'clankers-new', kind: 'subagent', metadata: { taskId: 'task', nativeContinuation: lineage } });
+    const projected = getSubagentRunSnapshot(state, 'clankers-new');
     assert.deepEqual(projected?.nativeContinuation, lineage);
     assert.deepEqual(getSubagentRunSnapshots(state)[0]?.nativeContinuation, lineage);
     projected!.nativeContinuation!.policy.definition.prompt = 'Caller mutation';
-    assert.equal(getSubagentRunSnapshot(state, 'zerg-new')?.nativeContinuation?.policy.definition.prompt, 'CURRENT policy');
-    const recovered = recoverZergStateAfterRestart(state).state;
-    assert.equal(recovered.agents['zerg-new']!.status, 'needs-attention');
-    assert.match(recovered.agents['zerg-new']!.runtime!.substateReason!, /new reviewed task/);
+    assert.equal(getSubagentRunSnapshot(state, 'clankers-new')?.nativeContinuation?.policy.definition.prompt, 'CURRENT policy');
+    const recovered = recoverClankersStateAfterRestart(state).state;
+    assert.equal(recovered.agents['clankers-new']!.status, 'needs-attention');
+    assert.match(recovered.agents['clankers-new']!.runtime!.substateReason!, /new reviewed task/);
     assert.equal(recovered.tasks.task!.status, 'needs-attention');
     assert.equal(h.admissions.length, 0);
   } finally { h.cleanup(); }
 });
 
 test('ordinary >128-file resources use bounded root manifests; credentials/workflow churn is not policy drift', () => {
-  const h = harness(), dir = mkdtempSync(join(tmpdir(), 'zerg-cont-policy-'));
+  const h = harness(), dir = mkdtempSync(join(tmpdir(), 'clankers-cont-policy-'));
   try {
     const agentDir = join(dir, 'agent'), cwd = join(dir, 'project');
     mkdirSync(join(agentDir, 'extensions'), { recursive: true }); mkdirSync(cwd);
@@ -297,7 +297,7 @@ test('normal colon model IDs and recognized thinking suffixes are preserved with
 
 for (const extension of ['./extra.ts', '+./extra.ts']) {
   test(`project settings ${extension} binds .pi-relative resource and local package code`, () => {
-    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'zerg-cont-relative-'));
+    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'clankers-cont-relative-'));
     try {
       const agentDir = join(dir, 'agent'), cwd = join(dir, 'project'), projectDir = join(cwd, '.pi');
       mkdirSync(agentDir); mkdirSync(join(projectDir, 'local-package'), { recursive: true });
@@ -325,7 +325,7 @@ for (const extension of ['./extra.ts', '+./extra.ts']) {
 
 for (const scope of ['user', 'project'] as const) {
   test(`public read-only ${scope} installed git lookup binds code, removal and installation without npm lookup`, async () => {
-    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'zerg-cont-git-policy-'));
+    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'clankers-cont-git-policy-'));
     let service: ReturnType<typeof createNativeContinuationService> | undefined;
     try {
       const agentDir = join(dir, 'agent'), cwd = join(dir, 'project'), projectDir = join(cwd, '.pi');
@@ -377,7 +377,7 @@ for (const scope of ['user', 'project'] as const) {
 
 for (const scope of ['global', 'cwd', 'ancestor'] as const) {
   test(`oversized ${scope} preferred context is bounded before any public context helper`, () => {
-    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'zerg-cont-context-bound-'));
+    const h = harness(), dir = mkdtempSync(join(tmpdir(), 'clankers-cont-context-bound-'));
     try {
       const agentDir = join(dir, 'agent'), cwd = join(dir, 'project');
       mkdirSync(agentDir); mkdirSync(cwd); h.ref.cwd = cwd;
@@ -410,7 +410,7 @@ test('a repeated old admission release cannot unlock a newer same-source task', 
 
 test('faulty supplied review-service disposal cannot block native owner cleanup', () => {
   let disposals = 0;
-  const control = createZergControl({}, { nativeContinuationService: {
+  const control = createClankersControl({}, { nativeContinuationService: {
     prepare: async () => { throw new Error('No preparation expected'); },
     start: async () => { throw new Error('No start expected'); },
     discard: () => undefined,

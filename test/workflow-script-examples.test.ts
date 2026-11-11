@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { createZergStateContainer } from '../state.js';
-import type { ZergAgentDefinition } from '../types.js';
+import { createClankersStateContainer } from '../state.js';
+import type { ClankersAgentDefinition } from '../types.js';
 import { validateWorkflowDefinition, workflowHash } from '../workflow-model.js';
 import type { WorkflowDefinition, WorkflowNativeOutcome, WorkflowNativePort, WorkflowNativeRequest, WorkflowRun, WorkflowService } from '../workflow-model.js';
 import { createWorkflowService } from '../workflow-runtime.js';
@@ -12,7 +12,7 @@ import {
   READ_ONLY_PARALLEL_DEFINITION, READ_ONLY_PARALLEL_SCRIPT,
 } from '../workflow-script-examples.js';
 
-function agents(): Record<string, ZergAgentDefinition> {
+function agents(): Record<string, ClankersAgentDefinition> {
   return {
     generalist: { id: 'generalist', label: 'Generalist', source: 'builtin', prompt: 'Read-only generalist', model: 'fake/model', tools: ['read'], permissionMode: 'inherit' },
     reviewer: { id: 'reviewer', label: 'Reviewer', source: 'builtin', prompt: 'Read-only reviewer', model: 'fake/model', tools: ['read'], permissionMode: 'inherit' },
@@ -35,7 +35,7 @@ function harness() {
       return Promise.resolve({ status: 'completed', text, cleanupSettled: true, identity } satisfies WorkflowNativeOutcome);
     },
   };
-  const container = createZergStateContainer({ agentDefinitions: agents() });
+  const container = createClankersStateContainer({ agentDefinitions: agents() });
   let seq = 0;
   const service = createWorkflowService(container, port, { idFactory: () => `workflow-${++seq}`, now: () => new Date('2026-10-06T00:00:00.000Z') });
   return { service, requests, orders, setScript: (next: typeof script) => { script = next; }, run };

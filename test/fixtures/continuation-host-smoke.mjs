@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url';
 // Standalone AFTER parent applies/grants: node test/fixtures/continuation-host-smoke.mjs
 // Installed Pi + Python stdlib only, four sequential genuine Pi CLI PTYs.
 // Normal CURRENT child resources, clean dummy env and exact endpoint/socket guard.
-// UI navigation only; automation never terminal-drives /zerg or provider TEST.
+// UI navigation only; automation never terminal-drives /clankers or provider TEST.
 // ANSI emission/input/redraw evidence, not manual pixel/layout acceptance.
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(repo, 'node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js');
 assert(existsSync(cli), 'Installed Pi CLI required');
-const evidence = mkdtempSync(join(tmpdir(), 'zerg-continuation-pty-'));
+const evidence = mkdtempSync(join(tmpdir(), 'clankers-continuation-pty-'));
 const body = '/never-expand q b c n\n  PTY_NEW_LITERAL_TASK: preserve indentation; !not-shell';
 const results = [], sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -35,7 +35,7 @@ function extensionSource(root, phaseDir, restarting) {
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { registerZergSwarmExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
+import { registerClankersExtension } from ${JSON.stringify(join(repo, 'index.ts'))};
 const root = ${JSON.stringify(root)}, phaseDir = ${JSON.stringify(phaseDir)}, restarting = ${JSON.stringify(restarting)}, body = ${JSON.stringify(body)};
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, label) { const end = Date.now() + 45000; while (Date.now() < end) { if (await check()) return; await sleep(25); } throw Error('Timeout: ' + label); }
@@ -47,10 +47,10 @@ function keyOf(ref) { return { parentRunId: ref.parentRunId, memberRunId: ref.me
 export default function(pi) {
   let handler, registrations = 0, started = false, cleaned = false;
   const proxy = new Proxy(pi, { get(target, key) {
-    if (key === 'registerCommand') return (name, options) => { if (name === 'zerg') { handler = options.handler; registrations++; } return target.registerCommand(name, options); };
+    if (key === 'registerCommand') return (name, options) => { if (name === 'clankers') { handler = options.handler; registrations++; } return target.registerCommand(name, options); };
     const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const registration = registerZergSwarmExtension(proxy, { persistence: { enabled: true, snapshotFile: join(root, 'snapshot.json') } });
+  const registration = registerClankersExtension(proxy, { persistence: { enabled: true, snapshotFile: join(root, 'snapshot.json') } });
   const control = registration.control;
   function cleanup() { if (cleaned) return; cleaned = true; registration.dispose(); registration.dispose(); }
   pi.on('session_shutdown', cleanup);
@@ -129,14 +129,14 @@ export default function(pi) {
     assert.equal(fresh.task, body, 'Task owner retains precisely the reviewed new task');
     assert(fresh.finalSummary?.includes('PTY_NEW_OUTPUT_ONLY')); assert(!fresh.finalSummary?.includes('PTY_OLD_FINAL_ONLY'), 'New outcome never takes inherited assistant completion');
     assert.equal(newRows[0].id, copied.piSessionId); assert.equal(newRows[0].parentSession, source.sessionFile);
-    const own = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-session/v1'); assert.equal(own.length, 1);
-    const lineage = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-continuation/v1'); assert.equal(lineage.length, 1);
+    const own = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-clankers/native-session/v1'); assert.equal(own.length, 1);
+    const lineage = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-clankers/native-continuation/v1'); assert.equal(lineage.length, 1);
     const { attachment: _attachment, disposedAt: _disposedAt, recoveredAt: _recoveredAt, ...identity } = source;
     assert.deepEqual(lineage[0].data.source, identity); assert.equal(lineage[0].data.entryId, selected.id); assert.equal(lineage[0].data.sourceFingerprint, sourceHash); assert.match(lineage[0].data.policyDigest, /^[a-f0-9]{64}$/);
-    const ancestors = newRows.filter(row => row.type === 'custom' && ['pi-zerg-swarm/native-ancestor-session/v1', 'pi-zerg-swarm/native-ancestor-continuation/v1'].includes(row.customType));
+    const ancestors = newRows.filter(row => row.type === 'custom' && ['pi-clankers/native-ancestor-session/v1', 'pi-clankers/native-ancestor-continuation/v1'].includes(row.customType));
     assert.equal(ancestors.length, 1); assert.deepEqual(ancestors[0].data, identity);
     assert.deepEqual(lineage[0].data.ancestors, ancestors.map(row => ({ id: row.id, customType: row.customType, dataDigest: createHash('sha256').update(JSON.stringify(row.data)).digest('hex') })));
-    for (const row of rows.slice(1)) assert.deepEqual(newRows.find(entry => entry.id === row.id), row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-session/v1' ? { ...row, customType: 'pi-zerg-swarm/native-ancestor-session/v1' } : row, 'Copied opaque history is unchanged apart from metadata namespace');
+    for (const row of rows.slice(1)) assert.deepEqual(newRows.find(entry => entry.id === row.id), row.type === 'custom' && row.customType === 'pi-clankers/native-session/v1' ? { ...row, customType: 'pi-clankers/native-ancestor-session/v1' } : row, 'Copied opaque history is unchanged apart from metadata namespace');
     phase('new-chooser', { key: keyOf(copied) });
     const beforeView = trace().length;
     await handler('sessions ' + fresh.runId, ctx);

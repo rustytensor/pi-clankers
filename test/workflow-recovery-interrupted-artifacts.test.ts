@@ -5,15 +5,15 @@ import { once } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergStateContainer } from '../state.js';
-import { createZergPersistenceManager } from '../persistence.js';
+import { createClankersStateContainer } from '../state.js';
+import { createClankersPersistenceManager } from '../persistence.js';
 import { createWorkflowService } from '../workflow-runtime.js';
 import { WORKFLOW_EXTENSION_KEY, workflowHash } from '../workflow-model.js';
 import type { RecoveryWriterOwnerEvidence } from '../persistence.js';
 
 // Actual process interruption with a fake native transport, not real-model/SDK acceptance.
 test('fresh process-owned checkpoint prepares retained stage after actual owner SIGKILL without execution', { timeout: 20000 }, async t => {
-  const root = mkdtempSync(join(tmpdir(), 'zerg-interrupted-artifact-'));
+  const root = mkdtempSync(join(tmpdir(), 'clankers-interrupted-artifact-'));
   // Keep destination leases inside this fixture, not the shared system temp root.
   const previousTmpdir = process.env.TMPDIR;
   process.env.TMPDIR = root;
@@ -28,8 +28,8 @@ test('fresh process-owned checkpoint prepares retained stage after actual owner 
   const driver = `
     import { createHash } from 'node:crypto';
     import { createWorkflowService } from ${JSON.stringify(runtimeUrl)};
-    import { createZergStateContainer, createZergState, updateZergState } from ${JSON.stringify(stateUrl)};
-    import { createZergPersistenceManager } from ${JSON.stringify(persistUrl)};
+    import { createClankersStateContainer, createClankersState, updateClankersState } from ${JSON.stringify(stateUrl)};
+    import { createClankersPersistenceManager } from ${JSON.stringify(persistUrl)};
     import { workflowHash } from ${JSON.stringify(modelUrl)};
     const projectRoot=process.argv[1], stagingParent=process.argv[2], snapshotFile=process.argv[3];
     const str={type:'string',maxLength:256}, array=items=>({type:'array',maxItems:32,items}), object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -42,9 +42,9 @@ test('fresh process-owned checkpoint prepares retained stage after actual owner 
       {id:'apply',kind:'coding',dependsOn:['review'],inputs:{},outputSchema:object({status:str,candidateHash:str,appliedPaths:array(str),rejectedPaths:array(str),diagnostics:array(str),outcomeHash:str}),coding:{operation:'apply',policy}}
     ]};
     const agents=Object.fromEntries(['worker','reviewer'].map(id=>[id,{id,label:id,source:'runtime',prompt:id,model:'fake/model',permissionMode:'inherit'}]));
-    const base=createZergStateContainer({agentDefinitions:agents});
-    const store=createZergPersistenceManager({snapshotFile}); store.hydrate(base);
-    const container={...base, replace(next){const value=createZergState(next);store.save(value);return base.replace(value);}, update(patch,options){const next=updateZergState(base.read(),patch,options);store.save(next);return base.replace(next);}};
+    const base=createClankersStateContainer({agentDefinitions:agents});
+    const store=createClankersPersistenceManager({snapshotFile}); store.hydrate(base);
+    const container={...base, replace(next){const value=createClankersState(next);store.save(value);return base.replace(value);}, update(patch,options){const next=updateClankersState(base.read(),patch,options);store.save(next);return base.replace(next);}};
     let runId='', approval;
     const keepAlive=setInterval(()=>{},1000);
     const native={preflight(){},async execute(req){
@@ -83,8 +83,8 @@ test('fresh process-owned checkpoint prepares retained stage after actual owner 
   child.kill('SIGKILL'); const [, signal] = await closed; assert.equal(signal, 'SIGKILL');
   assert.equal(existsSync(`/proc/${child.pid}`), false);
   const before = readFileSync(snapshotFile);
-  const store = createZergPersistenceManager({ snapshotFile })!;
-  const container = createZergStateContainer(); store.hydrate(container);
+  const store = createClankersPersistenceManager({ snapshotFile })!;
+  const container = createClankersStateContainer(); store.hydrate(container);
   let forbiddenCalls = 0;
   const forbidden = () => { forbiddenCalls++; throw new Error('recovery preparation attempted execution'); };
   let ownerHook = () => {};
@@ -134,7 +134,7 @@ test('fresh process-owned checkpoint prepares retained stage after actual owner 
     writeFileSync(join(projectRoot, 'src/a.txt'), 'old\n');
     const corrupt = structuredClone(container.snapshot());
     (corrupt.extensions[WORKFLOW_EXTENSION_KEY] as any).runs[0].steps[0].units[0].coding.candidateHash = '0'.repeat(64);
-    const corruptService = createWorkflowService(createZergStateContainer(corrupt), native, options);
+    const corruptService = createWorkflowService(createClankersStateContainer(corrupt), native, options);
     try {
       const mismatch = await corruptService.execute({ action: 'workflows.recovery.prepare', workflowRunId: ready.runId, selections });
       assert.equal((mismatch.assessment as any).plan.status, 'blocked');

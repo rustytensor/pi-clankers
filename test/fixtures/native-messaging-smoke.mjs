@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 // Public SDK only. No real credentials, user resources, external endpoints, or
 // provider test calls. Every model request is to this exact loopback listener.
-const dir = mkdtempSync(join(tmpdir(), 'zerg-messaging-sdk-'));
+const dir = mkdtempSync(join(tmpdir(), 'clankers-messaging-sdk-'));
 const agentDir = join(dir, 'agent'); mkdirSync(agentDir); mkdirSync(join(dir, '.pi'));
 process.env.PI_CODING_AGENT_DIR = agentDir; process.env.PI_OFFLINE = '1'; process.chdir(dir);
 const requests = [], gates = [], sessions = [], controls = [], services = [];
@@ -42,8 +42,8 @@ writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { fixtu
 writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ defaultProvider: 'fixture', defaultModel: 'message', packages: [], extensions: [], noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true }));
 writeFileSync(join(dir, '.pi', 'settings.json'), JSON.stringify({ packages: [], extensions: [], noExtensions: true }));
 const sdk = await import('@earendil-works/pi-coding-agent');
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(sdk);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 const state = await import(new URL('../../state.ts', import.meta.url).href);
 const messaging = await import(new URL('../../session-messages.ts', import.meta.url).href);
 const originalBind = sdk.AgentSession.prototype.bindExtensions;
@@ -55,12 +55,12 @@ sdk.AgentSession.prototype.dispose = function (...args) { disposals++; return or
 const releaseAll = () => { for (const release of gates.splice(0)) release(); };
 const deadline = setTimeout(() => { console.error('Messaging SDK fixture timeout'); process.exit(1); }, 60000);
 try {
-  const container = state.createZergStateContainer();
+  const container = state.createClankersStateContainer();
   const sharedMessages = messaging.createSessionMessageService({ container, readOnly: () => container.read().mode.readOnly === true }); services.push(sharedMessages);
   // Inject faulty receipt cleanup while retaining the real public transport.
   // These faults must not prevent native cancellation or task-owned disposal.
   const faultyCleanup = { ...sharedMessages, closeParent() { throw Error('fixture receipt cancel fault'); }, shutdown() { throw Error('fixture receipt shutdown fault'); } };
-  const owner = zerg.createZergControl(container, { sessionMessageService: faultyCleanup }); controls.push(owner);
+  const owner = clankers.createClankersControl(container, { sessionMessageService: faultyCleanup }); controls.push(owner);
   const references = () => state.getSubagentRunSnapshots(container.read()).flatMap((run) => run.nativeSessions ?? []);
   assert((await owner.execute({ action: 'agents.create', id: 'messenger', model: 'fixture/message', tools: [], prompt: 'Answer briefly without tools.' })).ok);
   const starts = await Promise.all([1, 2].map((i) => owner.execute({ action: 'run', agent: 'messenger', task: `Exact session ${i}`, background: true })));
@@ -84,7 +84,7 @@ try {
   const custom = firstSession.sessionManager.getEntries().filter((entry) => entry.type === 'custom_message');
   assert.deepEqual(custom.map((entry) => entry.details.messageId), ['steering', 'same-body-new-ID', 'follow']);
   assert.equal(custom[0].content, literal); assert.equal(custom[1].content, literal);
-  const history = readFileSync(refs[0].sessionFile, 'utf8'); assert(history.includes('pi-zerg-swarm/operator/v1')); assert(history.includes('never-expand'));
+  const history = readFileSync(refs[0].sessionFile, 'utf8'); assert(history.includes('pi-clankers/operator/v1')); assert(history.includes('never-expand'));
   assert.equal(prompts, explicitPrompts, 'custom input never invokes prompt'); assert.equal(disposals, 2);
   const requestsAtClose = requests.length;
   assert.equal((await send(refs[0], 'inactive', 'steer', 'must not start')).ok, false); await sleep(50); assert.equal(requests.length, requestsAtClose);
@@ -115,7 +115,7 @@ try {
   const runtime = await sdk.ModelRuntime.create({ authPath: join(agentDir, 'auth.json'), modelsPath: join(agentDir, 'models.json'), allowModelNetwork: false });
   const model = (await runtime.getAvailable()).find((item) => item.provider === 'fixture' && item.id === 'message'); assert(model);
   const { session } = await sdk.createAgentSession({ cwd: dir, agentDir, resourceLoader: loader, modelRuntime: runtime, model, tools: [], noTools: 'all', sessionManager: sdk.SessionManager.inMemory(), settingsManager: sdk.SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } }) });
-  const directContainer = state.createZergStateContainer(); const exact = { parentRunId: 'direct', memberRunId: 'direct', piSessionId: session.sessionId };
+  const directContainer = state.createClankersStateContainer(); const exact = { parentRunId: 'direct', memberRunId: 'direct', piSessionId: session.sessionId };
   const service = messaging.createSessionMessageService({ container: directContainer, readOnly: () => false });
   let release;
   try {

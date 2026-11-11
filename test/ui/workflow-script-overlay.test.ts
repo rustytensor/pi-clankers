@@ -3,7 +3,7 @@ import test from 'node:test';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { validateWorkflowDefinition, workflowHash, workflowView, type WorkflowRun, type WorkflowAction, type WorkflowUnit } from '../../workflow-model.js';
 import { compileWorkflowScript } from '../../workflow-script.js';
-import { ZergWorkflowComponent, type ZergWorkflowOverlayOptions } from '../../ui/workflow-overlay.js';
+import { ClankersWorkflowComponent, type ClankersWorkflowOverlayOptions } from '../../ui/workflow-overlay.js';
 
 const script = `workflow({id:"mapped",label:"Mapped progress",inputSchema:{type:"object",properties:{},additionalProperties:false}},()=>{
 const read=native("read",{dependsOn:[],inputs:{},agentId:"safe",prompt:"Read only",outputSchema:{type:"boolean"}});
@@ -22,13 +22,13 @@ function run(): WorkflowRun {
 function fixture(initial = run()) {
   let value = initial, result: { native: { runId: string; taskId: string } } | undefined, unsubscribed = 0;
   const actions: WorkflowAction[] = [];
-  const service: ZergWorkflowOverlayOptions['service'] = { list: () => [workflowView(value)], get: id => id === value.workflowRunId ? value : undefined,
+  const service: ClankersWorkflowOverlayOptions['service'] = { list: () => [workflowView(value)], get: id => id === value.workflowRunId ? value : undefined,
     subscribe: () => () => { unsubscribed++; }, execute: async action => { actions.push(action); return { ok: true, action: action.action }; },
     approvals: { inspect: () => [], grant() { throw new Error('No approval authority in source display.'); }, grantFingerprint() { throw new Error('No approval authority.'); }, reject() { throw new Error('No approval authority.'); }, revoke() { throw new Error('No approval authority.'); } } };
-  const component = new ZergWorkflowComponent(undefined, undefined, reply => { result = reply; }, { service, workflowRunId: initial.workflowRunId, onOpenNative() {} });
+  const component = new ClankersWorkflowComponent(undefined, undefined, reply => { result = reply; }, { service, workflowRunId: initial.workflowRunId, onOpenNative() {} });
   return { component, actions, update(next: WorkflowRun) { value = next; }, native: () => result?.native, get result() { return result; }, get unsubscribed() { return unsubscribed; } };
 }
-const render = (c: ZergWorkflowComponent) => c.render(512, 32).join('\n');
+const render = (c: ClankersWorkflowComponent) => c.render(512, 32).join('\n');
 
 test('actual compiled source maps render in existing step/result rows without authoring or start actions', async () => {
   const compiled = await compileWorkflowScript(script, { sourceName: 'mapped.workflow.js' }); assert.equal(compiled.ok, true);

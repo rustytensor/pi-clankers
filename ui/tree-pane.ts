@@ -1,4 +1,4 @@
-import type { ZergManagementTargetKind, ZergManagementUiState, ZergState } from '../types.js';
+import type { ClankersManagementTargetKind, ClankersManagementUiState, ClankersState } from '../types.js';
 import { fitRawLine, renderPane, sanitizeUiText, statusGlyph, styleText, type UiThemeLike, visibleSlice } from './components.js';
 import { isExpanded, setExpanded, setSelectedTarget, toggleExpanded } from './state.js';
 
@@ -9,7 +9,7 @@ export interface ManagementTreeRow {
   expandable: boolean;
   expanded: boolean;
   targetId?: string;
-  targetKind?: ZergManagementTargetKind;
+  targetKind?: ClankersManagementTargetKind;
   status?: string;
 }
 
@@ -22,7 +22,7 @@ export function createTreePaneState(): TreePaneState {
   return { cursor: 0, scrollOffset: 0 };
 }
 
-export function buildManagementTreeRows(state: ZergState, uiState: ZergManagementUiState): ManagementTreeRow[] {
+export function buildManagementTreeRows(state: ClankersState, uiState: ClankersManagementUiState): ManagementTreeRow[] {
   const rows: ManagementTreeRow[] = [];
   const addRoot = (id: string, label: string, count: number) => {
     const expanded = isExpanded(uiState, id);
@@ -94,7 +94,7 @@ export function moveTreeCursor(treeState: TreePaneState, rows: readonly Manageme
   treeState.cursor = rows.length === 0 ? 0 : Math.max(0, Math.min(treeState.cursor + direction, rows.length - 1));
 }
 
-export function collapseTreeSelection(uiState: ZergManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): void {
+export function collapseTreeSelection(uiState: ClankersManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): void {
   const row = rows[treeState.cursor];
   if (!row) return;
   if (row.expandable && row.expanded) {
@@ -102,7 +102,7 @@ export function collapseTreeSelection(uiState: ZergManagementUiState, treeState:
   }
 }
 
-export function expandTreeSelection(uiState: ZergManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): void {
+export function expandTreeSelection(uiState: ClankersManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): void {
   const row = rows[treeState.cursor];
   if (!row) return;
   if (row.expandable && !row.expanded) {
@@ -110,7 +110,7 @@ export function expandTreeSelection(uiState: ZergManagementUiState, treeState: T
   }
 }
 
-export function activateTreeSelection(uiState: ZergManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): ManagementTreeRow | undefined {
+export function activateTreeSelection(uiState: ClankersManagementUiState, treeState: TreePaneState, rows: readonly ManagementTreeRow[]): ManagementTreeRow | undefined {
   const row = rows[treeState.cursor];
   if (!row) return undefined;
   if (row.expandable && !row.targetId) {
@@ -123,7 +123,7 @@ export function activateTreeSelection(uiState: ZergManagementUiState, treeState:
   return row;
 }
 
-export function renderTreePane(state: ZergState, uiState: ZergManagementUiState, treeState: TreePaneState, width: number, height: number, theme?: UiThemeLike): string[] {
+export function renderTreePane(state: ClankersState, uiState: ClankersManagementUiState, treeState: TreePaneState, width: number, height: number, theme?: UiThemeLike): string[] {
   const rows = buildManagementTreeRows(state, uiState);
   clampTreeCursor(treeState, rows.length);
   const bodyHeight = Math.max(3, height - 4);

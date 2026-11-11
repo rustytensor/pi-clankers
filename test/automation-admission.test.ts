@@ -24,18 +24,18 @@ import {
   workflowHash,
 } from '../workflow-model.js';
 import type { WorkflowJson, WorkflowRun, WorkflowState } from '../workflow-model.js';
-import type { ZergAgentDefinition } from '../types.js';
+import type { ClankersAgentDefinition } from '../types.js';
 
 const PROFILE_ID = 'p1';
 const FIXED_INPUTS: WorkflowJson = { candidatePaths: ['a.txt'], scope: 'Inspect' };
 
-function buildAgent(): ZergAgentDefinition { return { id: 'generalist', label: 'G', prompt: 'P', source: 'builtin' }; }
-function buildReviewer(): ZergAgentDefinition { return { id: 'reviewer', label: 'R', prompt: 'P', source: 'builtin' }; }
+function buildAgent(): ClankersAgentDefinition { return { id: 'generalist', label: 'G', prompt: 'P', source: 'builtin' }; }
+function buildReviewer(): ClankersAgentDefinition { return { id: 'reviewer', label: 'R', prompt: 'P', source: 'builtin' }; }
 function buildDefinition() {
   return createReadOnlyReviewDefinition({ discover: 'generalist', reviewer: 'reviewer', verifier: 'reviewer' });
 }
-function buildProfileAgents(extra: ZergAgentDefinition[] = []): ZergAgentDefinition[] {
-  return freezeWorkflowData([buildAgent(), buildReviewer(), ...extra].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) as unknown as ZergAgentDefinition[];
+function buildProfileAgents(extra: ClankersAgentDefinition[] = []): ClankersAgentDefinition[] {
+  return freezeWorkflowData([buildAgent(), buildReviewer(), ...extra].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) as unknown as ClankersAgentDefinition[];
 }
 function buildProfileHashInputs() {
   return {
@@ -66,7 +66,7 @@ function buildProfile(over: Partial<AutomationProfileV1> = {}): AutomationProfil
 function buildRun(profile: AutomationProfileV1, over: Partial<WorkflowRun> = {}): WorkflowRun {
   const def = profile.definition;
   validateReviewInputs(FIXED_INPUTS);
-  const runAgents = Object.fromEntries(profile.agents.map(a => [a.id, normalizeWorkflowAgent(a)])) as unknown as Record<string, ZergAgentDefinition>;
+  const runAgents = Object.fromEntries(profile.agents.map(a => [a.id, normalizeWorkflowAgent(a)])) as unknown as Record<string, ClankersAgentDefinition>;
   return {
     workflowRunId: 'w1', familyId: 'w1', attemptNo: 1, definition: def, definitionHash: profile.definitionHash,
     inputs: FIXED_INPUTS, agents: runAgents, concurrency: 1, status: 'running',

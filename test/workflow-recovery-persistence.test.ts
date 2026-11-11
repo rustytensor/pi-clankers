@@ -7,17 +7,17 @@ import test, { type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { createZergPersistenceManager, type RecoveryWriterOwnerEvidence } from '../persistence.js';
-import { createZergState, createZergStateContainer } from '../state.js';
+import { createClankersPersistenceManager, type RecoveryWriterOwnerEvidence } from '../persistence.js';
+import { createClankersState, createClankersStateContainer } from '../state.js';
 
 const first = () => new Date('2026-10-04T00:00:00.000Z');
 const second = () => new Date('2026-10-04T00:00:01.000Z');
 
 function fixture(t: TestContext, cleanup = true) {
-  const root = fs.mkdtempSync(join(tmpdir(), 'zerg-recovery-persistence-'));
+  const root = fs.mkdtempSync(join(tmpdir(), 'clankers-recovery-persistence-'));
   const snapshotFile = join(root, 'state.json');
-  const manager = createZergPersistenceManager({ snapshotFile })!;
-  const state = createZergState({ extensions: { marker: 'initial' } });
+  const manager = createClankersPersistenceManager({ snapshotFile })!;
+  const state = createClankersState({ extensions: { marker: 'initial' } });
   if (cleanup) t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); fs.rmSync(root, { recursive: true, force: true }); });
   return { root, snapshotFile, manager, state, lockDir: `${snapshotFile}.recovery-writer.lock` };
 }
@@ -27,11 +27,11 @@ function emptyHash(): string { return sha(''); }
 test('actual terminated writer remains inert and a fresh manager requires explicit exact takeover', { timeout: 15000 }, async (t) => {
   const f = fixture(t, false);
   const source = `
-    import { createZergPersistenceManager } from ${JSON.stringify(new URL('../persistence.ts', import.meta.url).href)};
-    import { createZergState } from ${JSON.stringify(new URL('../state.ts', import.meta.url).href)};
-    const manager = createZergPersistenceManager({ snapshotFile: process.argv[1] });
+    import { createClankersPersistenceManager } from ${JSON.stringify(new URL('../persistence.ts', import.meta.url).href)};
+    import { createClankersState } from ${JSON.stringify(new URL('../state.ts', import.meta.url).href)};
+    const manager = createClankersPersistenceManager({ snapshotFile: process.argv[1] });
     const ownership = manager.acquireRecoveryOwnership();
-    manager.commitRecoverySnapshot(createZergState({ extensions: { crashProbe: 'durable-intent' } }));
+    manager.commitRecoverySnapshot(createClankersState({ extensions: { crashProbe: 'durable-intent' } }));
     process.stdout.write(JSON.stringify(ownership.owner) + '\\n');
     setInterval(() => {}, 1000);
   `;
@@ -59,14 +59,14 @@ test('actual terminated writer remains inert and a fresh manager requires explic
   child.kill('SIGKILL');
   await closed;
   const before = fs.readFileSync(f.snapshotFile);
-  const restarted = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  const container = createZergStateContainer();
+  const restarted = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const container = createClankersStateContainer();
   restarted.hydrate(container);
   assert.equal(container.read().extensions.crashProbe, 'durable-intent');
   assert.deepEqual(fs.readFileSync(f.snapshotFile), before, 'fresh hydrate cannot replay or rewrite evidence');
   assert.throws(() => restarted.save(f.state), /outstanding recovery writer ownership/);
   const ownership = restarted.acquireRecoveryOwnership!({ expectedSnapshotHash: sha(before), verifiedDeadOwner: oldOwner });
-  restarted.commitRecoverySnapshot!(createZergState({ extensions: { crashProbe: 'explicit-new-owner' } }));
+  restarted.commitRecoverySnapshot!(createClankersState({ extensions: { crashProbe: 'explicit-new-owner' } }));
   restarted.releaseRecoveryOwnership!(ownership.owner);
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.crashProbe, 'explicit-new-owner');
 });
@@ -77,7 +77,7 @@ test('recovery ownership is explicit and generic saves respect a competing owner
   assert.ok(owner.owner.generation);
   assert.ok(fs.lstatSync(f.lockDir).isDirectory());
 
-  const competitor = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const competitor = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
   assert.throws(() => competitor.save(f.state, first), /outstanding recovery writer ownership/);
   assert.throws(() => competitor.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() }), /explicit verified-dead owner evidence/);
 
@@ -118,7 +118,7 @@ test('snapshot generation mismatch blocks and poisons before overwrite', (t) => 
   const expected = sha(fs.readFileSync(f.snapshotFile));
   const owned = f.manager.acquireRecoveryOwnership!({ expectedSnapshotHash: expected });
   fs.writeFileSync(f.snapshotFile, 'external generation');
-  assert.throws(() => f.manager.commitRecoverySnapshot!(createZergState({ extensions: { marker: 'next' } }), { expectedSnapshotHash: expected, now: second }), /head hash changed/);
+  assert.throws(() => f.manager.commitRecoverySnapshot!(createClankersState({ extensions: { marker: 'next' } }), { expectedSnapshotHash: expected, now: second }), /head hash changed/);
   assert.equal(fs.readFileSync(f.snapshotFile, 'utf8'), 'external generation');
   assert.throws(() => f.manager.releaseRecoveryOwnership!(owned.owner), /poisoned/);
 });
@@ -126,13 +126,13 @@ test('snapshot generation mismatch blocks and poisons before overwrite', (t) => 
 test('missing or unsafe ownership evidence blocks takeover rather than deleting retained evidence', (t) => {
   const f = fixture(t);
   fs.mkdirSync(f.lockDir, { mode: 0o700 });
-  assert.throws(() => createZergPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash(), verifiedDeadOwner: {
+  assert.throws(() => createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash(), verifiedDeadOwner: {
     bootId: '00000000-0000-0000-0000-000000000000', pid: 999999, startTimeTicks: '1', writerSessionId: 'old', generation: '0'.repeat(32),
   } }), /missing|invalid|too large|unsupported/);
   assert.ok(fs.lstatSync(f.lockDir).isDirectory());
 
   fs.writeFileSync(join(f.lockDir, 'owner.json'), '{bad', { mode: 0o600 });
-  assert.throws(() => createZergPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash(), verifiedDeadOwner: {
+  assert.throws(() => createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash(), verifiedDeadOwner: {
     bootId: '00000000-0000-0000-0000-000000000000', pid: 999999, startTimeTicks: '1', writerSessionId: 'old', generation: '1'.repeat(32),
   } }), /JSON|unsupported|invalid/);
   assert.equal(fs.readFileSync(join(f.lockDir, 'owner.json'), 'utf8'), '{bad');
@@ -165,17 +165,17 @@ test('explicit release verifies generation and lets another manager acquire', (t
   assert.throws(() => f.manager.releaseRecoveryOwnership!({ ...acquired.owner, generation: '3'.repeat(32) }), /does not match/);
   f.manager.releaseRecoveryOwnership!(acquired.owner);
   assert.equal(fs.existsSync(f.lockDir), false);
-  const next = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
+  const next = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
   assert.ok(next.owner.generation);
 });
 
 test('owned legacy save is serialized by claim and advances recovery expected hash', (t) => {
   const f = fixture(t);
   const acquired = f.manager.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
-  const saved = f.manager.save(createZergState({ extensions: { marker: 'owned-save' } }), first);
+  const saved = f.manager.save(createClankersState({ extensions: { marker: 'owned-save' } }), first);
   assert.equal(saved.lastSavedAt, first().toISOString());
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.marker, 'owned-save');
-  const committed = f.manager.commitRecoverySnapshot!(createZergState({ extensions: { marker: 'after-owned-save' } }), { now: second });
+  const committed = f.manager.commitRecoverySnapshot!(createClankersState({ extensions: { marker: 'after-owned-save' } }), { now: second });
   assert.equal(committed.lastSavedAt, second().toISOString());
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.marker, 'after-owned-save');
   f.manager.releaseRecoveryOwnership!(acquired.owner);
@@ -225,10 +225,10 @@ test('recovery hashing rejects growing or replaced snapshot files', (t) => {
 });
 
 test('first acquire creates missing snapshot parent without accepting ancestor symlinks', (t) => {
-  const root = fs.mkdtempSync(join(tmpdir(), 'zerg-recovery-parent-'));
+  const root = fs.mkdtempSync(join(tmpdir(), 'clankers-recovery-parent-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const missingParentSnapshot = join(root, 'missing', 'nested', 'state.json');
-  const manager = createZergPersistenceManager({ snapshotFile: missingParentSnapshot })!;
+  const manager = createClankersPersistenceManager({ snapshotFile: missingParentSnapshot })!;
   const acquired = manager.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
   assert.ok(fs.lstatSync(join(root, 'missing', 'nested')).isDirectory());
   manager.releaseRecoveryOwnership!(acquired.owner);
@@ -237,7 +237,7 @@ test('first acquire creates missing snapshot parent without accepting ancestor s
   fs.mkdirSync(real);
   const link = join(root, 'link');
   fs.symlinkSync(real, link);
-  const symlinkManager = createZergPersistenceManager({ snapshotFile: join(link, 'state.json') })!;
+  const symlinkManager = createClankersPersistenceManager({ snapshotFile: join(link, 'state.json') })!;
   assert.throws(() => symlinkManager.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() }), /ancestor is not a directory/);
 });
 
@@ -245,7 +245,7 @@ test('incomplete recovery lock blocks generic save without overwriting snapshot'
   const f = fixture(t);
   fs.writeFileSync(f.snapshotFile, 'previous snapshot bytes');
   fs.mkdirSync(f.lockDir, { mode: 0o700 });
-  assert.throws(() => f.manager.save(createZergState({ extensions: { marker: 'new' } }), first), /missing|invalid|too large/);
+  assert.throws(() => f.manager.save(createClankersState({ extensions: { marker: 'new' } }), first), /missing|invalid|too large/);
   assert.equal(fs.readFileSync(f.snapshotFile, 'utf8'), 'previous snapshot bytes');
 });
 
@@ -266,7 +266,7 @@ test('owned commit does not accept a newer external expectedHash override', (t) 
   const acquired = f.manager.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
   fs.writeFileSync(f.snapshotFile, 'external generation');
   const newer = sha(fs.readFileSync(f.snapshotFile));
-  assert.throws(() => f.manager.commitRecoverySnapshot!(createZergState({ extensions: { marker: 'bad' } }), { expectedSnapshotHash: newer, now: first }), /owned recovery head|poisoned/);
+  assert.throws(() => f.manager.commitRecoverySnapshot!(createClankersState({ extensions: { marker: 'bad' } }), { expectedSnapshotHash: newer, now: first }), /owned recovery head|poisoned/);
   assert.equal(fs.readFileSync(f.snapshotFile, 'utf8'), 'external generation');
   assert.throws(() => f.manager.releaseRecoveryOwnership!(acquired.owner), /poisoned/);
 });
@@ -314,17 +314,17 @@ test('invalid or missing owner start ticks block takeover instead of proving dea
 
 test('stale hydrated manager cannot reset family after competitor save and lock release', (t) => {
   const f = fixture(t);
-  f.manager.save(createZergState({ extensions: { marker: 'source' } }), first);
-  const stale = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  stale.hydrate(createZergStateContainer());
+  f.manager.save(createClankersState({ extensions: { marker: 'source' } }), first);
+  const stale = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  stale.hydrate(createClankersStateContainer());
 
-  const competitor = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const competitor = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
   const head = sha(fs.readFileSync(f.snapshotFile));
   const owned = competitor.acquireRecoveryOwnership!({ expectedSnapshotHash: head });
-  competitor.commitRecoverySnapshot!(createZergState({ extensions: { marker: 'selected-child' } }), { expectedSnapshotHash: head, now: second });
+  competitor.commitRecoverySnapshot!(createClankersState({ extensions: { marker: 'selected-child' } }), { expectedSnapshotHash: head, now: second });
   competitor.releaseRecoveryOwnership!(owned.owner);
 
-  assert.throws(() => stale.save(createZergState({ extensions: { marker: 'stale-reset' } }), second), /stale observed snapshot head/);
+  assert.throws(() => stale.save(createClankersState({ extensions: { marker: 'stale-reset' } }), second), /stale observed snapshot head/);
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.marker, 'selected-child');
 });
 
@@ -340,10 +340,10 @@ test('changed head blocks recovery authorization even when caller supplies curre
 });
 
 test('inspect recovery ownership is read-only for missing parents and grants no owner', (t) => {
-  const root = fs.mkdtempSync(join(tmpdir(), 'zerg-inspect-readonly-'));
+  const root = fs.mkdtempSync(join(tmpdir(), 'clankers-inspect-readonly-'));
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); fs.rmSync(root, { recursive: true, force: true }); });
   const snapshotFile = join(root, 'missing', 'nested', 'state.json');
-  const manager = createZergPersistenceManager({ snapshotFile })!;
+  const manager = createClankersPersistenceManager({ snapshotFile })!;
   t.mock.method(fs, 'mkdirSync', () => { throw new Error('inspect attempted mkdir'); });
   t.mock.method(fs, 'openSync', () => { throw new Error('inspect attempted open'); });
   t.mock.method(fs, 'writeFileSync', () => { throw new Error('inspect attempted write'); });
@@ -378,20 +378,20 @@ test('generic saves replace final symlinks while recovery ownership stays strict
   f.manager.save(f.state, first);
   fs.renameSync(f.snapshotFile, target);
   fs.symlinkSync(target, f.snapshotFile);
-  const container = createZergStateContainer();
+  const container = createClankersStateContainer();
   assert.equal(f.manager.hydrate(container).lastLoadError, undefined);
   assert.equal(container.read().extensions.marker, 'initial');
   assert.throws(() => f.manager.acquireRecoveryOwnership!({ expectedSnapshotHash: sha(fs.readFileSync(target)) }), /regular file|ELOOP/);
   const targetBytes = fs.readFileSync(target);
-  f.manager.save(createZergState({ extensions: { marker: 'replacement' } }), second);
+  f.manager.save(createClankersState({ extensions: { marker: 'replacement' } }), second);
   assert.ok(fs.lstatSync(f.snapshotFile).isFile());
   assert.deepEqual(fs.readFileSync(target), targetBytes);
 
   fs.unlinkSync(f.snapshotFile);
   fs.mkdirSync(join(f.root, 'directory-target'));
   fs.symlinkSync(join(f.root, 'directory-target'), f.snapshotFile);
-  const fresh = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  fresh.save(createZergState({ extensions: { marker: 'directory-link-replaced' } }), first);
+  const fresh = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  fresh.save(createClankersState({ extensions: { marker: 'directory-link-replaced' } }), first);
   assert.ok(fs.lstatSync(f.snapshotFile).isFile());
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.marker, 'directory-link-replaced');
 });
@@ -402,8 +402,8 @@ test('explicit legacy save may replace unchanged invalid final symlink observed 
   const targetDir = join(f.root, 'directory-target');
   fs.mkdirSync(targetDir);
   fs.symlinkSync(targetDir, f.snapshotFile);
-  const manager = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  const container = createZergStateContainer();
+  const manager = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const container = createClankersStateContainer();
   const hydrated = manager.hydrate(container);
   assert.match(hydrated.lastLoadError ?? '', /regular file/);
   assert.equal(fs.lstatSync(f.snapshotFile).isSymbolicLink(), true);
@@ -411,7 +411,7 @@ test('explicit legacy save may replace unchanged invalid final symlink observed 
   assert.match(inspected.blocker ?? '', /observed load error|snapshot blocked/);
   assert.throws(() => manager.acquireRecoveryOwnership!(), /prior persistence load error/);
 
-  manager.save(createZergState({ extensions: { marker: 'legacy-replacement' } }), first);
+  manager.save(createClankersState({ extensions: { marker: 'legacy-replacement' } }), first);
   assert.ok(fs.lstatSync(f.snapshotFile).isFile());
   assert.ok(fs.lstatSync(targetDir).isDirectory(), 'replacement must not mutate symlink target directory');
   assert.equal(JSON.parse(fs.readFileSync(f.snapshotFile, 'utf8')).state.extensions.marker, 'legacy-replacement');
@@ -424,30 +424,30 @@ test('invalid-link legacy save is bound to the exact hydrated link evidence only
   fs.mkdirSync(originalTarget);
   fs.mkdirSync(changedTarget);
   fs.symlinkSync(originalTarget, f.snapshotFile);
-  const manager = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  manager.hydrate(createZergStateContainer());
+  const manager = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  manager.hydrate(createClankersStateContainer());
   fs.unlinkSync(f.snapshotFile);
   fs.symlinkSync(changedTarget, f.snapshotFile);
-  assert.throws(() => manager.save(createZergState({ extensions: { marker: 'stale-link' } }), first), /stale observed snapshot head|prior persistence load error/);
+  assert.throws(() => manager.save(createClankersState({ extensions: { marker: 'stale-link' } }), first), /stale observed snapshot head|prior persistence load error/);
   assert.equal(fs.readlinkSync(f.snapshotFile), changedTarget);
 
   fs.unlinkSync(f.snapshotFile);
   fs.mkdirSync(f.snapshotFile);
-  const plainDirectory = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  plainDirectory.hydrate(createZergStateContainer());
-  assert.throws(() => plainDirectory.save(createZergState({ extensions: { marker: 'plain-dir' } }), second), /regular file/);
+  const plainDirectory = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  plainDirectory.hydrate(createClankersStateContainer());
+  assert.throws(() => plainDirectory.save(createClankersState({ extensions: { marker: 'plain-dir' } }), second), /regular file/);
   assert.ok(fs.lstatSync(f.snapshotFile).isDirectory());
 });
 
 test('acquire rejects prior load error and revalidates already-owned generation and expected value', (t) => {
   const f = fixture(t);
   fs.writeFileSync(f.snapshotFile, '{broken');
-  const manager = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
-  manager.hydrate(createZergStateContainer());
+  const manager = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  manager.hydrate(createClankersStateContainer());
   assert.throws(() => manager.acquireRecoveryOwnership!({ expectedSnapshotHash: sha(fs.readFileSync(f.snapshotFile)) }), /prior persistence load error/);
 
   fs.unlinkSync(f.snapshotFile);
-  const clean = createZergPersistenceManager({ snapshotFile: f.snapshotFile })!;
+  const clean = createClankersPersistenceManager({ snapshotFile: f.snapshotFile })!;
   const owned = clean.acquireRecoveryOwnership!({ expectedSnapshotHash: emptyHash() });
   assert.throws(() => clean.acquireRecoveryOwnership!({ expectedSnapshotHash: '1'.repeat(64) }), /owned recovery head|poisoned/);
   assert.throws(() => clean.releaseRecoveryOwnership!(owned.owner), /poisoned/);
@@ -456,7 +456,7 @@ test('acquire rejects prior load error and revalidates already-owned generation 
 test('inspection reports claim and observed blockers without creating ownership', (t) => {
   const f = fixture(t);
   fs.writeFileSync(f.snapshotFile, '{broken');
-  f.manager.hydrate(createZergStateContainer());
+  f.manager.hydrate(createClankersStateContainer());
   fs.mkdirSync(`${f.snapshotFile}.recovery-writer.claim`);
   const inspected = f.manager.inspectRecoveryOwnership!();
   assert.equal(inspected.claimPresent, true);

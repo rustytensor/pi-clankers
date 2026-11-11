@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { registerHooks } from 'node:module';
 
 const regression = process.argv.includes('--regression');
-const root = process.env.ZERG_RESULTS_TEST_ROOT ?? join(tmpdir(), 'pi-zerg-results');
+const root = process.env.CLANKERS_RESULTS_TEST_ROOT ?? join(tmpdir(), 'pi-clankers-results');
 mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, 'results-'));
 const agentDir = join(dir, 'agent'); mkdirSync(agentDir);
@@ -51,12 +51,12 @@ async function cleanup() {
     await Promise.all([registration?.control.drain?.(), standalone?.drain?.()]);
     for (const session of sessions) { await session.abort(); session.dispose(); }
   } finally {
-    hook?.deregister(); delete globalThis.__zergResultsSdk;
+    hook?.deregister(); delete globalThis.__clankersResultsSdk;
     clearTimeout(deadline); clearTimeout(hardDeadline); process.chdir(oldCwd); rmSync(dir, { recursive: true, force: true });
   }
 }
 try {
-  const sdkPath = process.env.ZERG_RESULTS_SDK;
+  const sdkPath = process.env.CLANKERS_RESULTS_SDK;
   assert(!sdkPath || sdkPath.startsWith('file:') || isAbsolute(sdkPath), 'SDK override must be an absolute path or file URL');
   const sdkUrl = sdkPath ? (sdkPath.startsWith('file:') ? sdkPath : pathToFileURL(sdkPath).href) : import.meta.resolve('@earendil-works/pi-coding-agent');
   const sdk = await import(sdkUrl);
@@ -108,7 +108,7 @@ try {
   }
   // Only the lazy SDK import from production index receives these public factory
   // overrides. Every factory still creates real SDK sessions/tools/providers.
-  globalThis.__zergResultsSdk = {
+  globalThis.__clankersResultsSdk = {
     getAgentDir: () => agentDir,
     ModelRuntime: { create: async () => runtime },
     SettingsManager: { create: settings },
@@ -116,18 +116,18 @@ try {
     DefaultResourceLoader: class extends sdk.DefaultResourceLoader { constructor(options) { super({ ...options, ...safeLoader }); } },
     createAgentSession: createSession,
   };
-  const facade = `export * from ${JSON.stringify(sdkUrl)}; const f = globalThis.__zergResultsSdk; export const { getAgentDir, ModelRuntime, SettingsManager, SessionManager, DefaultResourceLoader, createAgentSession } = f;`;
+  const facade = `export * from ${JSON.stringify(sdkUrl)}; const f = globalThis.__clankersResultsSdk; export const { getAgentDir, ModelRuntime, SettingsManager, SessionManager, DefaultResourceLoader, createAgentSession } = f;`;
   hook = registerHooks({ resolve(specifier, context, next) {
     if (specifier === '@earendil-works/pi-coding-agent' && /\/index\.(ts|js)$/.test(context.parentURL ?? '')) return { url: 'data:text/javascript,' + encodeURIComponent(facade), shortCircuit: true };
     return next(specifier, context);
   } });
-  const zerg = await import(new URL('../../index.ts', import.meta.url));
+  const clankers = await import(new URL('../../index.ts', import.meta.url));
   let tool; const lifecycle = new Map();
   const loader = new sdk.DefaultResourceLoader({ cwd: dir, agentDir, settingsManager: settings(), ...safeLoader, extensionFactories: [pi => {
     // Observe the outgoing message, then forward to the REAL parent transport.
-    registration = zerg.registerZergSwarmExtension({ ...pi, cwd: dir,
+    registration = clankers.registerClankersExtension({ ...pi, cwd: dir,
       on(name, handler) { lifecycle.set(name, handler); return pi.on(name, handler); },
-      registerTool(definition) { if (definition.name === 'zerg_control') tool = definition; return pi.registerTool(definition); },
+      registerTool(definition) { if (definition.name === 'clankers_control') tool = definition; return pi.registerTool(definition); },
       sendMessage(message, options) {
         assert.deepEqual(options, { deliverAs: 'followUp', triggerTurn: true });
         const payload = JSON.parse(message.content);
@@ -136,7 +136,7 @@ try {
         assert(sessions.size > 1 && [...sessions].filter(session => session !== parent && session.model?.id === payload.result.agent_id).every(session => disposed.has(session)), 'child cleaned up before publication');
         immediateReads.push(registration.control.execute(payload.retrieve));
         sent.push(structuredClone(payload));
-        if (process.env.ZERG_RESULTS_PLANTED_TRUNCATION === '1') {
+        if (process.env.CLANKERS_RESULTS_PLANTED_TRUNCATION === '1') {
           payload.result.final_message = payload.result.final_message?.slice(0, 2500) ?? null;
           message = { ...message, content: JSON.stringify(payload), details: payload };
         }
@@ -147,10 +147,10 @@ try {
   await loader.reload();
   ({ session: parent } = await createSession({ cwd: dir, agentDir, modelRuntime: runtime, model: (await runtime.getAvailable()).find(model => model.id === 'parent'), settingsManager: settings(), sessionManager: sdk.SessionManager.inMemory(dir), resourceLoader: loader, tools: [] }));
   parent.subscribe(event => {
-    if (event.type === 'message_end' && event.message.role === 'custom' && event.message.customType === 'pi-zerg-swarm/agent-result/v1') notices.push(JSON.parse(event.message.content));
+    if (event.type === 'message_end' && event.message.role === 'custom' && event.message.customType === 'pi-clankers/agent-result/v1') notices.push(JSON.parse(event.message.content));
   });
   await parent.bindExtensions({ mode: 'print' });
-  assert(tool, 'actual SDK registered zerg_control');
+  assert(tool, 'actual SDK registered clankers_control');
   let callId = 0;
   async function execute(action) {
     const response = await tool.execute('results-' + (++callId), action);
@@ -198,7 +198,7 @@ try {
   if (regression) {
     // Separate native control has no parent-notice authority. The provider still
     // creates real SDK sessions; these are terminal/data examples, not matrices.
-    standalone = zerg.createZergControl();
+    standalone = clankers.createClankersControl();
     const schema = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false };
     const beforeInvalid = workerCalls;
     const refused = await standalone.execute({ action: 'agents.create', id: 'bad-schema', prompt: 'No launch.', result_schema: { type: 'not-a-type' } });

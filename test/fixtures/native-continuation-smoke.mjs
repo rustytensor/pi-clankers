@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 // node --import tsx test/fixtures/native-continuation-smoke.mjs
 // Actual installed SDK, normal trusted fixture resources, never real credentials.
 // Prototype wrappers observe/guard actual methods; they do not fabricate sessions.
-const root = mkdtempSync(join(tmpdir(), 'zerg-continuation-sdk-'));
+const root = mkdtempSync(join(tmpdir(), 'clankers-continuation-sdk-'));
 const fixturePath = process.env.PATH ?? '';
 const originalFetch = globalThis.fetch, originalConnect = net.Socket.prototype.connect;
 const controls = [], sourceBytes = new Map(), requests = [], disposed = [], sessions = [], gates = [];
@@ -88,15 +88,15 @@ export default function(pi) {
   put('factory');
   pi.on('session_start', (_event, ctx) => put('session_start', { id: ctx.sessionManager.getSessionId() }));
   pi.on('input', event => { put('input', { text: event.text }); return { action: event.text.includes('HANDLED_NO_MODEL') ? 'handled' : 'continue' }; });
-  pi.on('before_agent_start', async (event, ctx) => { put('before_agent_start', { prompt: event.prompt }); await globalThis[Symbol.for('pi-zerg-swarm/fixture/pre-provider-gate/v1')]?.(ctx); });
+  pi.on('before_agent_start', async (event, ctx) => { put('before_agent_start', { prompt: event.prompt }); await globalThis[Symbol.for('pi-clankers/fixture/pre-provider-gate/v1')]?.(ctx); });
   pi.registerCommand('never-expand', { description: 'must not dispatch', handler: () => { put('COMMAND_DISPATCH_FORBIDDEN'); throw Error('Literal continuation dispatched as slash command'); } });
 }`);
   writeFileSync(join(root, 'agent/prompts/never-expand.md'), '---\ndescription: must not expand\n---\nTEMPLATE_EXPANSION_FORBIDDEN\n');
   writeFileSync(join(root, 'agent/skills/continuation/SKILL.md'), '---\nname: continuation\ndescription: CURRENT_SKILL_NORMAL_RESOURCE\n---\nRead-only fixture guidance.\n');
   writeFileSync(join(root, 'AGENTS.md'), 'OLD_CONTEXT_RESOURCE: original-source instructions only.\n');
   sdk = await import('@earendil-works/pi-coding-agent');
-  globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(sdk);
-  const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+  globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(sdk);
+  const clankers = await import(new URL('../../index.ts', import.meta.url).href);
   state = await import(new URL('../../state.ts', import.meta.url).href);
   const persistence = await import(new URL('../../persistence.ts', import.meta.url).href);
   const historyApi = await import(new URL('../../native-history.ts', import.meta.url).href);
@@ -107,9 +107,9 @@ export default function(pi) {
   sdk.AgentSession.prototype.dispose = function (...args) { const result = originalDispose.apply(this, args); disposed.push(this.sessionId); return result; };
   sdk.SessionManager.open = function (path, ...args) { assert(!sourceBytes.has(resolve(path)), 'Original source must NEVER be SDK opened'); return originalOpen.call(this, path, ...args); };
   sdk.SessionManager.forkFrom = function (path, ...args) { assert(!sourceBytes.has(resolve(path)), 'Original source must NEVER be SDK forked'); return originalFork.call(this, path, ...args); };
-  container = state.createZergStateContainer();
+  container = state.createClankersStateContainer();
   const snapshotFile = join(root, 'snapshot.json');
-  const owner = zerg.createZergControl(container, { persistence: { enabled: true, snapshotFile } }); controls.push(owner);
+  const owner = clankers.createClankersControl(container, { persistence: { enabled: true, snapshotFile } }); controls.push(owner);
   async function execute(input) { const result = await owner.execute(input); assert(result.ok, JSON.stringify(result)); return result; }
   async function show(runId) { return (await execute({ action: 'runs.show', runId })).data.run; }
   async function terminal(runId, status = 'done') {
@@ -217,18 +217,18 @@ export default function(pi) {
   const currentModel = newRows.findLast(row => row.type === 'model_change');
   assert.equal(currentModel?.provider, 'fixture'); assert.equal(currentModel?.modelId, 'current');
   assert.equal(newRows.findLast(row => row.type === 'thinking_level_change')?.thinkingLevel, copiedSession.thinkingLevel, 'Destination records current effective thinking');
-  const own = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-session/v1'); assert.equal(own.length, 1);
+  const own = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-clankers/native-session/v1'); assert.equal(own.length, 1);
   const { attachment: _attachment, disposedAt: _disposedAt, recoveredAt: _recoveredAt, ...sourceIdentity } = source;
-  const lineage = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-continuation/v1'); assert.equal(lineage.length, 1);
+  const lineage = newRows.filter(row => row.type === 'custom' && row.customType === 'pi-clankers/native-continuation/v1'); assert.equal(lineage.length, 1);
   assert.deepEqual(Object.keys(lineage[0].data).sort(), ['ancestors', 'entryId', 'policyDigest', 'schemaVersion', 'source', 'sourceFingerprint'].sort());
   assert.deepEqual(lineage[0].data.source, sourceIdentity); assert.equal(lineage[0].data.entryId, edit.id); assert.equal(lineage[0].data.sourceFingerprint, successReview.sourceFingerprint); assert.equal(lineage[0].data.policyDigest, successReview.policyDigest);
   const oldRows = readFileSync(source.sessionFile, 'utf8').trim().split('\n').map(JSON.parse).slice(1);
   for (const row of oldRows) {
     const inherited = newRows.find(candidate => candidate.id === row.id); assert(inherited, 'Whole historical tree copied, selected context still exact');
-    const expected = row.type === 'custom' && row.customType === 'pi-zerg-swarm/native-session/v1' ? { ...row, customType: 'pi-zerg-swarm/native-ancestor-session/v1' } : row;
+    const expected = row.type === 'custom' && row.customType === 'pi-clankers/native-session/v1' ? { ...row, customType: 'pi-clankers/native-ancestor-session/v1' } : row;
     assert.deepEqual(inherited, expected, 'Only recognized own metadata namespace changes; opaque payload/tree IDs preserved');
   }
-  const ancestors = newRows.filter(row => row.type === 'custom' && ['pi-zerg-swarm/native-ancestor-session/v1', 'pi-zerg-swarm/native-ancestor-continuation/v1'].includes(row.customType));
+  const ancestors = newRows.filter(row => row.type === 'custom' && ['pi-clankers/native-ancestor-session/v1', 'pi-clankers/native-ancestor-continuation/v1'].includes(row.customType));
   assert.deepEqual(lineage[0].data.ancestors, ancestors.map(row => ({ id: row.id, customType: row.customType, dataDigest: createHash('sha256').update(JSON.stringify(row.data)).digest('hex') })));
   await historyApi.readNativeHistory(copied, { agentDir: join(root, 'agent'), requireFinalNewline: true });
   await historyApi.readNativeHistory(source, { agentDir: join(root, 'agent'), requireFinalNewline: true });
@@ -242,7 +242,7 @@ export default function(pi) {
   assert.equal(requests.length, beforeHandledRequests, 'Normal handled input makes no request'); assert(!handled.finalSummary?.includes('OLD_FINAL_ONLY')); unchanged();
   // Ordinary authorized hooks still run; their changes must be checked before
   // any provider request. Use public session/model APIs, not private SDK state.
-  const hookKey = Symbol.for('pi-zerg-swarm/fixture/pre-provider-gate/v1');
+  const hookKey = Symbol.for('pi-clankers/fixture/pre-provider-gate/v1');
   for (const change of ['readOnly', 'model']) {
     const gateReview = await prepare(), beforeRequests = requests.length;
     let hookApplied = false;
@@ -292,10 +292,10 @@ export default function(pi) {
   // Owner-local review survives neither disposal nor persistence recovery.
   const restartReview = await prepare(), saved = owner.getState();
   owner.dispose();
-  saved.extensions.zergSessionMessages = { schemaVersion: 1, receipts: [{ schemaVersion: 1, messageId: 'old-queued-recovery-only', key, body: 'OLD_QUEUE_MUST_NOT_REPLAY', mode: 'followUp', status: 'queued', detail: 'TEST-owned recovery-boundary injection, not a connected queue', createdAt: timestamp, updatedAt: timestamp, persistence: 'saved' }] };
-  persistence.createZergPersistenceManager({ enabled: true, snapshotFile }).save(saved);
+  saved.extensions.clankersSessionMessages = { schemaVersion: 1, receipts: [{ schemaVersion: 1, messageId: 'old-queued-recovery-only', key, body: 'OLD_QUEUE_MUST_NOT_REPLAY', mode: 'followUp', status: 'queued', detail: 'TEST-owned recovery-boundary injection, not a connected queue', createdAt: timestamp, updatedAt: timestamp, persistence: 'saved' }] };
+  persistence.createClankersPersistenceManager({ enabled: true, snapshotFile }).save(saved);
   const count = boundary();
-  const restored = zerg.createZergControl(state.createZergStateContainer(), { persistence: { enabled: true, snapshotFile } }); controls.push(restored);
+  const restored = clankers.createClankersControl(state.createClankersStateContainer(), { persistence: { enabled: true, snapshotFile } }); controls.push(restored);
   const stale = await restored.execute({ action: 'session.continuation.start', reviewId: restartReview.reviewId, confirm: true });
   assert.equal(stale.ok, false, 'Review tokens do not survive owner restart');
   const recoveredReceipts = (await restored.execute({ action: 'session.messages.list', ...key })).data.receipts;

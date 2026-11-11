@@ -6,7 +6,7 @@ import { syncBuiltinESMExports, createRequire, registerHooks } from 'node:module
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { installSessionLifecycleProbe } from './automation-cli-acceptance.mjs';
-if (process.env.ZERG_WORKFLOW_AUTOMATION_ACCEPTANCE !== 'parent-approved') throw new Error('acceptance-opt-in-required');
+if (process.env.CLANKERS_WORKFLOW_AUTOMATION_ACCEPTANCE !== 'parent-approved') throw new Error('acceptance-opt-in-required');
 const root=process.env.S8E_OWNED_ROOT, layout=process.env.S8E_LAYOUT, port=Number(process.env.S8E_PORT);
 const log=x=>fs.appendFileSync(root+'/probe.jsonl',JSON.stringify({pid:process.pid,...x})+'\n');
 const deny=x=>{log({blocked:x});throw new Error('acceptance-guard-denied');};

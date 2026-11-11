@@ -122,18 +122,18 @@ def request_oracle(rows, expected):
         assert (row['model'], row['provider'], row['reasoning']) == ('fixed', 'continuation-fixture', 'off'), 'wrong_model'
     assert len({(row['sessionId'], row['call']) for row in rows}) == len(rows), 'duplicate_request_token'
 def settled(n):
-    row = state()['agents'].get(f'zerg-continuation-{n}')
+    row = state()['agents'].get(f'clankers-continuation-{n}')
     if not row or row['status'] == 'running': return None
     assert row['status'] == 'done', 'wrong_canonical_outcome'; return row
 def result(n, expected):
-    r = ok({'action': 'agents.result', 'id': 'solo', 'runId': f'zerg-continuation-{n}', 'memberRunId': f'zerg-continuation-{n}', 'full': True})['data']
+    r = ok({'action': 'agents.result', 'id': 'solo', 'runId': f'clankers-continuation-{n}', 'memberRunId': f'clankers-continuation-{n}', 'full': True})['data']
     assert r['status'] == 'found', 'result_missing'
     v = r['result']
-    assert (v['agent_id'], v['run_id'], v['member_run_id'], v['task_id'], v['state'], v['final_message']) == ('solo', f'zerg-continuation-{n}', f'zerg-continuation-{n}', f'task-continuation-{n}', 'done', expected), 'wrong_exact_result'
+    assert (v['agent_id'], v['run_id'], v['member_run_id'], v['task_id'], v['state'], v['final_message']) == ('solo', f'clankers-continuation-{n}', f'clankers-continuation-{n}', f'task-continuation-{n}', 'done', expected), 'wrong_exact_result'
     assert v['full_available'] is True, 'full_result_unavailable'
     return v
 def fixed_ids(r, n):
-    assert (r['runId'], r['taskId']) == (f'zerg-continuation-{n}', f'task-continuation-{n}'), 'wrong_new_ids'
+    assert (r['runId'], r['taskId']) == (f'clankers-continuation-{n}', f'task-continuation-{n}'), 'wrong_new_ids'
 def prepare(worker, job, task=NEW):
     return ok({'action': 'tmux.continuation.prepare', 'workerId': worker, 'jobId': job, 'task': task})['data']
 def start(review): return {'action': 'tmux.continuation.start', 'reviewId': review['reviewId'], 'confirm': True}
@@ -217,7 +217,7 @@ def main():
             assert fresh['workerId'] != old_id and fresh['sessionId'] != old_session, 'not_new_worker_session'
             assert state()['tasks']['task-continuation-2']['title'] == NEW
             request_oracle(requests(), [(old_session, TASK), (fresh['sessionId'], prompt(SOURCE))])
-            assert result(1, SOURCE) == old_result and state()['agents']['zerg-continuation-1'] == old_state, 'old_source_mutated'
+            assert result(1, SOURCE) == old_result and state()['agents']['clankers-continuation-1'] == old_state, 'old_source_mutated'
             refusal(start(review)); checks.append('exact_32KiB_prepare_zero_effects_new_public_slash_start_immutable_source_refusals')
             evicted = prepare(old_id, old_job)
             # Exercise registered slash prepare and discard without executing a model.
@@ -253,20 +253,20 @@ def main():
         assert revocation['pane']['parent'] == revocation['server']['pid'] and revocation['broker']['parent'] == parent.pid
         wait(lambda: len(workers()) == (0 if REVOCATION_ONLY else 1) and gone(before_pids, before_artifacts), 'revoked_launch_resources_not_reaped')
         def revoked_settled():
-            row = state()['agents'].get(f'zerg-continuation-{revoked_n}')
+            row = state()['agents'].get(f'clankers-continuation-{revoked_n}')
             return row if row and row['status'] != 'running' else None
         revoked_state = wait(revoked_settled, 'revoked_launch_not_settled')
         assert revoked_state['status'] == 'failed', 'revoked_launch_false_success'
         assert state()['tasks'][f'task-continuation-{revoked_n}']['status'] == 'failed', 'revoked_task_not_failed'
         # No assistant text exists before submission; full=True intentionally hides
         # such records (agent-results.ts lookupAgentResult). Require the record itself.
-        lookup = ok({'action': 'agents.result', 'id': 'solo', 'runId': f'zerg-continuation-{revoked_n}', 'memberRunId': f'zerg-continuation-{revoked_n}', 'full': False})['data']
+        lookup = ok({'action': 'agents.result', 'id': 'solo', 'runId': f'clankers-continuation-{revoked_n}', 'memberRunId': f'clankers-continuation-{revoked_n}', 'full': False})['data']
         assert lookup['status'] == 'found', 'revoked_failed_record_missing'
         failed = lookup['result']
-        assert (failed['agent_id'], failed['run_id'], failed['member_run_id'], failed['task_id'], failed['state'], failed['final_message']) == ('solo', f'zerg-continuation-{revoked_n}', f'zerg-continuation-{revoked_n}', f'task-continuation-{revoked_n}', 'failed', None), 'revoked_wrong_exact_failed_result'
+        assert (failed['agent_id'], failed['run_id'], failed['member_run_id'], failed['task_id'], failed['state'], failed['final_message']) == ('solo', f'clankers-continuation-{revoked_n}', f'clankers-continuation-{revoked_n}', f'task-continuation-{revoked_n}', 'failed', None), 'revoked_wrong_exact_failed_result'
         assert state()['mode']['readOnly'] is True
         request_oracle(requests(), expected)
-        assert result(1, SOURCE) == old_result and state()['agents']['zerg-continuation-1'] == old_state, 'old_source_mutated'
+        assert result(1, SOURCE) == old_result and state()['agents']['clankers-continuation-1'] == old_state, 'old_source_mutated'
         checks.append('exact_owned_postspawn_canonical_readonly_reaps_launch_zero_additional_provider_no_false_completed_result')
         if not REVOCATION_ONLY:
             assert workers()[0]['workerId'] == fresh['workerId'], 'unrelated_worker_lost'

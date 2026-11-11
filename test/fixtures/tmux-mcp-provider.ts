@@ -26,7 +26,7 @@ export default async function (pi: any) {
     { id: 'denied4', name: 'mcp', arguments: { tool: 'mcp__larra__delete_symbol', args: search('denied4') } },
     { id: 'denied5', name: 'larra', arguments: { tool: 'delete_symbol', args: search('denied5') } },
     { id: 'denied6', name: 'mcp', arguments: { tool: 'clankers_control', args: search('denied6') } },
-    { id: 'denied7', name: 'mcp', arguments: { tool: 'zerg_control', args: search('denied7') } },
+    { id: 'denied7', name: 'mcp', arguments: { tool: 'clankers_control', args: search('denied7') } },
   ];
   pi.registerProvider('mcp-fixture', {
     baseUrl: 'http://fixture.invalid', apiKey: 'synthetic-not-a-key', api: 'openai-completions',

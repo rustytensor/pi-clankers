@@ -10,7 +10,6 @@ import childProcess from 'node:child_process';
 import net from 'node:net';
 
 const sdkOverride = process.env.CLANKERS_RENAME_SDK;
-const splitAlias = process.env.CLANKERS_RENAME_FAULT_SPLIT_ALIAS === '1';
 assert(!sdkOverride || isAbsolute(sdkOverride) || sdkOverride.startsWith('file:'), 'SDK must be absolute or a file URL');
 const sdkUrl = sdkOverride ? (sdkOverride.startsWith('file:') ? sdkOverride : pathToFileURL(sdkOverride).href) : import.meta.resolve('@earendil-works/pi-coding-agent');
 const scratch = process.env.CLANKERS_RENAME_TMPDIR ?? join(tmpdir(), 'pi-clankers-rename');
@@ -25,11 +24,11 @@ for (const key of Object.keys(process.env)) delete process.env[key];
 Object.assign(process.env, { HOME: dir, XDG_CONFIG_HOME: dir, XDG_CACHE_HOME: dir, XDG_DATA_HOME: dir, TMPDIR: join(dir, 'tmp'), JITI_FS_CACHE: '0', PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', PI_SKIP_VERSION_CHECK: '1', PATH: '', NO_COLOR: '1' });
 process.chdir(cwd);
 const deadline = setTimeout(() => { console.error('Rename fixture exceeded 30s'); process.exit(1); }, 30_000);
-let registration, isolated, child, parent;
+let registration, child, parent;
 let modelCalls = 0;
 try {
   const sdk = await import(sdkUrl);
-  const zerg = await import(new URL('../../index.ts', import.meta.url));
+  const clankers = await import(new URL('../../index.ts', import.meta.url));
   const state = await import(new URL('../../state.ts', import.meta.url));
   const persistence = await import(new URL('../../persistence.ts', import.meta.url));
   const blocked = () => { throw new Error('Fixture forbids subprocess/install/fetch/network'); };
@@ -50,7 +49,7 @@ try {
     agentsFilesOverride: () => ({ agentsFiles: [] }),
     extensionFactories: [pi => {
       factories++;
-      registration = zerg.registerZergSwarmExtension({ ...pi, cwd,
+      registration = clankers.registerClankersExtension({ ...pi, cwd,
         registerTool(definition) { tools.set(definition.name, definition); return pi.registerTool(definition); },
         registerCommand(name, command) { commands.set(name, command); return pi.registerCommand(name, command); },
         on(name, handler) { lifecycle.set(name, (lifecycle.get(name) ?? 0) + 1); return pi.on(name, handler); },
@@ -60,37 +59,33 @@ try {
   await loader.reload();
   ({ session: parent } = await sdk.createAgentSession({ cwd, agentDir, modelRuntime: runtime,
     model: (await runtime.getAvailable()).find(model => model.provider === 'rename-fixture' && model.id === 'inert'),
-    settingsManager: sdk.SettingsManager.inMemory({ defaultTools: ['clankers_control', 'zerg_control'], retry: { enabled: false }, compaction: { enabled: false } }),
+    settingsManager: sdk.SettingsManager.inMemory({ defaultTools: ['clankers_control'], retry: { enabled: false }, compaction: { enabled: false } }),
     sessionManager: sdk.SessionManager.inMemory(cwd), resourceLoader: loader,
-    tools: ['clankers_control', 'zerg_control'] }));
+    tools: ['clankers_control'] }));
   await parent.bindExtensions({ mode: 'print' });
-  assert.deepEqual(parent.getActiveToolNames().sort(), ['clankers_control', 'zerg_control']);
-  assert.deepEqual(parent.extensionRunner.getRegisteredCommands().map(command => command.name).sort(), ['clank', 'clankers', 'swarm', 'zerg', 'zerg-swarm']);
+  assert.deepEqual(parent.getActiveToolNames().sort(), ['clankers_control']);
+  assert.deepEqual(parent.extensionRunner.getRegisteredCommands().map(command => command.name).sort(), ['clank', 'clankers']);
   assert.equal(factories, 1);
-  assert.deepEqual([...tools.keys()], ['clankers_control', 'zerg_control']);
-  assert.deepEqual([...commands.keys()], ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']);
-  assert.equal(tools.get('clankers_control').execute, tools.get('zerg_control').execute);
-  assert.equal(tools.get('clankers_control').parameters, tools.get('zerg_control').parameters);
+  assert.deepEqual([...tools.keys()], ['clankers_control']);
+  assert.deepEqual([...commands.keys()], ['clankers', 'clank']);
   assert.equal(lifecycle.get('session_start'), 1);
   assert.equal(lifecycle.get('session_shutdown'), 1);
   const lifecycleBefore = [...lifecycle];
-  if (splitAlias) isolated = zerg.createZergControl(state.createZergStateContainer());
   async function execute(name, action) {
-    if (splitAlias && name === 'zerg_control') return isolated.execute(action);
     return (await tools.get(name).execute('rename-journey', action)).details;
   }
   const created = await execute('clankers_control', { action: 'agents.create', id: 'rename-proof', prompt: 'Return fixture data only.', tools: [] });
   assert.equal(created.ok, true);
-  const oldRead = await execute('zerg_control', { action: 'agents.show', id: 'rename-proof' });
-  assert.equal(oldRead.ok, true, 'old alias must find rename-proof created through new alias');
+  const oldRead = await execute('clankers_control', { action: 'agents.show', id: 'rename-proof' });
+  assert.equal(oldRead.ok, true, 'a second read must find rename-proof created through the same tool');
   assert.equal(oldRead.data.agent.id, 'rename-proof');
   assert.equal(oldRead.data.agent.prompt, 'Return fixture data only.');
   assert.deepEqual(oldRead.data.agent.tools, []);
-  assert.equal((await execute('zerg_control', { action: 'agents.update', id: 'rename-proof', label: 'shared-proof' })).ok, true);
+  assert.equal((await execute('clankers_control', { action: 'agents.update', id: 'rename-proof', label: 'shared-proof' })).ok, true);
   const newRead = await execute('clankers_control', { action: 'agents.show', id: 'rename-proof' });
   assert.equal(newRead.data.agent.label, 'shared-proof');
-  const parser = zerg.createZergCommandHandler(() => registration.control.getState());
-  for (const alias of ['clankers', 'clank', 'zerg', 'zerg-swarm', 'swarm']) {
+  const parser = clankers.createClankersCommandHandler(() => registration.control.getState());
+  for (const alias of ['clankers', 'clank']) {
     const notices = [];
     await commands.get(alias).handler('agents show rename-proof', { hasUI: false, mode: 'print', ui: { notify: text => notices.push(text) } });
     assert.deepEqual(notices, [newRead.output]);
@@ -106,16 +101,18 @@ try {
   const legacyRoot = join(dir, 'legacy');
   const legacyFile = join(legacyRoot, '.pi/zerg-swarm/v1/state.json');
   mkdirSync(join(legacyRoot, '.pi/zerg-swarm/v1'), { recursive: true }); writeFileSync(legacyFile, legacyBytes);
-  const manager = persistence.createZergPersistenceManager({ rootDir: legacyRoot });
-  const recovered = state.createZergStateContainer();
-  assert.equal(manager.info.snapshotFile, legacyFile);
+  const manager = persistence.createClankersPersistenceManager({ rootDir: legacyRoot });
+  const recovered = state.createClankersStateContainer();
+  const currentFile = join(legacyRoot, '.pi/clankers/v1/state.json');
+  assert.equal(manager.info.snapshotFile, currentFile);
   const info = manager.hydrate(recovered, () => new Date('2026-10-02T00:00:00.000Z'));
   assert.deepEqual(info.recoveredRunIds, ['zerg-running']);
   const ref = state.getSubagentRunSnapshot(recovered.read(), 'zerg-running').nativeSessions[0];
   assert.equal(ref.piSessionId, 'pi-legacy'); assert.equal(ref.createdAt, '2026-10-01T00:00:00.000Z');
   assert.equal(ref.attachment, 'unavailable'); assert.equal(ref.disposedAt, undefined);
-  assert.equal(recovered.read().extensions.zergControl.controller, 'pi');
+  assert.equal(recovered.read().extensions.clankersControl.controller, 'pi');
   assert.equal(readFileSync(legacyFile, 'utf8'), legacyBytes);
+  assert.equal(JSON.parse(readFileSync(currentFile, 'utf8')).state.extensions.clankersControl.controller, 'pi', 'converted copy written under the new path');
 
   // SDK managed npm layout, preinstalled locally. No package install or copied implementation.
   // Both scopes contain pinned/object entries; prefix-similar names must remain loadable.
@@ -148,7 +145,7 @@ try {
       constructor(options) { super({ ...options, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true, agentsFilesOverride: () => ({ agentsFiles: [] }) }); childLoader = this; }
     },
   };
-  ({ session: child } = await zerg.__zergNativeTestInternals.createPiNativeSession(nativeSdk,
+  ({ session: child } = await clankers.__clankersNativeTestInternals.createPiNativeSession(nativeSdk,
     { id: 'rename-child', prompt: 'Return fixture data only.', source: 'runtime', tools: [] }, 'Inspect fixture only.', cwd, 'rename-fixture/inert'));
   assert(childLoader, 'production native path used real DefaultResourceLoader');
   assert.deepEqual(childLoader.getExtensions().errors, []);
@@ -169,8 +166,8 @@ try {
 } finally {
   if (child) { await child.abort(); child.dispose(); }
   if (parent) { await parent.abort(); parent.dispose(); }
-  registration?.dispose(); isolated?.dispose();
-  await Promise.all([registration?.control.drain?.(), isolated?.drain?.()]);
+  registration?.dispose();
+  await Promise.all([registration?.control.drain?.()]);
   delete globalThis.__clankersRenameFactories;
   clearTimeout(deadline); process.chdir(oldCwd); rmSync(dir, { recursive: true, force: true });
 }

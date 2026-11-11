@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 
 // Actual installed public SDK. Fail closed before imports: no user resources,
 // credentials or provider TEST calls; only this exact isolated loopback endpoint.
-const root = mkdtempSync(join(tmpdir(), 'zerg-timeline-sdk-'));
+const root = mkdtempSync(join(tmpdir(), 'clankers-timeline-sdk-'));
 const originalEnv = { ...process.env }, originalCwd = process.cwd();
 const requests = [], gates = [], sessions = [], controls = [];
 let prompts = 0, disposals = 0, aborted = 0;
@@ -73,8 +73,8 @@ writeFileSync(join(root, 'agent', 'models.json'), JSON.stringify({ providers: { 
   models: ['worker', 'leader'].map((id) => ({ id, reasoning: false, input: ['text'], contextWindow: 32768, maxTokens: 128 })),
 } } }));
 sdk = await import('@earendil-works/pi-coding-agent');
-globalThis[Symbol.for('zerg/fixture-safety')].watchSDK(sdk);
-const zerg = await import(new URL('../../index.ts', import.meta.url).href);
+globalThis[Symbol.for('clankers/fixture-safety')].watchSDK(sdk);
+const clankers = await import(new URL('../../index.ts', import.meta.url).href);
 state = await import(new URL('../../state.ts', import.meta.url).href);
 const persistence = await import(new URL('../../persistence.ts', import.meta.url).href);
 checkDeadline();
@@ -82,8 +82,8 @@ originalBind = sdk.AgentSession.prototype.bindExtensions; originalPrompt = sdk.A
 sdk.AgentSession.prototype.bindExtensions = function (...args) { sessions.push(this); return originalBind.apply(this, args); };
 sdk.AgentSession.prototype.prompt = function (...args) { prompts++; return originalPrompt.apply(this, args); };
 sdk.AgentSession.prototype.dispose = function (...args) { disposals++; return originalDispose.apply(this, args); };
-  const container = runtimeContainer = state.createZergStateContainer(), snapshotFile = join(root, 'timeline-state.json');
-  const owner = zerg.createZergControl(container, { persistence: { enabled: true, snapshotFile } }); controls.push(owner);
+  const container = runtimeContainer = state.createClankersStateContainer(), snapshotFile = join(root, 'timeline-state.json');
+  const owner = clankers.createClankersControl(container, { persistence: { enabled: true, snapshotFile } }); controls.push(owner);
   for (const id of ['worker', 'leader']) assert((await owner.execute({ action: 'agents.create', id, model: `fixture/${id}`, tools: [], prompt: 'Answer briefly without tools.' })).ok);
   assert((await owner.execute({ action: 'team.create', id: 'timeline-team', leader: 'leader', members: ['worker'] })).ok);
   const launches = await Promise.all([1, 2].map((i) => owner.execute({ action: 'run', agent: 'timeline-team', task: `Isolated timeline ${i}`, background: true })));
@@ -106,7 +106,7 @@ sdk.AgentSession.prototype.dispose = function (...args) { disposals++; return or
   assert.equal(readFileSync(snapshotFile, 'utf8'), snapshotBefore); assert.equal(prompts, explicitPrompts); assert.equal(disposals, 0);
   assert.equal((await read({ parentRunId: first.parentRunId, piSessionId: second.piSessionId })).entries.length, 0);
   assert.equal((await read({ teamId: 'unknown' })).entries.length, 0);
-  const stranger = zerg.createZergControl(state.createZergStateContainer(), { subagentAdapter: { kind: 'fake', launch() { throw Error('no launch'); } } }); controls.push(stranger);
+  const stranger = clankers.createClankersControl(state.createClankersStateContainer(), { subagentAdapter: { kind: 'fake', launch() { throw Error('no launch'); } } }); controls.push(stranger);
   assert.equal((await stranger.execute({ action: 'timeline.list', ...key })).data.entries.length, 0);
   release();
   await until(() => refs().length === 4 && refs().every((ref) => ref.attachment === 'disposed') && launches.every((launch) => state.getSubagentRunSnapshot(container.read(), launch.runId)?.status === 'done'), 'workers/leaders disposed AND both parent runs terminal');
@@ -119,11 +119,11 @@ sdk.AgentSession.prototype.dispose = function (...args) { disposals++; return or
   const retainedReceiptId = receipt.id;
   const current = owner.getState();
   owner.dispose(); // End the ORIGINAL snapshot owner before any restart injection/write.
-  current.extensions.zergSessionMessages.receipts[0].status = 'queued'; // Isolated restart-boundary injection; never enqueue/retry.
-  const manager = persistence.createZergPersistenceManager({ enabled: true, snapshotFile }); manager.save(current);
+  current.extensions.clankersSessionMessages.receipts[0].status = 'queued'; // Isolated restart-boundary injection; never enqueue/retry.
+  const manager = persistence.createClankersPersistenceManager({ enabled: true, snapshotFile }); manager.save(current);
   const requestCount = requests.length, promptCount = prompts;
   let replay = 0;
-  const restored = zerg.createZergControl(state.createZergStateContainer(), { persistence: { enabled: true, snapshotFile }, subagentAdapter: { kind: 'fake', launch() { replay++; throw Error('restart cannot launch'); }, sendMessage() { replay++; throw Error('restart cannot send'); } } }); controls.push(restored);
+  const restored = clankers.createClankersControl(state.createClankersStateContainer(), { persistence: { enabled: true, snapshotFile }, subagentAdapter: { kind: 'fake', launch() { replay++; throw Error('restart cannot launch'); }, sendMessage() { replay++; throw Error('restart cannot send'); } } }); controls.push(restored);
   const recovered = await restored.execute({ action: 'timeline.list', ...key }); assert(recovered.ok);
   const quarantined = recovered.data.entries.find((entry) => entry.kind === 'operator-receipt'); assert.equal(quarantined.status, 'needs-attention'); assert.equal(quarantined.id, retainedReceiptId);
   await restored.execute({ action: 'timeline.list', teamId: 'timeline-team' });

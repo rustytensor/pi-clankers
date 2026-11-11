@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 // @ts-expect-error Public JavaScript fixture intentionally has no declaration file.
 import { acceptance, assertQuotaReadEvidence } from './fixtures/automation-cli-acceptance.mjs';
 
-const enabled = process.env.ZERG_WORKFLOW_AUTOMATION_ACCEPTANCE === 'parent-approved';
+const enabled = process.env.CLANKERS_WORKFLOW_AUTOMATION_ACCEPTANCE === 'parent-approved';
 
 // Pure author checks: no acceptance env, SDK, transport, child process or PTY.
 const textHash = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -61,8 +61,8 @@ test('pure quota evidence rejects invalid IDs, counts, text, budget and refusal'
 test('explicit opt-in owned-loopback actual automation CLI/SDK acceptance', { skip: !enabled, timeout: 180000 }, async t => {
   // This selector belongs to the trusted test operator, never to an automation event.
   // Copy a declared installed dependency closure here to test a packed layout offline.
-  const layout = resolve(process.env.ZERG_AUTOMATION_PACKAGE_ROOT ?? fileURLToPath(new URL('../', import.meta.url)));
-  const evidence = process.env.ZERG_AUTOMATION_ACCEPTANCE_EVIDENCE ?? mkdtempSync(resolve(tmpdir(), 's8e-final-b2-evidence-'));
+  const layout = resolve(process.env.CLANKERS_AUTOMATION_PACKAGE_ROOT ?? fileURLToPath(new URL('../', import.meta.url)));
+  const evidence = process.env.CLANKERS_AUTOMATION_ACCEPTANCE_EVIDENCE ?? mkdtempSync(resolve(tmpdir(), 's8e-final-b2-evidence-'));
   const focus = process.env.S8E_ACCEPTANCE_FOCUS;
   assert.ok(focus === undefined || focus === 'quota-outcome');
   const result = await acceptance(layout, evidence, focus);

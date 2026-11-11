@@ -6,14 +6,14 @@
 
 Distributed as the Pi extension package `pi-clankers`.
 
-**Build a swarm. See the work. Keep the decisions explicit.**
+**Build agent teams. See the work. Keep the decisions explicit.**
 
 Native parallel agents, programmable workflows, and a command center for the
 **Pi coding agent**—from a focused read-only review to human-approved staged
 implementation. Define your specialists, coordinate their work, inspect the
 exact conversations, and carry useful history into a fresh task.
 
-**Install today:** [Pinned Git release v1.1.32](#quickstart), including the tested tmux subset below. The published npm package remains native-only `npm:pi-clankers@1.1.29`; npm v1.1.32 is not published.
+**Install today:** [Pinned Git release v2.0.0](#quickstart), including the tested tmux subset below. The published npm package remains native-only `npm:pi-clankers@1.1.29`; npm v2.0.0 is not published.
 
 **Workflows are the engine. Native Pi sessions do the work. You own the gates.**
 
@@ -32,7 +32,7 @@ exact conversations, and carry useful history into a fresh task.
 | **Move from findings to a reviewed candidate** | Trusted-host staged coding: investigation, separate implementation approval, private candidate edits, approved checks, independent review, then separate application approval. |
 | **See the exact agent—not a guessed conversation** | Parent/member/Pi session identities, live text and tool inspection, saved raw branch history, explicit messages and receipts, and a read-only team/run timeline. |
 | **Stay in your main Pi conversation** | Background native runs, a compact below-editor activity strip, and **Alt+G** management without waiting for workers to finish. |
-| **Automate without driving a terminal** | `/clankers` for humans; `clankers_control` and `createZergControl(...)` for structured control, with [read-only action help](#discover-actions-safely) when you need the exact arguments. A separate local CLI runs approved read-only workflow profiles. |
+| **Automate without driving a terminal** | `/clankers` for humans; `clankers_control` and `createClankersControl(...)` for structured control, with [read-only action help](#discover-actions-safely) when you need the exact arguments. A separate local CLI runs approved read-only workflow profiles. |
 | **Collect a worker's actual answer** | Exact retained final text, explicit unavailable/oversized states, optional checked JSON for standalone agents, and owner-bound completion notices. [Result contracts](#native-agent-results). |
 | **Keep interrupted work inspectable** | Opt-in run/log snapshots, explicit retry attempts, and conservative workflow recovery with current evidence and fresh trusted-host authorization—not automatic replay. |
 
@@ -49,7 +49,7 @@ exact conversations, and carry useful history into a fresh task.
 - **Models:** use your own configured Pi providers and explicit models. Model work can
   incur provider charges; installing Clankers does not include model access or credits.
 
-![Clankers overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/swarm-hero.svg)
+![Clankers overview: native agent teams, bounded workflows, exact-session inspection, and explicit human decisions](docs/assets/clankers-hero.svg)
 
 ## Workflows
 
@@ -132,6 +132,12 @@ Pi identifies packages by npm name, Git repository URL, or local path. Different
 sources can load duplicate controllers; the old v1.1.25 copy does not cooperate
 with the rename. There is no dual-install guard.
 
+**Upgrading to 2.0.0.** Every name used before 2.0.0 is gone: use `/clankers` or
+`/clank`, the `clankers_control` tool and the `pi-clankers-automation` executable.
+Saved state, snapshots, session metadata and UI preferences written under the old
+names are read once and written under the new names on first load; the old files
+are left untouched. The CHANGELOG lists the full old-to-new mapping.
+
 1. Run `pi list` and identify the exact old declaration.
 2. Before adding a different source, remove the exact old npm or Git declaration
    with `pi remove <exact-old-source>`; use `--local` for project settings.
@@ -139,28 +145,28 @@ with the rename. There is no dual-install guard.
    paths, so the old copy cannot load alongside the new one.
    **Do not delete saved data.** No global configuration is edited automatically.
 3. Add only the intended source. An unpinned update of the same Git URL retains
-   one package identity; a pinned version must explicitly select v1.1.32 instead.
+   one package identity; a pinned version must explicitly select v2.0.0 instead.
 
 The package is `pi-clankers` and the GitHub repository is now
 `https://github.com/rustytensor/pi-clankers`. GitHub redirects the old repository
 URL, but do not configure both URLs in Pi: remove the old declaration before
 adding the new URL. Existing local checkout folders remain unchanged.
 Storage stays at
-`.pi/zerg-swarm/v1/state.json` and `<agent-dir>/zerg-swarm/ui.json`.
-Native-session/result custom types retain the `pi-zerg-swarm/...` namespace;
-the authority enum remains `pi | zerg | operator`. No saved-data migration or
+`.pi/clankers/v1/state.json` and `<agent-dir>/clankers/ui.json`.
+Native-session/result custom types retain the `pi-clankers/...` namespace;
+the authority enum remains `pi | clankers | operator`. No saved-data migration or
 runtime authority expansion is implied.
 
 ## Quickstart
 
 Requires an existing Pi installation and **Node.js ≥22.19.0**. Review the package
 source before installing: Pi extensions run with your host permissions.
-Install the **v1.1.32** Git tag
+Install the **v2.0.0** Git tag
 using Pi's package manager, then start Pi in the project you want to inspect.
 Pin the release so installation does not depend on the default branch:
 
 ```sh
-pi install git:github.com/rustytensor/pi-clankers@v1.1.32
+pi install git:github.com/rustytensor/pi-clankers@v2.0.0
 pi
 ```
 
@@ -205,11 +211,11 @@ approval, automatic recovery, or shared cross-process live monitor.
 
 The sections below document command grammar, API contracts, limits, and recovery
 boundaries. `pi-clankers` is a Pi coding-agent extension, **not** a Raspberry Pi
-hardware swarm project.
+hardware project.
 
 ## Release status
 
-- Current Git release: **v1.1.32**. It finishes only the tested tmux subset documented below; remaining capabilities are intentionally deferred.
+- Current Git release: **v2.0.0**. It removes every name used before 2.0.0 (commands, tool, executable, state keys, environment variables) and keeps the tested tmux subset documented below; remaining capabilities are intentionally deferred.
 - Npm remains at **v1.1.29**. No npm publication, installation or operator reload is implied.
 - See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility notes.
 - Canonical repository: https://github.com/rustytensor/pi-clankers.
@@ -227,7 +233,6 @@ Pi supplies its SDK and TUI libraries to installed extensions. They are declared
 
 - `/clankers` — canonical command
 - `/clank` — short alias
-- `/zerg`, `/zerg-swarm`, `/swarm` — compatibility aliases for the transition
 
 These commands display help, status, expanded tree visibility, deterministic thinking-step parser output, Claude Code-style runtime agent-definition configuration, native Pi SDK-backed run execution, task-first subagent spawn state, explicit fresh/fork launch-mode metadata, command-host permission queue state, fine-grained lifecycle substate hints, bounded structured log/output inspection, restart-durable run/log recovery snapshots, process-lifetime background run status/interrupt/message support, and a componentized Pi-native interactive management TUI for live tree/detail/settings/chat/footer management views through snapshot-safe shared-state-backed Pi command handlers.
 Command-host control grammar is available via `/clankers mode status|manual|assisted|automatic|revert [reason]`, `/clankers intervene agent|subagent|leader ...`, `/clankers agents list|show|create|update|delete` with per-agent `--model`, `--fallback-models`, `--max-turns`, tools, and permission settings, `/clankers agent`/`/clankers team` lifecycle configuration flags for team leaders/members/model metadata, `/clankers runs list|show <run-id>`, `/clankers permission status|list|request|approve|deny|cancel`, `/clankers logs status|list|show|json`, `/clankers config`, and `/clankers run <agent-or-team> <task> [--bg] [--fresh|--fork] [--model <model>]`; `/clankers run` does not require `pi-subagents` and uses the native Pi SDK runner when no slash bridge responds.
@@ -251,7 +256,7 @@ Fixed, non-expanding workflows show completed top-level steps; skipped, failed a
 
 In management, focus **Settings**, then press **o** for UI preferences. Enter a shortcut such as `alt+j`, `off` to disable it, or `default` to reset to `alt+g`; press Enter to save and Escape to return. **Ctrl+V** toggles strip visibility immediately. Shortcut changes—including disable/reset—remain **pending until `/reload`**. Settings distinguish the desired value from the actual active binding; the strip shows only the active key. `/clankers config` and all four command aliases remain available.
 
-Preferences use the dedicated `<agent-dir>/zerg-swarm/ui.json` file (normally `~/.pi/agent/zerg-swarm/ui.json`):
+Preferences use the dedicated `<agent-dir>/clankers/ui.json` file (normally `~/.pi/agent/clankers/ui.json`):
 
 ```json
 {"version":1,"activityStrip":true,"managementShortcut":"alt+g"}
@@ -268,15 +273,15 @@ Print, JSON and RPC operation does not initialize the widget or require terminal
 Automation should prefer structured control over terminal automation:
 
 ```ts
-import { createZergControl } from 'pi-clankers';
+import { createClankersControl } from 'pi-clankers';
 
-const control = createZergControl({}, { persistence: { enabled: true, rootDir: process.cwd() } });
+const control = createClankersControl({}, { persistence: { enabled: true, rootDir: process.cwd() } });
 await control.execute({ action: 'agents.create', id: 'worker', prompt: 'Work directly.' });
 const run = await control.execute({ action: 'run', agent: 'worker', task: 'Investigate', background: true });
 const status = await control.execute({ action: 'runs.show', runId: run.runId! });
 ```
 
-`registerZergSwarmExtension(...)` also registers a Pi custom tool named `clankers_control`, with `zerg_control` as a deprecated functional alias to the **same controller**, when the installed Pi extension API exposes `registerTool(...)`. The tool calls the same structured control core and returns JSON-compatible `details`; callers do not need to parse slash-command output. Slash commands remain the human-facing wrapper. Neither alias emits noisy per-call warnings. Existing SDK exports (`createZergControl`, `registerZergSwarmExtension`, and `Zerg*` types) remain unchanged; only package import specifiers change.
+`registerClankersExtension(...)` also registers a Pi custom tool named `clankers_control`, with `clankers_control` as a deprecated functional alias to the **same controller**, when the installed Pi extension API exposes `registerTool(...)`. The tool calls the same structured control core and returns JSON-compatible `details`; callers do not need to parse slash-command output. Slash commands remain the human-facing wrapper. Neither alias emits noisy per-call warnings. Existing SDK exports (`createClankersControl`, `registerClankersExtension`, and `Clankers*` types) remain unchanged; only package import specifiers change.
 
 ### Discover actions safely
 
@@ -312,7 +317,7 @@ An older installed or loaded version may still reject `help`; after an operator
 updates the installed package, Pi must reload the extension (for example with
 `/reload`) before live calls use the new schema and dispatcher.
 
-Background jobs are inspectable through `/clankers runs`, `/clankers logs`, direct `runs.*`/`logs.list`, and `/clankers interrupt`/`{ action: 'interrupt' }` while the Pi process/session remains alive. v1.1.0 also supports opt-in durable snapshots under `.pi/zerg-swarm/v1/state.json` through `persistence: { enabled: true, rootDir }`, so restart can recover run/log history and mark previously active sessions as `needs-attention` instead of losing them.
+Background jobs are inspectable through `/clankers runs`, `/clankers logs`, direct `runs.*`/`logs.list`, and `/clankers interrupt`/`{ action: 'interrupt' }` while the Pi process/session remains alive. v1.1.0 also supports opt-in durable snapshots under `.pi/clankers/v1/state.json` through `persistence: { enabled: true, rootDir }`, so restart can recover run/log history and mark previously active sessions as `needs-attention` instead of losing them.
 
 Snapshots have a **64 MiB serialized UTF-8 byte limit**. Loading uses a verified regular-file descriptor and bounded reads, including a growth check; oversized or invalid inputs report `lastLoadError` without modifying the file or replacing current state. Oversized saves are rejected before temporary-file creation, leaving the previous snapshot intact. Exclusive temporary files and failure cleanup protect against pre-existing temporary-file collisions. A currently enabled read-only setting remains enabled after recovery, even if the saved state was writable.
 
@@ -326,12 +331,12 @@ If an external adapter throws during launch, execution may already have started.
 results without a terminal or completion notifier:
 
 ```json
-{"action":"agents.result","id":"worker","runId":"zerg-run","memberRunId":"zerg-run-worker","full":true}
-{"action":"agents.results","ids":["worker","reviewer"],"runId":"zerg-run"}
+{"action":"agents.result","id":"worker","runId":"clankers-run","memberRunId":"clankers-run-worker","full":true}
+{"action":"agents.results","ids":["worker","reviewer"],"runId":"clankers-run"}
 ```
 
-Slash equivalents: `/clankers agents result worker --run-id zerg-run --member-run-id zerg-run-worker --full`
-and `/clankers agents results worker,reviewer --run-id zerg-run`.
+Slash equivalents: `/clankers agents result worker --run-id clankers-run --member-run-id clankers-run-worker --full`
+and `/clankers agents results worker,reviewer --run-id clankers-run`.
 Run/member selectors are AND filters, never fallbacks. ID-only lookup is ambiguous
 when multiple executions are retained; an active matching execution requires exact
 selectors rather than returning an older completion. Missing, external-adapter and
@@ -494,7 +499,7 @@ Failure, invalid feedback, missing termination data, cancellation, or uncertain 
 
 ### Trusted-host staged coding workflows (version 3, Stage 8B)
 
-Version 3 is an explicit opt-in for trusted-host staged coding. Existing version-1 and version-2 workflow definitions remain read-only; adding a coding policy is rejected unless the definition itself uses `version: 3`. Defining or starting a workflow, inputs, prompts, and model output do **not** grant coding authority. A trusted owner must supply project/staging/check configuration through `registerZergSwarmExtension(..., { coding: { ... } })` or `createZergControl(..., { coding: { ... } })`, and the operator must grant each distinct approval. Applied-source validation passes build, package checks, and 630 tests with zero skips, including isolated actual SDK and regular/fullscreen Pi-host acceptance. This is scripted loopback evidence, not manual visual acceptance or real-model coding-quality evidence.
+Version 3 is an explicit opt-in for trusted-host staged coding. Existing version-1 and version-2 workflow definitions remain read-only; adding a coding policy is rejected unless the definition itself uses `version: 3`. Defining or starting a workflow, inputs, prompts, and model output do **not** grant coding authority. A trusted owner must supply project/staging/check configuration through `registerClankersExtension(..., { coding: { ... } })` or `createClankersControl(..., { coding: { ... } })`, and the operator must grant each distinct approval. Applied-source validation passes build, package checks, and 630 tests with zero skips, including isolated actual SDK and regular/fullscreen Pi-host acceptance. This is scripted loopback evidence, not manual visual acceptance or real-model coding-quality evidence.
 
 The default extension has no trusted coding project/staging/check configuration. Supplying ordinary `clankers_control` workflow actions can define/start/show/pause/cancel/retry/report workflows, but it cannot approve coding gates. The host-only API is `control.workflowApprovals` (or `workflowService.approvals` inside an owner integration). Interactive slash approval is deliberately human mediated:
 
@@ -530,18 +535,18 @@ A compile-tested disposable-project builder is exported directly from `workflow-
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createZergControl } from 'pi-clankers';
+import { createClankersControl } from 'pi-clankers';
 import { buildTrustedCodingWorkflowExample } from 'pi-clankers/workflow-coding-example.ts';
 
-const projectRoot = mkdtempSync(join(tmpdir(), 'zerg-coding-project-'));
-const stagingParent = mkdtempSync(join(tmpdir(), 'zerg-coding-staging-'));
+const projectRoot = mkdtempSync(join(tmpdir(), 'clankers-coding-project-'));
+const stagingParent = mkdtempSync(join(tmpdir(), 'clankers-coding-staging-'));
 mkdirSync(join(projectRoot, 'src'));
 const example = buildTrustedCodingWorkflowExample({ projectRoot, stagingParent, model: 'provider/model' });
 for (const [path, text] of Object.entries(example.initialFiles)) {
   writeFileSync(join(projectRoot, path), text, { flag: 'wx' });
 }
 
-const control = createZergControl({}, { coding: example.coding });
+const control = createClankersControl({}, { coding: example.coding });
 await control.execute({ action: 'agents.create', id: 'worker', prompt: 'Use workflow coding tools only.', model: 'provider/model' });
 await control.execute({ action: 'agents.create', id: 'reviewer', prompt: 'Independently review staged coding candidates.', model: 'provider/model' });
 await control.execute({ action: 'workflows.define', definition: example.definition });
@@ -598,7 +603,7 @@ Recovery is opt-in through trusted host options `recovery: { enabled: true }` to
 /clankers workflows recovery prepare <workflow-run-id>
 ```
 
-Aliases `/clank`, `/zerg`, `/zerg-swarm` and `/swarm` keep the same grammar. Structured actions use `workflowRunId`; `workflows.recovery.prepare` additionally accepts `selections: { reuseUnitIds, rerunUnitIds }`. Both return `data.assessment`; a successful read does not mean its plan is executable. Examine `blocked`, `plan.status`, and `fingerprint` (passed to authorization as `assessmentFingerprint`).
+The alias `/clank` keeps the same grammar. Structured actions use `workflowRunId`; `workflows.recovery.prepare` additionally accepts `selections: { reuseUnitIds, rerunUnitIds }`. Both return `data.assessment`; a successful read does not mean its plan is executable. Examine `blocked`, `plan.status`, and `fingerprint` (passed to authorization as `assessmentFingerprint`).
 
 Keep **original recorded history** separate from **current observations**. `recoveryOriginal` preserves first recovered statuses; operation intents/results, original iterations, feedback, errors, and native identities remain history. Later verified owner/check/native settlement and destination byte observations do not rewrite recorded cleanup uncertainty or manufacture an old completion. Missing or uncertain receipts are not proof that an effect did or did not happen. Destination preimage/postimage equality is a current observation, not actor attribution.
 
@@ -621,9 +626,9 @@ The host-only API is `control.workflowRecovery.authorize({ workflowRunId, assess
 Public SDK example (inspection only):
 
 ```ts
-import { createZergControl } from 'pi-clankers';
+import { createClankersControl } from 'pi-clankers';
 
-const control = createZergControl({}, {
+const control = createClankersControl({}, {
   persistence: { enabled: true, rootDir: process.cwd() },
   recovery: {
     enabled: true,
@@ -753,14 +758,13 @@ The monitor shows selection/skip reasons, current/max iteration, and termination
 
 ### External read-only triggers (Stage 8E)
 
-`pi-clankers-automation` is the canonical executable; `pi-zerg-automation`
-remains a compatibility alias to the same `automation-cli.mjs`. It runs one approved read-only workflow in the **foreground** through the existing engine, native owner, and persistence manager. This Linux-only local adapter uses OS access as caller authentication. It adds no daemon, webhook, queue, catch-up, mutation, check command, approval, or automatic replay. Same-user arbitrary code can exercise that user's permissions; hashes and event IDs are change/duplicate bindings, not authentication or an OS sandbox.
+`pi-clankers-automation` is the executable (`automation-cli.mjs`). It runs one approved read-only workflow in the **foreground** through the existing engine, native owner, and persistence manager. This Linux-only local adapter uses OS access as caller authentication. It adds no daemon, webhook, queue, catch-up, mutation, check command, approval, or automatic replay. Same-user arbitrary code can exercise that user's permissions; hashes and event IDs are change/duplicate bindings, not authentication or an OS sandbox.
 
 #### Operator setup: disabled first, then deliberate approval
 
 Use Node **>=22.19.0** and a package installation exposing `pi-clankers-automation`. Its public `.mjs` bootstrap uses directly pinned **jiti 2.7.0**, `createJiti(..., {fsCache:false})`; the executable does not install dependencies. TypeScript API consumers need a compatible loader, not bare Node resolution of the package's `.js`-to-`.ts` imports.
 
-Choose canonical absolute paths outside interactive Pi state. For example, `/srv/zerg-operator/profiles/nightly-readonly.json` controls `/srv/zerg-project`, with separate `/srv/zerg-operator/state/snapshot.json`, `/srv/zerg-operator/agent`, and `/srv/zerg-operator/sessions`. The operator must first provision the project, profiles directory, and snapshot's parent under protected ancestry; prefer owner-only directories (`0700`) and nonsecret profile files (`0600`). Every component must be effective-UID/root-owned and not group/other-writable, without symlinks; files must be regular and single-link. A root-owned sticky ancestor such as `/tmp` requires the very next directory to be protected and effective-UID-owned. Do not reuse the interactive snapshot, agent, or session directory. Existing snapshots must be private (`0600`); an absent snapshot is allowed. Only the configured agent/session directories may be created by the runner after fresh exclusive acquisition. It does not repair permissions.
+Choose canonical absolute paths outside interactive Pi state. For example, `/srv/clankers-operator/profiles/nightly-readonly.json` controls `/srv/clankers-project`, with separate `/srv/clankers-operator/state/snapshot.json`, `/srv/clankers-operator/agent`, and `/srv/clankers-operator/sessions`. The operator must first provision the project, profiles directory, and snapshot's parent under protected ancestry; prefer owner-only directories (`0700`) and nonsecret profile files (`0600`). Every component must be effective-UID/root-owned and not group/other-writable, without symlinks; files must be regular and single-link. A root-owned sticky ancestor such as `/tmp` requires the very next directory to be protected and effective-UID-owned. Do not reuse the interactive snapshot, agent, or session directory. Existing snapshots must be private (`0600`); an absent snapshot is allowed. Only the configured agent/session directories may be created by the runner after fresh exclusive acquisition. It does not repair permissions.
 
 The following **operator bootstrap** uses only pure public APIs and produces a complete **disabled, unapproved** profile. Review/adapt the paths, fixed scope, and physical model before saving its JSON as `nightly-readonly.json`; this code neither saves nor starts a workflow. Replace `your-provider` and `your-model` with the same explicit physical catalog selection in both model fields; the placeholders are not runnable model IDs or proof of SDK/provider support on your host.
 
@@ -780,15 +784,15 @@ const definition = validateWorkflowDefinition({
 });
 const profile = {
   version: 1, id: 'nightly-readonly', enabled: false, approvedProfileHash: '',
-  projectRoot: '/srv/zerg-project',
-  snapshotFile: '/srv/zerg-operator/state/snapshot.json',
-  agentDir: '/srv/zerg-operator/agent', sessionDir: '/srv/zerg-operator/sessions',
+  projectRoot: '/srv/clankers-project',
+  snapshotFile: '/srv/clankers-operator/state/snapshot.json',
+  agentDir: '/srv/clankers-operator/agent', sessionDir: '/srv/clankers-operator/sessions',
   definition, definitionId: definition.id, definitionHash: workflowHash(definition),
   fixedInputs: {}, readPaths: ['README.md'],
   agents: [{ id: 'reader', label: 'Reader', prompt: 'Read only the approved text scope.',
     source: 'runtime', model: 'your-provider/your-model:off', tools: ['read'], permissionMode: 'inherit' }],
   modelPolicy: { provider: 'your-provider', id: 'your-model', thinkingLevel: 'off' },
-  credentialSourceRef: { kind: 'env', name: 'ZERG_AUTOMATION_API_KEY' },
+  credentialSourceRef: { kind: 'env', name: 'CLANKERS_AUTOMATION_API_KEY' },
   modelConfigFile: null,
   limits: { maxEventAgeMs: 300000, maxFutureSkewMs: 30000, minIntervalMs: 60000,
     maxRetainedEvents: 16, maxRunMs: 300000, maxCleanupMs: 10000,
@@ -804,7 +808,7 @@ All profile fields shown are required and unknown fields reject. `definitionHash
 After saving the disabled profile, inspect its hash:
 
 ```sh
-pi-clankers-automation profile-hash --profiles-dir /srv/zerg-operator/profiles --profile-id nightly-readonly
+pi-clankers-automation profile-hash --profiles-dir /srv/clankers-operator/profiles --profile-id nightly-readonly
 # Returns {"version":1,"profileId":"nightly-readonly","profileHash":"<sha256>"}.
 ```
 
@@ -831,9 +835,9 @@ Provision the named environment credential through your trusted launcher, not ev
 Save a reviewed envelope as `request.json`, using the actual intended fresh occurrence rather than the illustrative timestamp above. Supply the credential in the launch environment without putting its value in scheduler logs. Manual foreground invocation and pure historical inspection:
 
 ```sh
-pi-clankers-automation run --profiles-dir /srv/zerg-operator/profiles < request.json
-pi-clankers-automation status --profiles-dir /srv/zerg-operator/profiles < request.json
-pi-clankers-automation report --profiles-dir /srv/zerg-operator/profiles < request.json
+pi-clankers-automation run --profiles-dir /srv/clankers-operator/profiles < request.json
+pi-clankers-automation status --profiles-dir /srv/clankers-operator/profiles < request.json
+pi-clankers-automation report --profiles-dir /srv/clankers-operator/profiles < request.json
 ```
 
 These operations accept only the trusted absolute `--profiles-dir`; `profile-hash` alone additionally takes `--profile-id`. `status` and `report` are the same bounded **read-only historical projection**: no ownership acquisition/release, control/model initialization, save, or live session reconnection. Public exports in `pi-clankers/automation-runner.ts` are:
@@ -857,9 +861,9 @@ An external scheduler can pass one **stable planned occurrence** to a reviewed f
 #   *) exit 2 ;;
 # esac
 # printf '{"version":1,"profileId":"nightly-readonly","eventId":"%s","occurrenceTime":"%s"}\n' "$occurrence" "$occurrence" |
-#   exec /usr/local/bin/pi-clankers-automation run --profiles-dir /srv/zerg-operator/profiles
+#   exec /usr/local/bin/pi-clankers-automation run --profiles-dir /srv/clankers-operator/profiles
 # # Example scheduler invocation after separate operator deployment/review:
-# # /usr/local/bin/zerg-readonly-occurrence 2026-10-07T00:00:00.000Z
+# # /usr/local/bin/clankers-readonly-occurrence 2026-10-07T00:00:00.000Z
 ```
 
 The executable locations are examples to adapt to the actual installed package. Timing belongs to the external scheduler; overlapping new ticks return busy, missed/expired ticks are not caught up, and there is no growing backlog. No schedule/service installation or unattended wall-clock deployment is implied.
@@ -898,7 +902,7 @@ Results contain bounded `version`, `profileId`, `eventId`, delivery (`accepted|d
 
 Native runs expose `nativeSessions` through existing structured `runs.list` / `runs.show` results and a bounded `/clankers runs show <run-id>` summary. The parent run's `metadata.nativeSessions` is the canonical ledger; typed results are isolated copies. Each schema-version-1 reference maps the exact parent/member run and agent definition to Pi's own session ID, file locator, cwd, creation timestamp, and attachment state. Team workers and the leader have separate references; simultaneous runs of the same definition are separate conversations.
 
-Before extension binding or prompting, each native Pi manager receives a namespaced `pi-zerg-swarm/native-session/v1` custom identity entry and session name. Custom identity is tree metadata, not model context. Pi owns the JSONL transcript and branching/compaction format; Clankers does not duplicate it. **The SDK allocates the ID/path before writing a file**: setup/custom entries alone do not create a transcript, and a file can be absent after startup failure or cancellation before prompting. A locator is not proof of existence, persistence, or permission to read that path.
+Before extension binding or prompting, each native Pi manager receives a namespaced `pi-clankers/native-session/v1` custom identity entry and session name. Custom identity is tree metadata, not model context. Pi owns the JSONL transcript and branching/compaction format; Clankers does not duplicate it. **The SDK allocates the ID/path before writing a file**: setup/custom entries alone do not create a transcript, and a file can be absent after startup failure or cancellation before prompting. A locator is not proof of existence, persistence, or permission to read that path.
 
 Sessions still dispose after each task. `disposed` means confirmed SDK cleanup, not lost history; a throwing cleanup leaves the reference `unavailable` without claiming disposal. With opt-in Clankers snapshot persistence enabled, the ledger survives restart; restored `attached` references become `unavailable`, even for terminal parent runs, without inventing disposal. `unavailable` does not mean reconnected. With persistence disabled, Pi's marker/history survives independently **once Pi actually writes its file**, but Clankers does not rediscover the mapping on restart.
 
@@ -1017,7 +1021,7 @@ Open `/clankers timeline`, or press **t** on a team/run in the management tree/d
 Structured control provides the same projection in `data`:
 
 ```json
-{"action":"timeline.list","parentRunId":"zerg-run-id","limit":128}
+{"action":"timeline.list","parentRunId":"clankers-run-id","limit":128}
 ```
 
 Optional flat fields are `teamId`, `parentRunId`, `memberRunId`, `piSessionId`, and `limit`. Filters combine with exact **AND** semantics: valid unknown IDs return no matches; malformed values, unsupported fields, and duplicate/unknown command flags reject rather than broaden scope. IDs are bounded to 256 UTF-16 code units without whitespace/control characters. Default limit is 128; maximum is 256. `list`, or a noninteractive host, returns bounded text instead of opening the TUI.
@@ -1038,7 +1042,7 @@ Previews are bounded (1,024 body and 256 summary UTF-16 code units; 65,536 aggre
 ![Recovery contract schematic: inert restored history, current evidence assessment, exact trusted-host authorization, and a fresh linked attempt with fresh coding gates](docs/assets/recovery-contract.svg)
 
 The current runtime connects slash commands, the `clankers_control` tool, and
-`createZergControl(...)` to the same structured control core in `index.ts`.
+`createClankersControl(...)` to the same structured control core in `index.ts`.
 Shared state and bounded logs feed management, coding, timeline, and workflow
 views; the activity strip is a display-only projection, not a scheduler.
 
@@ -1112,15 +1116,15 @@ npm run check:version
 Workflow model, scheduler, fake-native control, and UI regressions run in `npm test`, alongside the existing suites and SDK fixtures. The additional workflow SDK/PTY acceptance is opt-in after reviewing its harnesses:
 
 ```sh
-ZERG_WORKFLOW_ACCEPTANCE=parent-approved node --import tsx --test test/workflow-integration.test.ts
+CLANKERS_WORKFLOW_ACCEPTANCE=parent-approved node --import tsx --test test/workflow-integration.test.ts
 ```
 
 Restricted-script acceptance has a separate explicit opt-in for the actual SDK, regular/fullscreen host and offline packed-layout journeys:
 
 ```sh
-ZERG_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved node --import tsx --test test/workflow-script-integration.test.ts
+CLANKERS_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved node --import tsx --test test/workflow-script-integration.test.ts
 # After reviewing all applicable harnesses, run both opt-in groups:
-ZERG_WORKFLOW_ACCEPTANCE=parent-approved ZERG_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved npm test
+CLANKERS_WORKFLOW_ACCEPTANCE=parent-approved CLANKERS_WORKFLOW_SCRIPT_ACCEPTANCE=parent-approved npm test
 ```
 
 The script host fixtures drive the registered authoring command handler in an actual Pi context and use real terminal input for progress/navigation; they do not certify manually typed authoring JSON or pixel-level visual acceptance. The packed-layout smoke extracts the package and copies already-installed declared runtime/host dependencies into an owned layout with checkout fallback blocked; it does not install packages or certify package-manager installation.
@@ -1138,7 +1142,7 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v0.5.1: audit bugfix patch for fallback childIds hierarchy, explicit missing-child markers, and durable render regressions (completed)
 - v0.6.1: subagent runtime lifecycle and monitoring/status/tree command surfaces (completed)
 - v0.7.0: command-host mode/intervention controls with audited global state transitions and bounded intervention records (completed)
-- v0.7.1: audit bugfix patch for read-only `/zerg mode status`, mode-revert `contextId` clearing, and invalid/control-only/overlong mode reason regression coverage (completed)
+- v0.7.1: audit bugfix patch for read-only `/clankers mode status`, mode-revert `contextId` clearing, and invalid/control-only/overlong mode reason regression coverage (completed)
 - v0.8.0: package readiness and config hardening (completed implementation milestone)
 - v0.8.1: audit bugfix patch for release-surface/version-alignment follow-ups (completed milestone)
 - v0.9.0: release-prep/doc and package-readiness polish (completed)
@@ -1155,13 +1159,13 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.0.0: stable release with Pi-native interactive management TUI alignment (completed)
 - v1.0.1: patch release with Claude Code-style runtime agent/team/model configuration (completed)
 - v1.0.2: patch release with package/runtime version alignment (completed)
-- v1.0.3: patch release with native Pi SDK-backed `/zerg run` execution without pi-subagents (completed)
+- v1.0.3: patch release with native Pi SDK-backed `/clankers run` execution without pi-subagents (completed)
 - v1.0.4: patch release with native async/background runs, direct structured control API/tool registration, accurate terminal run status, cancellation hooks, and concurrent native team workers (completed)
-- v1.0.5: patch release with simplified KISS `/zerg config` overlay UX and Pi theme-aware management panes (completed)
+- v1.0.5: patch release with simplified KISS `/clankers config` overlay UX and Pi theme-aware management panes (completed)
 - v1.0.6: patch release with native team handoff fallback persistence, original task preservation, team-id direct runs, and scope-safe native team prompts (completed)
 - v1.1.0: minor release with restart-durable run/log recovery snapshots, additive direct message transport hooks, and author/copyright metadata alignment
-- v1.1.1: patch release exposing Larra MCP tools to native zerg agents when requested
-- v1.1.2: patch release capturing final assistant handoffs from native single-agent zerg runs
+- v1.1.1: patch release exposing Larra MCP tools to native clankers agents when requested
+- v1.1.2: patch release capturing final assistant handoffs from native single-agent clankers runs
 - v1.1.3: patch release updating native execution and extension integration for Pi 1.0.0
 - v1.1.4: patch release hardening native outcomes, cancellation, tool policy, explicit teams, and targeted messaging
 - v1.1.5: patch release isolating state subscribers and bounding extension metadata traversal
@@ -1183,7 +1187,7 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.21: patch release adding cached background activity and a configurable, conflict-checked management shortcut (Stage 9)
 - v1.1.22: documentation release introducing the visual feature showcase and public SVG diagrams
 - v1.1.23: bounded structured-control help, exact-action topics, schema discovery and helpful errors
-- v1.1.24: original retro swarm logo and refreshed GitHub presentation
+- v1.1.24: original retro logo and refreshed GitHub presentation
 - v1.1.25: native worker results, completion notices, checked JSON output and reporting-only write tracking (released)
 - v1.1.26: Clankers package/branding rename, canonical command/tool/CLI aliases and migration guidance
 - v1.1.27: renamed GitHub repository, original animated robot artwork and refreshed public page
@@ -1191,12 +1195,13 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.29: faster narrow-terminal wrapping and clearer public documentation
 - v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools
 - v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation
-- v1.1.32: tested transport, telemetry, write reporting, request caps, direct tools, pre-dispatch fallback and reviewed result-context continuation subset (current Git release)
+- v1.1.32: tested transport, telemetry, write reporting, request caps, direct tools, pre-dispatch fallback and reviewed result-context continuation subset
+- v2.0.0: breaking rename; `/clankers` and `/clank` are the only commands, `clankers_control` is the only control tool, `pi-clankers-automation` is the only executable; saved state written under the old names is converted once on first load (see the CHANGELOG mapping table) (current Git release)
 
 ## Tmux worker preview
 
 Native execution remains the default. This section describes the tested subset
-in v1.1.32, including the existing opt-in preview. It requires Linux,
+in v2.0.0, including the existing opt-in preview. It requires Linux,
 Pi 1.4 capabilities, and tmux. Standalone gates used Pi 1.4.0 with tmux 3.7c;
 the MCP and cancellation gates used Pi 1.4.0 with tmux 3.8. New subset and
 continuation gates used isolated Pi 1.5.0/tmux 3.8 fixtures, not the normal
@@ -1261,7 +1266,7 @@ and provider dispatch; missing, deferred or broadened loadouts refuse. This is
 not a general MCP bridge or permission to load arbitrary untrusted tools.
 
 Operation denies in `disallowedTools` apply across bare and prefixed spellings.
-Both controller tools (`clankers_control` and `zerg_control`) are blocked. Declaring
+Both controller tools (`clankers_control` and `clankers_control`) are blocked. Declaring
 a gateway otherwise permits Larra operations: it is not a read-only permission or
 an OS sandbox. Returned tool data does not grant permissions.
 
@@ -1310,7 +1315,7 @@ It did not install the extension into the operator session or use paid providers
 Eight-slot refusal and uncertain-cleanup handling used controlled transport,
 not eight live hosts.
 
-### Tested subset in v1.1.32
+### Tested subset in v2.0.0
 
 - **Text and inspection:** prompt, steering and settled assistant-result text are
   bounded to **128 KiB UTF-8** each. Clipped canonical final text is unavailable,

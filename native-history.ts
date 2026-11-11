@@ -1,18 +1,19 @@
 import { createHash } from 'node:crypto';
+import { normalizeCustomType } from './legacy-names.js';
 import { constants, type Stats } from 'node:fs';
 import { lstat, open, realpath } from 'node:fs/promises';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { SessionManager, type SessionHeader, type SessionEntry, type SessionContext, type SessionProjection } from '@earendil-works/pi-coding-agent';
-import type { ZergNativeSessionReference } from './types.js';
+import type { ClankersNativeSessionReference } from './types.js';
 
-export const NATIVE_SESSION_MARKER = 'pi-zerg-swarm/native-session/v1';
-export const NATIVE_ANCESTOR_SESSION_MARKER = 'pi-zerg-swarm/native-ancestor-session/v1';
-export const NATIVE_CONTINUATION_MARKER = 'pi-zerg-swarm/native-continuation/v1';
-export const NATIVE_ANCESTOR_CONTINUATION_MARKER = 'pi-zerg-swarm/native-ancestor-continuation/v1';
+export const NATIVE_SESSION_MARKER = 'pi-clankers/native-session/v1';
+export const NATIVE_ANCESTOR_SESSION_MARKER = 'pi-clankers/native-ancestor-session/v1';
+export const NATIVE_CONTINUATION_MARKER = 'pi-clankers/native-continuation/v1';
+export const NATIVE_ANCESTOR_CONTINUATION_MARKER = 'pi-clankers/native-ancestor-continuation/v1';
 export const NATIVE_HISTORY_LIMITS = { bytes: 8 * 1024 * 1024, line: 256 * 1024, entries: 10000, ancestors: 128 } as const;
 export type NativeHistoryFingerprint = { sha256: string; dev: number; ino: number; size: number; mtimeMs: number; ctimeMs: number };
 export type NativeHistory = { header: SessionHeader; entries: SessionEntry[]; fingerprint: NativeHistoryFingerprint };
-export type NativeHistoryIdentity = Pick<ZergNativeSessionReference, 'schemaVersion' | 'parentRunId' | 'memberRunId' | 'agentDefinitionId' | 'piSessionId' | 'sessionFile' | 'cwd' | 'createdAt'>;
+export type NativeHistoryIdentity = Pick<ClankersNativeSessionReference, 'schemaVersion' | 'parentRunId' | 'memberRunId' | 'agentDefinitionId' | 'piSessionId' | 'sessionFile' | 'cwd' | 'createdAt'>;
 export type NativeHistoryAncestor = { id: string; customType: string; dataDigest: string };
 export type NativeHistoryContinuation = {
   schemaVersion: 1; source: NativeHistoryIdentity; sourceFingerprint: string; entryId: string;
@@ -39,7 +40,7 @@ function validIdentity(value: unknown): value is NativeHistoryIdentity {
 function sameIdentity(a: NativeHistoryIdentity, b: NativeHistoryIdentity): boolean { return identityFields.every((field) => a[field] === b[field]); }
 
 /** Checks the complete recognized metadata set, not the last marker on the selected branch. */
-function validateProvenance(rows: Record<string, any>[], ref: ZergNativeSessionReference, header: Record<string, any>): void {
+function validateProvenance(rows: Record<string, any>[], ref: ClankersNativeSessionReference, header: Record<string, any>): void {
   if (rows.some((entry) => reserved.includes(entry.customType) && entry.type !== 'custom')) throw new Error('Saved history reserved metadata type mismatch');
   const own = rows.filter((entry) => entry.type === 'custom' && entry.customType === NATIVE_SESSION_MARKER);
   // The legacy exact-one/eight-field check is deliberately unchanged.
@@ -60,7 +61,7 @@ function validateProvenance(rows: Record<string, any>[], ref: ZergNativeSessionR
     for (const item of data.ancestors) {
       const target = record(item) ? byId.get(item.id) : undefined;
       if (!record(item) || !exact(item, ['id', 'customType', 'dataDigest']) || !id(item.id) || !sha(item.dataDigest) || seen.has(item.id) ||
-          !target || !ancestor(target) || target.customType !== item.customType || digest(target.data) !== item.dataDigest ||
+          !target || !ancestor(target) || target.customType !== normalizeCustomType(item.customType) || digest(target.data) !== item.dataDigest ||
           rows.indexOf(target) >= rows.indexOf(entry)) throw new Error('Saved history ancestor digest mismatch');
       seen.add(item.id);
     }
@@ -73,7 +74,7 @@ function validateProvenance(rows: Record<string, any>[], ref: ZergNativeSessionR
       if (header.parentSession !== undefined && header.parentSession !== data.source.sessionFile) throw new Error('Saved history continuation parentSession mismatch');
       if (data.ancestors.length !== inherited.length || data.ancestors.some((item: NativeHistoryAncestor, index: number) => {
         const expected = descriptor(inherited[index]);
-        return item.id !== expected.id || item.customType !== expected.customType || item.dataDigest !== expected.dataDigest;
+        return item.id !== expected.id || normalizeCustomType(item.customType) !== expected.customType || item.dataDigest !== expected.dataDigest;
       })) throw new Error('Saved history unaccounted ancestor metadata');
     }
   }
@@ -103,7 +104,7 @@ function sameStat(a: Stats, b: Stats): boolean {
 }
 
 /** Strict, non-repairing raw read. Never hand the source pathname to a native session manager. */
-export async function readNativeHistory(ref: ZergNativeSessionReference, options: { agentDir?: string; signal?: AbortSignal; requireFinalNewline?: boolean } = {}): Promise<NativeHistory> {
+export async function readNativeHistory(ref: ClankersNativeSessionReference, options: { agentDir?: string; signal?: AbortSignal; requireFinalNewline?: boolean } = {}): Promise<NativeHistory> {
   const abort = () => { if (options.signal?.aborted) throw new Error('Saved history load aborted'); };
   abort();
   const root = resolve(options.agentDir ?? (await import('@earendil-works/pi-coding-agent')).getAgentDir(), 'sessions');
@@ -141,7 +142,7 @@ export async function readNativeHistory(ref: ZergNativeSessionReference, options
   if (!lines.length || lines.length > NATIVE_HISTORY_LIMITS.entries + 1) throw new Error('Saved history entry limit or empty file');
   if (lines.some((line) => Buffer.byteLength(line) > NATIVE_HISTORY_LIMITS.line)) throw new Error('Saved history line limit exceeded');
   let rows: Record<string, any>[];
-  try { rows = lines.map((line) => { const value: unknown = JSON.parse(line); if (!record(value)) throw new Error(); return value; }); }
+  try { rows = lines.map((line) => { const value: unknown = JSON.parse(line); if (!record(value)) throw new Error(); return Object.hasOwn(value, 'customType') ? { ...value, customType: normalizeCustomType(value.customType) } : value; }); }
   catch { throw new Error('Saved history corrupt or partial JSONL'); }
   const header = rows.shift()!;
   if (header.type !== 'session' || header.version !== 3) throw new Error('Unsupported saved session header (requires v3)');

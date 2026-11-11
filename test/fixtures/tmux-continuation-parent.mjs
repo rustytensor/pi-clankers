@@ -10,14 +10,14 @@ assert(root.startsWith('/srv/devops/scratch/'));
 assert.equal(JSON.parse(fs.readFileSync(path.resolve(path.dirname(sdk), '../package.json'))).version, '1.5.0');
 const host = createJiti(sdk, { fsCache: false });
 const jiti = createJiti(import.meta.url, { fsCache: false, alias: { '@earendil-works/pi-coding-agent': sdk, '@earendil-works/pi-tui': host.esmResolve('@earendil-works/pi-tui') } });
-const { registerZergSwarmExtension } = await jiti.import('../../index.ts');
-const { createZergState, replaceSharedZergState } = await jiti.import('../../state.ts');
-replaceSharedZergState(createZergState({ mode: { ...createZergState().mode, automation: 'automatic', readOnly: false } }));
+const { registerClankersExtension } = await jiti.import('../../index.ts');
+const { createClankersState, replaceSharedClankersState } = await jiti.import('../../state.ts');
+replaceSharedClankersState(createClankersState({ mode: { ...createClankersState().mode, automation: 'automatic', readOnly: false } }));
 let nr = 0, nt = 0, offset = 0, timer;
 const realNow = Date.now;
 Date.now = () => realNow() + offset;
 const commands = new Map(), tools = new Map();
-const registration = registerZergSwarmExtension({ registerCommand(name, def) { commands.set(name, def); }, registerTool(def) { tools.set(def.name, def); } }, { cwd: path.join(root, 'workspace'), idFactory: { runId: () => `continuation-${++nr}`, taskId: () => `continuation-${++nt}` }, trustedTmux: { sdkModulePath: sdk, agentDir: path.join(root, 'agent'), rootDir: path.join(root, 'w'), fixtureExtensionPaths: [path.join(root, 'provider.js')] } });
+const registration = registerClankersExtension({ registerCommand(name, def) { commands.set(name, def); }, registerTool(def) { tools.set(def.name, def); } }, { cwd: path.join(root, 'workspace'), idFactory: { runId: () => `continuation-${++nr}`, taskId: () => `continuation-${++nt}` }, trustedTmux: { sdkModulePath: sdk, agentDir: path.join(root, 'agent'), rootDir: path.join(root, 'w'), fixtureExtensionPaths: [path.join(root, 'provider.js')] } });
 const control = registration.control;
 assert(commands.has('clankers') && tools.has('clankers_control'));
 function descendants() {

@@ -17,7 +17,7 @@ function authoredLabel(run: WorkflowRun, entry?: ReturnType<typeof workflowStepE
   return ` · authored ${clipped(path.join('/'), 161)}${phases.length === 1 ? ` · group ${clipped(phases[0]!.id, 80)}` : ''} · source ${clipped(authoring.sourceName, 128)}:${span.line}:${span.column}`;
 }
 
-export interface ZergWorkflowOverlayOptions {
+export interface ClankersWorkflowOverlayOptions {
   service: Pick<WorkflowService, 'list' | 'get' | 'subscribe' | 'execute' | 'approvals'>;
   /** Separate host capability, never obtained through model-facing execute actions. */
   recoveryAuthority?: WorkflowTrustedRecoveryApi;
@@ -56,7 +56,7 @@ const clipped = (value: unknown, max = 80): string => {
 };
 const hash8 = (value?: string) => value ? clipped(value, 16) : 'none';
 const statusWord = (value?: string) => value ? clipped(value, 24) : 'missing';
-function codingApprovalLines(service: ZergWorkflowOverlayOptions['service'], approvalId?: string, limit = 2): string[] {
+function codingApprovalLines(service: ClankersWorkflowOverlayOptions['service'], approvalId?: string, limit = 2): string[] {
   if (!approvalId) return [];
   try {
     const rows = service.approvals.inspect(approvalId).slice(0, limit);
@@ -134,7 +134,7 @@ function codingSummary(unit: WorkflowUnit): string {
   return ` · coding phase:${statusWord(coding.phase)} approval:${statusWord(coding.approvalStatus)} candidate:${hash8(coding.candidateHash ?? (typeof result?.candidateHash === 'string' ? result.candidateHash : undefined))} paths:${changed.length || applied.length}`
     + `${coding.evidenceHash ? ` checks/review:${hash8(coding.evidenceHash)}` : ' checks/review:missing'}${applied.length ? ` applied:${applied.length}` : ''}${outcome}`;
 }
-function codingDetailLines(unit: WorkflowUnit, service: ZergWorkflowOverlayOptions['service']): string[] {
+function codingDetailLines(unit: WorkflowUnit, service: ClankersWorkflowOverlayOptions['service']): string[] {
   if (!unit.coding) return [];
   const coding = unit.coding, result = jsonRecord(unit.result);
   const changed = Array.isArray(result?.changedPaths) ? result.changedPaths.map(String) : [];
@@ -191,15 +191,15 @@ function resultPreview(value: unknown): string {
 }
 
 /** Fresh interaction on return from the existing native coding viewer; no watcher survives drilldown. */
-export async function openZergWorkflowOverlay(context: StructuralPiCommandContext, options: ZergWorkflowOverlayOptions): Promise<void> {
+export async function openClankersWorkflowOverlay(context: StructuralPiCommandContext, options: ClankersWorkflowOverlayOptions): Promise<void> {
   if (context.hasUI === false || (context.mode !== undefined && context.mode !== 'tui') || !context.ui?.custom) throw new Error('Workflow monitor requires an interactive Pi TUI.');
   let state: ViewState | undefined; let notice = '';
   while (true) {
-    let component: ZergWorkflowComponent | undefined; let result: CodingResult | undefined;
+    let component: ClankersWorkflowComponent | undefined; let result: CodingResult | undefined;
     try {
       await Promise.resolve(context.ui.custom((tui, theme, _keys, done) => {
         component?.dispose();
-        component = new ZergWorkflowComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
+        component = new ClankersWorkflowComponent(tui, theme as UiThemeLike | undefined, (value) => { result = value; done?.(value); }, options, state, notice);
         return component;
       }, { overlay: true, overlayOptions: { title: 'clankers workflows', anchor: 'center', width: '90%', maxHeight: '82%' } }));
     } finally { component?.dispose(); }
@@ -211,7 +211,7 @@ export async function openZergWorkflowOverlay(context: StructuralPiCommandContex
 }
 
 /** Owns UI observation only, never the workflow service or native worker lifetimes. */
-export class ZergWorkflowComponent implements StructuralPiCustomComponent, Focusable {
+export class ClankersWorkflowComponent implements StructuralPiCustomComponent, Focusable {
   focused = false;
   private disposed = false;
   private unsubscribe?: () => void;
@@ -235,7 +235,7 @@ export class ZergWorkflowComponent implements StructuralPiCustomComponent, Focus
   private recoveryRequestToken = 0;
 
   constructor(private readonly tui: StructuralPiTuiHandle | undefined, private readonly theme: UiThemeLike | undefined,
-    private readonly done: ((result?: CodingResult) => void) | undefined, private readonly options: ZergWorkflowOverlayOptions,
+    private readonly done: ((result?: CodingResult) => void) | undefined, private readonly options: ClankersWorkflowOverlayOptions,
     restored?: ViewState, notice = '') {
     if (options.workflowRunId !== undefined && !validId(options.workflowRunId)) throw new Error('Invalid exact workflow run ID.');
     this.state = restored ? { ...restored } : { level: options.workflowRunId ? 'steps' : 'list', runId: options.workflowRunId, scroll: 0 };

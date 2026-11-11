@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import ts from 'typescript';
 import { freezeWorkflowData, workflowHash, workflowJson, WORKFLOW_LIMITS } from '../workflow-model.js';
-import { createZergState, createZergStateContainer, snapshotZergState } from '../state.js';
-import type { ZergExtensionFields } from '../types.js';
+import { createClankersState, createClankersStateContainer, snapshotClankersState } from '../state.js';
+import type { ClankersExtensionFields } from '../types.js';
 
 // Readonly historical oracle, not a production backdoor. Verbatim helper slices
 // from workflow-model.ts SHA256 6e1f55918609266ab4e7aa78437f354877a8c58fdba9eeca4ff51f938c5d1406
@@ -73,7 +73,7 @@ interface CloneExtensionContext {
   work: number;
 }
 
-function cloneExtensionFields(fields: ZergExtensionFields = {}): ZergExtensionFields {
+function cloneExtensionFields(fields: ClankersExtensionFields = {}): ClankersExtensionFields {
   const context = createExtensionCloneContext();
   context.active.add(fields);
   try {
@@ -134,8 +134,8 @@ function cloneExtensionValue(value: unknown, context: CloneExtensionContext = cr
   return value;
 }
 
-function cloneExtensionRecordEntries(record: Record<string, unknown>, context: CloneExtensionContext, depth: number): ZergExtensionFields {
-  const output: ZergExtensionFields = {};
+function cloneExtensionRecordEntries(record: Record<string, unknown>, context: CloneExtensionContext, depth: number): ClankersExtensionFields {
+  const output: ClankersExtensionFields = {};
   for (const [key, nested] of Object.entries(record)) {
     Object.defineProperty(output, key, {
       value: cloneExtensionValue(nested, context, depth + 1),
@@ -173,7 +173,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 const digest = (source: string) => createHash('sha256').update(source).digest('hex');
 assert.equal(digest(baselineWorkflowSource), '46ea20ee0872a7ebadcec5c5b06b796421af2c1961fb7b4481f073d24ebf9a5e');
-assert.equal(digest(baselineStateSource), '56c993163fa82b9ebc7c17c362f79012d2a99404457a41ef6ffe1144dc7f69d8');
+assert.equal(digest(baselineStateSource), '6c6512c1d4bb36cfe365c993a842929c9d9bc3c6cb8909d5f2c5f11da34ac4e8');
 function loadOracle(source: string, suffix = ''): Record<string, unknown> {
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const exports = {};
@@ -183,8 +183,8 @@ function loadOracle(source: string, suffix = ''): Record<string, unknown> {
 const baseline = {
   ...loadOracle(baselineWorkflowSource),
   ...loadOracle(baselineStateSource, '\nexports.cloneExtensionFields = cloneExtensionFields;'),
-} as { workflowJson: typeof workflowJson; workflowHash: typeof workflowHash; freezeWorkflowData: typeof freezeWorkflowData; cloneExtensionFields: (v?: ZergExtensionFields) => ZergExtensionFields };
-const clone = (extensions?: ZergExtensionFields) => createZergState({ extensions }).extensions;
+} as { workflowJson: typeof workflowJson; workflowHash: typeof workflowHash; freezeWorkflowData: typeof freezeWorkflowData; cloneExtensionFields: (v?: ClankersExtensionFields) => ClankersExtensionFields };
+const clone = (extensions?: ClankersExtensionFields) => createClankersState({ extensions }).extensions;
 
 function outcome(operation: () => unknown): unknown {
   try { return { value: operation() }; }
@@ -195,7 +195,7 @@ function compareJson(make: () => unknown, maxBytes: number = WORKFLOW_LIMITS.led
   assert.deepEqual(outcome(() => workflowHash(make())), outcome(() => baseline.workflowHash(make())));
   assert.deepEqual(outcome(() => freezeWorkflowData(make(), maxBytes)), outcome(() => baseline.freezeWorkflowData(make(), maxBytes)));
 }
-function compareClone(make: () => ZergExtensionFields): void {
+function compareClone(make: () => ClankersExtensionFields): void {
   assert.deepEqual(outcome(() => clone(make())), outcome(() => baseline.cloneExtensionFields(make())));
 }
 function chain(depth: number, leaf: unknown = null): unknown {
@@ -306,7 +306,7 @@ test('state oracle: null prototypes, unsafe own keys, symbols, nonenumerables, u
 
 test('state oracle: Object.entries snapshots getters before recursion and preserves source callback effects', () => {
   function run(fn: typeof clone) {
-    const events: string[] = [], source: ZergExtensionFields = {};
+    const events: string[] = [], source: ClankersExtensionFields = {};
     const nested = Object.defineProperty({}, 'child', { enumerable: true, get() {
       events.push('nested'); source.second = 'mutated-after-snapshot'; return 1;
     } });
@@ -357,8 +357,8 @@ test('state oracle: sparse arrays, inherited slots, ignored extras and changing 
 test('state oracle: exact depth and work counts include holes, repeated aliases and opaque values', () => {
   for (const depth of [63, 64, 65]) compareClone(() => ({ value: chain(depth - 1, {}) }));
   // A primitive at depth 65 is accepted; an object there is not.
-  compareClone(() => chain(65, 1) as ZergExtensionFields);
-  compareClone(() => chain(65, {}) as ZergExtensionFields);
+  compareClone(() => chain(65, 1) as ClankersExtensionFields);
+  compareClone(() => chain(65, {}) as ClankersExtensionFields);
   for (const length of [99998, 99999, 100000]) {
     compareClone(() => ({ array: new Array(length) }));
     compareClone(() => ({ array: Array(length).fill(0) }));
@@ -366,7 +366,7 @@ test('state oracle: exact depth and work counts include holes, repeated aliases 
   for (const length of [100000, 100001]) compareClone(() => Object.fromEntries(Array.from({ length }, (_, i) => [`k${i}`, 0])));
   compareClone(() => ({ array: Array(50000).fill({ child: 1 }) }));
   compareClone(() => ({ deep: chain(65, new Date(0)) }));
-  compareClone(() => { const x: ZergExtensionFields = {}; x.self = x; return x; });
+  compareClone(() => { const x: ClankersExtensionFields = {}; x.self = x; return x; });
   compareClone(() => { const x: unknown[] = []; x.push(x); return { x }; });
 });
 
@@ -401,7 +401,7 @@ test('state snapshots: aliases are fresh, mutable input is re-read, frozen root 
 });
 
 test('state snapshots: reads, listeners, updates and failed commits stay detached', () => {
-  const seed = { nested: { values: [1] } }, container = createZergStateContainer({ extensions: seed });
+  const seed = { nested: { values: [1] } }, container = createClankersStateContainer({ extensions: seed });
   seed.nested.values.push(2); assert.deepEqual(container.read().extensions, { nested: { values: [1] } });
   const a = container.read(), b = container.snapshot(); (a.extensions.nested as any).values.push(3);
   assert.deepEqual(container.read().extensions, b.extensions); assert.notEqual(a.extensions, b.extensions);
@@ -411,7 +411,7 @@ test('state snapshots: reads, listeners, updates and failed commits stay detache
   const result = container.update({ lifecycle: 'ready' });
   assert.deepEqual(observed, b.extensions); assert.deepEqual(result.extensions, b.extensions);
   (result.extensions.nested as any).values.push(5); assert.deepEqual(container.read().extensions, b.extensions);
-  const snapshot = snapshotZergState(container.read()); assert.deepEqual(snapshot.extensions, b.extensions);
+  const snapshot = snapshotClankersState(container.read()); assert.deepEqual(snapshot.extensions, b.extensions);
   const cyclic: any = {}; cyclic.self = cyclic;
   assert.throws(() => container.update({ extensions: cyclic }), /cycle/);
   assert.deepEqual(container.read().extensions, b.extensions);
@@ -472,9 +472,9 @@ test('budget boundary outcomes are independently pinned as well as differential'
   assert.throws(() => workflowJson(Array(20000).fill(null)), /^Error: Workflow JSON complexity exceeded$/);
   assert.doesNotThrow(() => workflowJson('é', 4));
   assert.throws(() => workflowJson('é', 3), /^Error: Workflow byte budget exceeded$/);
-  assert.doesNotThrow(() => clone(chain(64, {}) as ZergExtensionFields));
-  assert.throws(() => clone(chain(65, {}) as ZergExtensionFields), /^TypeError: Invalid extension metadata: too deep$/);
-  assert.doesNotThrow(() => clone(chain(65, 1) as ZergExtensionFields));
+  assert.doesNotThrow(() => clone(chain(64, {}) as ClankersExtensionFields));
+  assert.throws(() => clone(chain(65, {}) as ClankersExtensionFields), /^TypeError: Invalid extension metadata: too deep$/);
+  assert.doesNotThrow(() => clone(chain(65, 1) as ClankersExtensionFields));
   assert.doesNotThrow(() => clone({ holes: new Array(99999) }));
   assert.throws(() => clone({ holes: new Array(100000) }), /^TypeError: Invalid extension metadata: too large$/);
 });
@@ -489,7 +489,7 @@ type DescriptorVariant = 'data-undefined' | 'data-function' | 'data-invalid'
 const nativeDefineProperty = Object.defineProperty;
 function descriptorMutation(
   fields: ReadonlyArray<readonly [DescriptorField, DescriptorVariant]>,
-  operation: (source: ZergExtensionFields) => unknown,
+  operation: (source: ClankersExtensionFields) => unknown,
   sourceThrows = false,
 ) {
   const previous = fields.map(([key]) => [key, Object.getOwnPropertyDescriptor(Object.prototype, key)] as const);
@@ -597,7 +597,7 @@ test('state descriptor parity: nested source errors precede descriptor callbacks
 for (const method of ['update', 'replace'] as const) for (const key of ['get', 'set'] as const) {
   for (const variant of ['accessor-undefined', 'data-undefined', 'accessor-throw'] as const) {
     test(`state descriptor failure before commit: ${method}/${key}/${variant} retains revision and publishes nothing`, () => {
-      const container = createZergStateContainer({ extensions: { stable: { values: [0] } } });
+      const container = createClankersStateContainer({ extensions: { stable: { values: [0] } } });
       const before = container.read();
       let publications = 0;
       container.subscribe!(() => { publications++; });
