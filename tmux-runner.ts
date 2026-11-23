@@ -391,7 +391,11 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
         throw new Error('Fixture Node import must be an absolute canonical regular file');
       }
     }
-    const childArgv = [process.execPath, ...(fixtureImport === undefined ? [] : ['--import', fixtureImport]), entry, manifestPath];
+    // In a compiled Pi, execPath is the Pi CLI, not a Node interpreter.
+    const bun = (globalThis as { Bun?: { which(name: string, options: { PATH: string }): string | null } }).Bun;
+    const node = bun ? bun.which('node', { PATH: (env.PATH ?? '').split(':').filter(isAbsolute).join(':') }) : process.execPath;
+    if (!node || !isAbsolute(node)) throw new Error('Tmux workers require a Node executable on PATH');
+    const childArgv = [node, ...(fixtureImport === undefined ? [] : ['--import', fixtureImport]), entry, manifestPath];
     const expectedPolicy = parseTmuxModelSpec(config.modelSpec);
     if (!isAbsolute(config.sdkModulePath) || !(await admitted(() => lstat(config.sdkModulePath))).isFile() ||
         !(await admitted(() => lstat(entry))).isFile()) throw new Error('Unsupported SDK/entry layout');
@@ -447,7 +451,8 @@ async function launchTmuxWorker(options: TmuxLaunchOptions): Promise<TmuxWorkerH
       if(process.connected)process.send({pid:child.pid});else stop();
     `;
     assertAdmission();
-    server = spawn(process.execPath, ['-e', broker, serverSocket, manifestPath], {
+    server = spawn(node, ['-e', broker, serverSocket, manifestPath], {
+      serialization: 'json',
       detached: true, env, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     });
     server.on('message', message => {

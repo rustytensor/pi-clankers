@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-23
+
+### Fixed
+- Fresh tmux workers now start under compiled Pi: the production install includes the worker SDK, and the broker and worker run under Node rather than the Pi executable.
+
 ## [2.0.0] - 2026-11-10
 
 ### Changed (breaking)

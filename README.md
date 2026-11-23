@@ -1196,7 +1196,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.30: persistent standalone tmux workers with shared human control and bounded MCP tools
 - v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation
 - v1.1.32: tested transport, telemetry, write reporting, request caps, direct tools, pre-dispatch fallback and reviewed result-context continuation subset
-- v2.0.0: breaking rename; `/clankers` and `/clank` are the only commands, `clankers_control` is the only control tool, `pi-clankers-automation` is the only executable; saved state written under the old names is converted once on first load (see the CHANGELOG mapping table) (current Git release)
+- v2.0.0: breaking rename; `/clankers` and `/clank` are the only commands, `clankers_control` is the only control tool, `pi-clankers-automation` is the only executable; saved state written under the old names is converted once on first load (see the CHANGELOG mapping table)
+- v2.0.1: fix fresh tmux worker startup under compiled Pi (current Git release)
 
 ## Tmux worker preview
 
@@ -1205,7 +1206,10 @@ in v2.0.0, including the existing opt-in preview. It requires Linux,
 Pi 1.4 capabilities, and tmux. Standalone gates used Pi 1.4.0 with tmux 3.7c;
 the MCP and cancellation gates used Pi 1.4.0 with tmux 3.8. New subset and
 continuation gates used isolated Pi 1.5.0/tmux 3.8 fixtures, not the normal
-operator environment.
+operator environment. With compiled Pi, fresh tmux workers use Node (>=22.19.0)
+from the host PATH and the extension's installed worker SDK. Reinstall the
+package with its production dependencies after upgrading; Pi's in-process SDK
+is not importable by a separate worker process.
 It is not included in npm v1.1.29. Model work uses your configured provider and
 can incur charges. Idle waiting does not request model work.
 
