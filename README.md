@@ -1197,7 +1197,8 @@ These Linux/Python/installed-Pi fixtures use empty owned environments, scripted 
 - v1.1.31: eight persistent tmux worker slots and configured teams with bounded results and isolated cancellation
 - v1.1.32: tested transport, telemetry, write reporting, request caps, direct tools, pre-dispatch fallback and reviewed result-context continuation subset
 - v2.0.0: breaking rename; `/clankers` and `/clank` are the only commands, `clankers_control` is the only control tool, `pi-clankers-automation` is the only executable; saved state written under the old names is converted once on first load (see the CHANGELOG mapping table)
-- v2.0.1: fix fresh tmux worker startup under compiled Pi (current Git release)
+- v2.0.1: fix fresh tmux worker startup under compiled Pi
+- v2.0.2: separate the worker SDK from Pi's host peer and recognize the compiled Pi 1.6.0 shortcut catalog (current Git release)
 
 ## Tmux worker preview
 

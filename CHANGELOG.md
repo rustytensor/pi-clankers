@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-23
+
+### Fixed
+- Pi now supplies the extension SDK as a peer; standalone Node workers resolve their pinned SDK under a separate name, removing the host dependency warning without breaking tmux startup.
+- Recognize compiled Linux Pi 1.6.0's shortcut resolver so the management hotkey works without a spurious warning. Unknown resolvers and conflicting bindings still disable the shortcut.
+
 ## [2.0.1] - 2026-11-23
 
 ### Fixed

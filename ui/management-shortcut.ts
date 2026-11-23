@@ -240,8 +240,8 @@ export function createManagementShortcutController(options: ManagementShortcutCo
           },
           runnerClass: options.runnerClass,
         });
-        if (!guard.installed) { reason = loadError ?? 'Unsupported/occupied Pi shortcut catalog guard; use /clankers config.'; warnOnce(reason); removeInput(); removeInput = undefined; attached = false; changed(); }
-      } catch { attached = false; reason = loadError ?? 'Management shortcut integration unavailable; use /clankers config.'; warnOnce(reason); try { removeInput?.(); } catch { /* Cleanup only. */ } removeInput = undefined; guard?.dispose(); changed(); }
+        if (!guard.installed) { reason = loadError ?? 'Unsupported/occupied Pi shortcut catalog guard.'; warnOnce(reason); removeInput(); removeInput = undefined; attached = false; changed(); }
+      } catch { attached = false; reason = loadError ?? 'Management shortcut integration unavailable.'; warnOnce(reason); try { removeInput?.(); } catch { /* Cleanup only. */ } removeInput = undefined; guard?.dispose(); changed(); }
     },
     setTui(value: ManagementShortcutTui | undefined) { token = undefined; generation += 1; tui = disposed ? undefined : value; },
     promptStart() { token = undefined; promptDepth = Math.min(256, promptDepth + 1); },

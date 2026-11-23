@@ -275,6 +275,8 @@ export interface ManagementCatalogGuardOptions {
 }
 const managementCatalogPatches = new WeakMap<object, object>();
 const knownCatalogResolvers = new Set([
+  // Compiled Linux Pi 1.6.0: same getShortcuts implementation, Bun-printed source.
+  '1c1ff278172e67fbd538a4ba401873517dfd9d2ad1ef5f79ff49fd05fa3d5b68',
   'd9d78489cfef4f6aab01d18fecf82e1d32ebb4b089b8878e5f04aef73e9d1c91',
   '9fc1ea488493e382f885ad636e94615e6c366382ca0d62e8d9f6a65c6ae20f05',
 ]);

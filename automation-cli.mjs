@@ -117,7 +117,8 @@ export async function automationMain(argv = process.argv.slice(2)) {
     const args = parseAutomationArguments(argv);
     // Public bootstrap only. Packaging pins the direct dependency to jiti 2.7.0.
     const { createJiti } = await import('jiti');
-    const jiti = createJiti(import.meta.url, { fsCache: false });
+    const resolver = createJiti(import.meta.url, { fsCache: false });
+    const jiti = createJiti(import.meta.url, { fsCache: false, alias: { '@earendil-works/pi-coding-agent': resolver.esmResolve('pi-clankers-worker-sdk') } });
     let result;
     if (args.operation === 'profile-hash') {
       const profileModule = await jiti.import('./automation-profile.ts');

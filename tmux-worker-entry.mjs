@@ -15,7 +15,8 @@ try {
   const config = await readTmuxWorkerManifest(process.argv[2]);
   process.env.PI_CODING_AGENT_DIR = config.agentDir;
   process.env.PI_CODING_AGENT_SESSION_DIR = config.sessionDir;
-  const { startTmuxWorker } = await jiti.import('./tmux-worker-bootstrap.ts');
+  const workerLoader = createJiti(import.meta.url, { fsCache: false, interopDefault: false, alias: { '@earendil-works/pi-coding-agent': config.sdkModulePath } });
+  const { startTmuxWorker } = await workerLoader.import('./tmux-worker-bootstrap.ts');
   await startTmuxWorker(config);
 } catch {
   // Never serialize exceptions, manifest contents, paths, credentials, or nonce to the pane.

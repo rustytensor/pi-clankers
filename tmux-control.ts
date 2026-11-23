@@ -13,6 +13,10 @@ import { AGENT_RESULTS_KEY, captureAssistantResultText, normalizeMayWrite, norma
 
 import { resolveTmuxToolPolicy, parseTmuxMcpCommand, type TmuxMcpCommand } from './tmux-mcp.js';
 
+export function resolveWorkerSdk(): string {
+  return fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('pi-clankers-worker-sdk'));
+}
+
 /** Trusted host-only injection. These paths are never accepted in control JSON. */
 export interface TrustedTmuxOptions {
   sdkModulePath?: string;
@@ -325,7 +329,7 @@ export function createTmuxControl(container: ClankersStateContainer, options: Op
       const ids = options.ids(); checkIds(ids);
       const binding: TeamBinding = { ...ids, parentRunId: team.runId, parentTaskId: team.taskId, teamId: teamDefinition.id, token: team.token };
       const target: Worker = { workerId: `clankers-${randomUUID()}`, definition: frozen, model, teamReserved: true };
-      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
+      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? resolveWorkerSdk(), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
       return { target, binding, launch };
     });
     const base = `Run id: ${team.runId}\nTask: ${request.task}\nFollow the original task and permission constraints exactly. Do not modify files or run mutating commands unless the task authorizes it. Return results in your final message; no additional handoff-file writes are authorized.`;
@@ -504,7 +508,7 @@ export function createTmuxControl(container: ClankersStateContainer, options: Op
     if (options.trusted?.fixtureNodeImportPath || options.trusted?.fixtureMcpCommand) throw new Error('Continuation refuses custom loader preloads and MCP commands');
     const definition = getAgentDefinition(container.read(), agentId);
     if (!definition || container.read().teams[agentId]) throw new Error('Exact current standalone definition required');
-    const sdkModulePath = options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent'));
+    const sdkModulePath = options.trusted?.sdkModulePath ?? resolveWorkerSdk();
     const sdk = await import(pathToFileURL(sdkModulePath).href) as { getAgentDir(): string };
     const agentDir = options.trusted?.agentDir ?? sdk.getAgentDir();
     const { tools, disallowedTools } = resolveTmuxToolPolicy(definition.tools, definition.disallowedTools);
@@ -535,7 +539,7 @@ export function createTmuxControl(container: ClankersStateContainer, options: Op
       frozen.result_schema = normalizeResultSchema(definition.result_schema);
       frozen.may_write = normalizeMayWrite(definition.may_write);
       const target: Worker = { workerId: `clankers-${randomUUID()}`, definition: frozen, model, continuation: !!admission };
-      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? fileURLToPath(createJiti(import.meta.url, { fsCache: false }).esmResolve('@earendil-works/pi-coding-agent')), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
+      const launch: TmuxLaunchOptions = { cwd: options.cwd, agentDir: options.trusted?.agentDir ?? '', sdkModulePath: options.trusted?.sdkModulePath ?? resolveWorkerSdk(), modelSpec: model, ...(frozen.fallbackModels === undefined ? {} : { fallbackModels: frozen.fallbackModels }), ...(frozen.maxTurns === undefined ? {} : { maxTurns: frozen.maxTurns }), definitionPrompt: frozen.prompt, tools, disallowedTools, workerId: target.workerId, ...(options.trusted?.rootDir ? { rootDir: options.trusted.rootDir } : {}), ...(options.trusted?.fixtureExtensionPaths ? { fixtureExtensionPaths: [...options.trusted.fixtureExtensionPaths] } : {}), ...(options.trusted?.fixtureNodeImportPath ? { fixtureNodeImportPath: options.trusted.fixtureNodeImportPath } : {}), ...(options.trusted?.fixtureMcpCommand ? { fixtureMcpCommand: parseTmuxMcpCommand(options.trusted.fixtureMcpCommand) } : {}) };
       if (admission) launch.assertAdmission = () => { authority(); admission.assertCurrent(); if (!ownsWorker(target) || target.closing) throw new Error('Continuation launch revoked'); };
       authority(signal); admission?.assertCurrent();
       // Recheck after all host-controlled launch inputs; no callback between check and reserve.

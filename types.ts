@@ -18,7 +18,7 @@ export interface TrustedAutomationNativeContext {
 export type { WorkflowAction, WorkflowDefinition, WorkflowRun, WorkflowView, WorkflowReply, WorkflowNativeLineage } from './workflow-model.js';
 
 export const CLANKERS_COMMANDS = ['clankers', 'clank'] as const;
-export const CLANKERS_EXTENSION_VERSION = '2.0.0' as const;
+export const CLANKERS_EXTENSION_VERSION = '2.0.2' as const;
 export type ClankersCommandName = (typeof CLANKERS_COMMANDS)[number];
 export const CLANKERS_COMMAND_INVOCATIONS = ['/clankers', '/clank'] as const;
 export type ClankersCommandInvocation = (typeof CLANKERS_COMMAND_INVOCATIONS)[number];

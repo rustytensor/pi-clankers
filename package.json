@@ -1,6 +1,6 @@
 {
   "name": "pi-clankers",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Pi coding-agent extension for native configurable agent teams, durable recovery, direct control, and coordinated subagent orchestration.",
   "type": "module",
   "license": "MIT",
@@ -109,15 +109,17 @@
     "node": ">=22.19.0"
   },
   "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "1.6.0",
+    "pi-clankers-worker-sdk": "npm:@earendil-works/pi-coding-agent@1.6.0",
     "ajv": "8.20.0",
     "jiti": "2.7.0",
     "typescript": "5.9.3"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.6.0",
     "@earendil-works/pi-tui": "^1.0.0",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0"
